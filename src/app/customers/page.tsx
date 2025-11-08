@@ -47,7 +47,7 @@ export default function CustomersPage() {
   const { toast } = useToast();
 
   const handleExportTemplate = () => {
-    const headers = 'id,name,email,phone,address,joinDate,status\n';
+    const headers = 'id,name,email,phone\n';
     const blob = new Blob([headers], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -82,9 +82,6 @@ export default function CustomersPage() {
                 name: customerData.name,
                 email: customerData.email,
                 phone: customerData.phone,
-                address: customerData.address || '',
-                joinDate: customerData.joinDate || new Date().toISOString().split('T')[0],
-                status: customerData.status || 'active',
             } as Customer;
           });
           setCustomers(prev => [...prev, ...newCustomers]);

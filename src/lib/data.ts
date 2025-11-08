@@ -3,9 +3,6 @@ export type Customer = {
   name: string;
   email?: string;
   phone?: string;
-  address: string;
-  joinDate: string;
-  status: 'active' | 'inactive';
 };
 
 export const customers: Customer[] = [
@@ -14,45 +11,30 @@ export const customers: Customer[] = [
     name: 'Ramesh Patel',
     email: 'ramesh@example.com',
     phone: '9876543210',
-    address: '123, Gandhi Road, Ahmedabad',
-    joinDate: '2023-01-15',
-    status: 'active',
   },
   {
     id: 'CUST-002',
     name: 'Sita Sharma',
     email: 'sita@example.com',
     phone: '9876543211',
-    address: '456, Nehru Marg, Surat',
-    joinDate: '2023-02-20',
-    status: 'active',
   },
   {
     id: 'CUST-003',
     name: 'Amit Singh',
     email: 'amit@example.com',
     phone: '9876543212',
-    address: '789, Station Road, Vadodara',
-    joinDate: '2023-03-10',
-    status: 'inactive',
   },
   {
     id: 'CUST-004',
     name: 'Priya Mehta',
     email: 'priya@example.com',
     phone: '9876543213',
-    address: '101, Palace Road, Rajkot',
-    joinDate: '2023-04-05',
-    status: 'active',
   },
   {
     id: 'CUST-005',
     name: 'Vijay Shah',
     email: 'vijay@example.com',
     phone: '9876543214',
-    address: '212, M.G. Road, Bhavnagar',
-    joinDate: '2023-05-12',
-    status: 'active',
   },
 ];
 
