@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select';
 import { PlusCircle, Printer, Save, Send, Trash2 } from 'lucide-react';
 import Link from 'next/link';
+import { customers } from '@/lib/data';
 
 type LoanRow = {
   id: number;
@@ -101,7 +102,18 @@ export default function LoansPage() {
                 <TableRow key={row.id}>
                   <TableCell className="font-medium">{index + 1}</TableCell>
                   <TableCell>
-                    <Input placeholder="Enter name" />
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select customer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </TableCell>
                   <TableCell>
                     <Input type="number" placeholder="₹0.00" />

@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PlusCircle, Printer, Save, Send, Trash2 } from 'lucide-react';
+import { customers } from '@/lib/data';
 
 type DepositRow = {
   id: number;
@@ -108,7 +109,18 @@ export default function DepositsPage() {
                 <TableRow key={row.id}>
                   <TableCell className="font-medium">{index + 1}</TableCell>
                   <TableCell>
-                    <Input placeholder="Enter customer name" />
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select customer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </TableCell>
                   <TableCell>
                     <Input type="number" placeholder="₹0.00" />
