@@ -25,6 +25,7 @@ import {
   useFirestore,
   useDoc,
   setDocumentNonBlocking,
+  deleteDocumentNonBlocking,
   useMemoFirebase,
 } from '@/firebase';
 import { doc, Timestamp } from 'firebase/firestore';
@@ -35,6 +36,7 @@ import {
   Undo2,
   Calendar as CalendarIcon,
   Percent,
+  Trash2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
@@ -68,10 +70,14 @@ function SessionManagement() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isStartSessionDialogOpen, setIsStartSessionDialogOpen] = useState(false);
+  const [isStartSessionDialogOpen, setIsStartSessionDialogOpen] =
+    useState(false);
   const [isEndSessionDialogOpen, setIsEndSessionDialogOpen] = useState(false);
   const [isRevertSessionDialogOpen, setIsRevertSessionDialogOpen] =
     useState(false);
+  const [isDeleteSessionDialogOpen, setIsDeleteSessionDialogOpen] =
+    useState(false);
+  const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [interestRate, setInterestRate] = useState<number | ''>('');
 
@@ -92,7 +98,15 @@ function SessionManagement() {
       });
       return;
     }
-     if (interestRate === '' || interestRate <= 0) {
+    if (!startDate) {
+      toast({
+        variant: 'destructive',
+        title: 'Start Date Required',
+        description: 'Please select a start date for the session.',
+      });
+      return;
+    }
+    if (interestRate === '' || interestRate <= 0) {
       toast({
         variant: 'destructive',
         title: 'Invalid Interest Rate',
@@ -105,7 +119,7 @@ function SessionManagement() {
     const newSession: Omit<Session, 'endDate'> = {
       id: 'status',
       status: 'active',
-      startDate: Timestamp.now(),
+      startDate: Timestamp.fromDate(startDate),
       interestRate: interestRate,
     };
     setDocumentNonBlocking(sessionDocRef, newSession, { merge: false });
@@ -114,6 +128,7 @@ function SessionManagement() {
       description: `A new financial session has been started with an interest rate of ${interestRate}%.`,
     });
     setIsStartSessionDialogOpen(false);
+    setStartDate(undefined);
     setInterestRate('');
     setIsProcessing(false);
   };
@@ -153,35 +168,14 @@ function SessionManagement() {
   };
 
   const confirmRevertSession = () => {
-    if (!firestore || !sessionDocRef) return;
+    if (!firestore || !sessionDocRef || !session) return;
     setIsProcessing(true);
-    const revertedSession = {
-      status: 'active',
-      // By using merge:true, we only update the fields provided.
-      // We don't need to explicitly remove endDate, we just don't provide it.
-      // However, to be extra safe and handle a previous state where endDate might have been null,
-      // it's better to explicitly set it to be removed.
-      // The Firestore SDK has `deleteField()` for this, but here we can just not include it.
-      // To ensure it is removed if it exists we will set it to undefined in the object
-      // and use a helper to remove undefined fields before sending.
-      // For this case, we know it's being merged on an existing object that has an endDate, so we update it.
-      // A better approach is to create a new object and overwrite.
-      // Let's go with a specific update.
-    };
-    
-    const updateData: Partial<Session> = {
-        status: 'active'
-    };
-    
-    // To 'remove' a field when merging, you'd typically use FieldValue.delete().
-    // Since we aren't using the admin SDK, and to avoid complexity,
-    // we'll fetch and overwrite, but without endDate.
-    const newSessionState: Omit<Session, 'endDate'> & {endDate?: any} = {
-        ...session!,
-        status: 'active',
-    }
-    delete newSessionState.endDate;
 
+    const newSessionState: Partial<Session> & { endDate?: any } = {
+      ...session,
+      status: 'active',
+    };
+    delete newSessionState.endDate;
 
     setDocumentNonBlocking(sessionDocRef, newSessionState, { merge: false });
 
@@ -190,6 +184,18 @@ function SessionManagement() {
       description: 'The session has been reopened.',
     });
     setIsRevertSessionDialogOpen(false);
+    setIsProcessing(false);
+  };
+
+  const confirmDeleteSession = () => {
+    if (!firestore || !sessionDocRef) return;
+    setIsProcessing(true);
+    deleteDocumentNonBlocking(sessionDocRef);
+    toast({
+      title: 'Session Deleted',
+      description: 'The session has been deleted.',
+    });
+    setIsDeleteSessionDialogOpen(false);
     setIsProcessing(false);
   };
 
@@ -211,11 +217,13 @@ function SessionManagement() {
               </div>
             ) : (
               <div className="flex flex-col gap-4 rounded-lg border p-4">
-                <div className='flex items-center justify-between'>
+                <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-semibold">Current Session Status</h3>
                     <p className="text-sm text-muted-foreground">
-                      {session?.status ? 'Session is ' : 'No session started yet.'}
+                      {session?.status
+                        ? 'Session is '
+                        : 'No session started yet.'}
                     </p>
                   </div>
                   <Badge
@@ -239,39 +247,53 @@ function SessionManagement() {
                 </div>
 
                 {session && (
-                  <div className='text-sm text-muted-foreground grid grid-cols-2 gap-2 pt-2 border-t'>
-                    {session.startDate && 
-                      <div className='flex items-center gap-2'>
-                        <CalendarIcon className='h-4 w-4' />
-                        <span>Started: {format(session.startDate.toDate(), 'PPP')}</span>
+                  <div className="grid grid-cols-2 gap-2 border-t pt-2 text-sm text-muted-foreground">
+                    {session.startDate && (
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="h-4 w-4" />
+                        <span>
+                          Started: {format(session.startDate.toDate(), 'PPP')}
+                        </span>
                       </div>
-                    }
-                    {session.interestRate &&
-                       <div className='flex items-center gap-2'>
-                        <Percent className='h-4 w-4' />
+                    )}
+                    {session.interestRate && (
+                      <div className="flex items-center gap-2">
+                        <Percent className="h-4 w-4" />
                         <span>Interest Rate: {session.interestRate}%</span>
                       </div>
-                    }
-                    {session.status === 'closed' && session.endDate &&
-                      <div className='flex items-center gap-2 col-span-2'>
-                        <CalendarIcon className='h-4 w-4' />
-                        <span>Ended: {format(session.endDate.toDate(), 'PPP')}</span>
+                    )}
+                    {session.status === 'closed' && session.endDate && (
+                      <div className="flex items-center gap-2 col-span-2">
+                        <CalendarIcon className="h-4 w-4" />
+                        <span>
+                          Ended: {format(session.endDate.toDate(), 'PPP')}
+                        </span>
                       </div>
-                    }
+                    )}
                   </div>
                 )}
               </div>
             )}
           </CardContent>
-          <CardFooter className="flex justify-end gap-4">
+          <CardFooter className="flex flex-wrap justify-end gap-4">
             {session?.status === 'closed' && (
-              <Button
-                variant="outline"
-                onClick={() => setIsRevertSessionDialogOpen(true)}
-                disabled={isProcessing}
-              >
-                <Undo2 className="mr-2 h-4 w-4" /> Revert to Active
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsRevertSessionDialogOpen(true)}
+                  disabled={isProcessing}
+                >
+                  <Undo2 className="mr-2 h-4 w-4" /> Revert to Active
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => setIsDeleteSessionDialogOpen(true)}
+                  disabled={isProcessing}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" /> Delete Session
+                </Button>
+              </>
             )}
             <Button
               variant="destructive"
@@ -290,17 +312,47 @@ function SessionManagement() {
           </CardFooter>
         </Card>
       </div>
-      
-       {/* Start Session Dialog */}
-      <Dialog open={isStartSessionDialogOpen} onOpenChange={setIsStartSessionDialogOpen}>
+
+      {/* Start Session Dialog */}
+      <Dialog
+        open={isStartSessionDialogOpen}
+        onOpenChange={setIsStartSessionDialogOpen}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Start New Financial Session</DialogTitle>
             <DialogDescription>
-              To start a new session, please provide the annual interest rate. This cannot be changed later.
+              To start a new session, please provide the start date and annual interest rate. This cannot be changed later.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="start-date" className="text-right">
+                Start Date
+              </Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={'outline'}
+                    className={cn(
+                      'col-span-3 justify-start text-left font-normal',
+                      !startDate && 'text-muted-foreground'
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {startDate ? format(startDate, 'PPP') : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    onSelect={setStartDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="interest-rate" className="text-right">
                 Interest Rate (%)
@@ -316,15 +368,21 @@ function SessionManagement() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsStartSessionDialogOpen(false)}>Cancel</Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsStartSessionDialogOpen(false)}
+            >
+              Cancel
+            </Button>
             <Button onClick={handleStartSession} disabled={isProcessing}>
-              {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {isProcessing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
               Confirm & Start
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
 
       {/* End Session Dialog */}
       <AlertDialog
@@ -407,6 +465,35 @@ function SessionManagement() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
               Confirm Revert
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Session Dialog */}
+      <AlertDialog
+        open={isDeleteSessionDialogOpen}
+        onOpenChange={setIsDeleteSessionDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this Session?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              session record.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteSession}
+              disabled={isProcessing}
+              className={buttonVariants({ variant: 'destructive' })}
+            >
+              {isProcessing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Confirm Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
