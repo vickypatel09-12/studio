@@ -32,13 +32,13 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Printer, Save, Send, CalendarIcon } from 'lucide-react';
+import { Printer, Save, Send, CalendarIcon, Info } from 'lucide-react';
 import Link from 'next/link';
 import { customers } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type LoanChangeType = 'new' | 'increase' | 'decrease';
 
@@ -59,7 +59,7 @@ const LOANS_STORAGE_KEY = 'loans-draft';
 
 export default function LoansPage() {
   const [isClient, setIsClient] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [loans, setLoans] = useState<Loan[]>([]);
   const { toast } = useToast();
 
@@ -71,7 +71,10 @@ export default function LoansPage() {
       const { date, data } = JSON.parse(savedData);
       setSelectedDate(new Date(date));
       setLoans(data);
-      toast({ title: 'Draft Loaded', description: 'Your previously saved draft has been loaded.' });
+      toast({
+        title: 'Draft Loaded',
+        description: 'Your previously saved draft has been loaded.',
+      });
     } else {
       // Initialize with default data if nothing is saved
       const initialLoans = customers.map((c) => ({
@@ -91,24 +94,23 @@ export default function LoansPage() {
   // Update interest total whenever carryFwd changes (only on initial load for now)
   useEffect(() => {
     if (loans.length > 0) {
-        setLoans((prevLoans) =>
+      setLoans((prevLoans) =>
         prevLoans.map((loan) => {
-            const monthlyInterest = (loan.carryFwd * ANNUAL_INTEREST_RATE) / 12;
-            const currentInterestSum = loan.interestCash + loan.interestBank;
-            if (Math.abs(currentInterestSum - monthlyInterest) > 0.01) {
+          const monthlyInterest = (loan.carryFwd * ANNUAL_INTEREST_RATE) / 12;
+          const currentInterestSum = loan.interestCash + loan.interestBank;
+          if (Math.abs(currentInterestSum - monthlyInterest) > 0.01) {
             return {
-                ...loan,
-                interestTotal: monthlyInterest,
-                interestCash: monthlyInterest, // Default to cash
-                interestBank: 0,
+              ...loan,
+              interestTotal: monthlyInterest,
+              interestCash: monthlyInterest, // Default to cash
+              interestBank: 0,
             };
-            }
-            return { ...loan, interestTotal: monthlyInterest };
+          }
+          return { ...loan, interestTotal: monthlyInterest };
         })
-        );
+      );
     }
   }, []);
-
 
   const handleLoanChange = (
     customerId: string,
@@ -137,7 +139,7 @@ export default function LoansPage() {
             newLoan.interestBank = numericValue;
             newLoan.interestCash = newLoan.interestTotal - numericValue;
           } else {
-             (newLoan as any)[field] = numericValue;
+            (newLoan as any)[field] = numericValue;
           }
 
           return newLoan;
@@ -146,7 +148,7 @@ export default function LoansPage() {
       })
     );
   };
-  
+
   const getChangeTotal = (loan: Loan) => {
     return (Number(loan.changeCash) || 0) + (Number(loan.changeBank) || 0);
   };
@@ -155,8 +157,16 @@ export default function LoansPage() {
     // Return the calculated total, not the sum of inputs
     return loan.interestTotal;
   };
-  
+
   const handleSaveDraft = () => {
+    if (!selectedDate) {
+      toast({
+        variant: 'destructive',
+        title: 'Date Not Selected',
+        description: 'Please select a date before saving a draft.',
+      });
+      return;
+    }
     const dataToSave = {
       date: selectedDate.toISOString(),
       data: loans,
@@ -167,7 +177,6 @@ export default function LoansPage() {
       description: 'Your loans data has been saved locally.',
     });
   };
-
 
   const totals = useMemo(() => {
     return loans.reduce(
@@ -186,13 +195,13 @@ export default function LoansPage() {
         changeBank: 0,
         interestCash: 0,
         interestBank: 0,
-        interestTotal: 0
+        interestTotal: 0,
       }
     );
   }, [loans]);
 
   const totalChange = totals.changeCash + totals.changeBank;
-  
+
   if (!isClient) {
     return null;
   }
@@ -232,7 +241,7 @@ export default function LoansPage() {
               <Calendar
                 mode="single"
                 selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(date)}
+                onSelect={setSelectedDate}
                 initialFocus
               />
             </PopoverContent>
@@ -240,180 +249,195 @@ export default function LoansPage() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead rowSpan={2} className="w-[50px]">
-                  Sr.
-                </TableHead>
-                <TableHead rowSpan={2}>Customer</TableHead>
-                <TableHead rowSpan={2} className="w-[150px]">Carry Fwd</TableHead>
-                <TableHead colSpan={4} className="text-center">
-                  New Loan / Change
-                </TableHead>
-                <TableHead colSpan={3} className="text-center">
-                  Interest
-                </TableHead>
-              </TableRow>
-              <TableRow>
-                <TableHead className="w-[150px]">Type</TableHead>
-                <TableHead className="w-[150px] text-right">Cash</TableHead>
-                <TableHead className="w-[150px] text-right">Bank</TableHead>
-                <TableHead className="w-[150px] text-right">Total</TableHead>
-                <TableHead className="w-[150px] text-right">Cash</TableHead>
-                <TableHead className="w-[150px] text-right">Bank</TableHead>
-                <TableHead className="w-[150px] text-right">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {customers.map((customer, index) => {
-                const loan = loans.find((l) => l.customerId === customer.id)!;
-                if (!loan) return null; // Defensive check
-                const changeTotal = getChangeTotal(loan);
-                const interestTotal = getInterestTotal(loan);
-
-                return (
-                  <TableRow key={customer.id}>
-                    <TableCell className="font-medium">{index + 1}</TableCell>
-                    <TableCell>{customer.name}</TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        placeholder="₹0.00"
-                        value={loan.carryFwd || ''}
-                        onChange={(e) =>
-                          handleLoanChange(
-                            customer.id,
-                            'carryFwd',
-                            e.target.value
-                          )
-                        }
-                        disabled
-                        className="text-right"
-                      />
-                    </TableCell>
-
-                    {/* New Loan / Change Section */}
-                    <TableCell>
-                      <Select
-                        value={loan.changeType}
-                        onValueChange={(value: LoanChangeType) =>
-                          handleLoanChange(customer.id, 'changeType', value)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="new">New Loan</SelectItem>
-                          <SelectItem value="increase">Increase</SelectItem>
-                          <SelectItem value="decrease">Decrease</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        placeholder="₹0.00"
-                        value={loan.changeCash || ''}
-                        onChange={(e) =>
-                          handleLoanChange(
-                            customer.id,
-                            'changeCash',
-                            e.target.value
-                          )
-                        }
-                        className="text-right"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        placeholder="₹0.00"
-                        value={loan.changeBank || ''}
-                        onChange={(e) =>
-                          handleLoanChange(
-                            customer.id,
-                            'changeBank',
-                            e.target.value
-                          )
-                        }
-                        className="text-right"
-                      />
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                        ₹{changeTotal.toFixed(2)}
-                    </TableCell>
-
-                    {/* Interest Section */}
-                    <TableCell>
-                      <Input
-                        type="number"
-                        placeholder="₹0.00"
-                        value={loan.interestCash || ''}
-                        onChange={(e) =>
-                          handleLoanChange(
-                            customer.id,
-                            'interestCash',
-                            e.target.value
-                          )
-                        }
-                        className="text-right"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        placeholder="₹0.00"
-                        value={loan.interestBank || ''}
-                        onChange={(e) =>
-                          handleLoanChange(
-                            customer.id,
-                            'interestBank',
-                            e.target.value
-                          )
-                        }
-                        className="text-right"
-                      />
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                       ₹{interestTotal.toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-             <UiTableFooter>
-                <TableRow className="font-bold bg-muted/50 text-right">
-                    <TableCell colSpan={2}>Total</TableCell>
-                    <TableCell>₹{totals.carryFwd.toFixed(2)}</TableCell>
-                    <TableCell></TableCell>
-                    <TableCell>₹{totals.changeCash.toFixed(2)}</TableCell>
-                    <TableCell>₹{totals.changeBank.toFixed(2)}</TableCell>
-                    <TableCell>₹{totalChange.toFixed(2)}</TableCell>
-                    <TableCell>₹{totals.interestCash.toFixed(2)}</TableCell>
-                    <TableCell>₹{totals.interestBank.toFixed(2)}</TableCell>
-                    <TableCell>₹{totals.interestTotal.toFixed(2)}</TableCell>
+        {selectedDate ? (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead rowSpan={2} className="w-[50px]">
+                    Sr.
+                  </TableHead>
+                  <TableHead rowSpan={2}>Customer</TableHead>
+                  <TableHead rowSpan={2} className="w-[150px]">
+                    Carry Fwd
+                  </TableHead>
+                  <TableHead colSpan={4} className="text-center">
+                    New Loan / Change
+                  </TableHead>
+                  <TableHead colSpan={3} className="text-center">
+                    Interest
+                  </TableHead>
                 </TableRow>
-            </UiTableFooter>
-          </Table>
-        </div>
+                <TableRow>
+                  <TableHead className="w-[150px]">Type</TableHead>
+                  <TableHead className="w-[150px] text-right">Cash</TableHead>
+                  <TableHead className="w-[150px] text-right">Bank</TableHead>
+                  <TableHead className="w-[150px] text-right">Total</TableHead>
+                  <TableHead className="w-[150px] text-right">Cash</TableHead>
+                  <TableHead className="w-[150px] text-right">Bank</TableHead>
+                  <TableHead className="w-[150px] text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {customers.map((customer, index) => {
+                  const loan = loans.find(
+                    (l) => l.customerId === customer.id
+                  )!;
+                  if (!loan) return null; // Defensive check
+                  const changeTotal = getChangeTotal(loan);
+                  const interestTotal = getInterestTotal(loan);
+
+                  return (
+                    <TableRow key={customer.id}>
+                      <TableCell className="font-medium">
+                        {index + 1}
+                      </TableCell>
+                      <TableCell>{customer.name}</TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          placeholder="₹0.00"
+                          value={loan.carryFwd || ''}
+                          onChange={(e) =>
+                            handleLoanChange(
+                              customer.id,
+                              'carryFwd',
+                              e.target.value
+                            )
+                          }
+                          disabled
+                          className="text-right"
+                        />
+                      </TableCell>
+
+                      {/* New Loan / Change Section */}
+                      <TableCell>
+                        <Select
+                          value={loan.changeType}
+                          onValueChange={(value: LoanChangeType) =>
+                            handleLoanChange(customer.id, 'changeType', value)
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="new">New Loan</SelectItem>
+                            <SelectItem value="increase">Increase</SelectItem>
+                            <SelectItem value="decrease">Decrease</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          placeholder="₹0.00"
+                          value={loan.changeCash || ''}
+                          onChange={(e) =>
+                            handleLoanChange(
+                              customer.id,
+                              'changeCash',
+                              e.target.value
+                            )
+                          }
+                          className="text-right"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          placeholder="₹0.00"
+                          value={loan.changeBank || ''}
+                          onChange={(e) =>
+                            handleLoanChange(
+                              customer.id,
+                              'changeBank',
+                              e.target.value
+                            )
+                          }
+                          className="text-right"
+                        />
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        ₹{changeTotal.toFixed(2)}
+                      </TableCell>
+
+                      {/* Interest Section */}
+                      <TableCell>
+                        <Input
+                          type="number"
+                          placeholder="₹0.00"
+                          value={loan.interestCash || ''}
+                          onChange={(e) =>
+                            handleLoanChange(
+                              customer.id,
+                              'interestCash',
+                              e.target.value
+                            )
+                          }
+                          className="text-right"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          placeholder="₹0.00"
+                          value={loan.interestBank || ''}
+                          onChange={(e) =>
+                            handleLoanChange(
+                              customer.id,
+                              'interestBank',
+                              e.target.value
+                            )
+                          }
+                          className="text-right"
+                        />
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        ₹{interestTotal.toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+              <UiTableFooter>
+                <TableRow className="font-bold bg-muted/50 text-right">
+                  <TableCell colSpan={2}>Total</TableCell>
+                  <TableCell>₹{totals.carryFwd.toFixed(2)}</TableCell>
+                  <TableCell></TableCell>
+                  <TableCell>₹{totals.changeCash.toFixed(2)}</TableCell>
+                  <TableCell>₹{totals.changeBank.toFixed(2)}</TableCell>
+                  <TableCell>₹{totalChange.toFixed(2)}</TableCell>
+                  <TableCell>₹{totals.interestCash.toFixed(2)}</TableCell>
+                  <TableCell>₹{totals.interestBank.toFixed(2)}</TableCell>
+                  <TableCell>₹{totals.interestTotal.toFixed(2)}</TableCell>
+                </TableRow>
+              </UiTableFooter>
+            </Table>
+          </div>
+        ) : (
+           <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>Select a Date</AlertTitle>
+            <AlertDescription>
+              Please pick a date to view and manage loans.
+            </AlertDescription>
+          </Alert>
+        )}
       </CardContent>
+      {selectedDate && (
       <CardFooter className="flex justify-end gap-2">
-          <Button
-              variant="outline"
-              onClick={() => window.print()}
-            >
-              <Printer className="mr-2 h-4 w-4" /> Print
-            </Button>
-            <Button variant="secondary" onClick={handleSaveDraft}>
-              <Save className="mr-2 h-4 w-4" /> Save Draft
-            </Button>
-            <Button>
-              <Send className="mr-2 h-4 w-4" /> Submit
-            </Button>
+        <Button variant="outline" onClick={() => window.print()}>
+          <Printer className="mr-2 h-4 w-4" /> Print
+        </Button>
+        <Button variant="secondary" onClick={handleSaveDraft}>
+          <Save className="mr-2 h-4 w-4" /> Save Draft
+        </Button>
+        <Button>
+          <Send className="mr-2 h-4 w-4" /> Submit
+        </Button>
       </CardFooter>
+      )}
     </Card>
   );
 }

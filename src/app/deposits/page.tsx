@@ -25,11 +25,12 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Printer, Save, Send, CalendarIcon } from 'lucide-react';
+import { Printer, Save, Send, CalendarIcon, Info } from 'lucide-react';
 import { customers } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type Deposit = {
   customerId: string;
@@ -41,7 +42,7 @@ const DEPOSITS_STORAGE_KEY = 'deposits-draft';
 
 export default function DepositsPage() {
   const [isClient, setIsClient] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [deposits, setDeposits] = useState<Deposit[]>(
     customers.map((c) => ({
       customerId: c.id,
@@ -58,10 +59,12 @@ export default function DepositsPage() {
       const { date, data } = JSON.parse(savedData);
       setSelectedDate(new Date(date));
       setDeposits(data);
-       toast({ title: 'Draft Loaded', description: 'Your previously saved draft has been loaded.' });
+      toast({
+        title: 'Draft Loaded',
+        description: 'Your previously saved draft has been loaded.',
+      });
     }
   }, []);
-
 
   const handleDepositChange = (
     customerId: string,
@@ -77,11 +80,10 @@ export default function DepositsPage() {
       })
     );
   };
-  
+
   const getDepositTotal = (deposit: Deposit) => {
     return (Number(deposit.cash) || 0) + (Number(deposit.bank) || 0);
   };
-
 
   const totals = useMemo(() => {
     return deposits.reduce(
@@ -98,8 +100,16 @@ export default function DepositsPage() {
       }
     );
   }, [deposits]);
-  
+
   const handleSaveDraft = () => {
+    if (!selectedDate) {
+      toast({
+        variant: 'destructive',
+        title: 'Date Not Selected',
+        description: 'Please select a date before saving a draft.',
+      });
+      return;
+    }
     const dataToSave = {
       date: selectedDate.toISOString(),
       data: deposits,
@@ -146,7 +156,7 @@ export default function DepositsPage() {
               <Calendar
                 mode="single"
                 selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(date)}
+                onSelect={setSelectedDate}
                 initialFocus
               />
             </PopoverContent>
@@ -154,92 +164,101 @@ export default function DepositsPage() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[50px]">
-                  Sr.
-                </TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead className="w-[150px] text-right">Cash</TableHead>
-                <TableHead className="w-[150px] text-right">Bank</TableHead>
-                <TableHead className="w-[150px] text-right">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {customers.map((customer, index) => {
-                const deposit = deposits.find((d) => d.customerId === customer.id)!;
-                const depositTotal = getDepositTotal(deposit);
-
-                return (
-                  <TableRow key={customer.id}>
-                    <TableCell className="font-medium">{index + 1}</TableCell>
-                    <TableCell>{customer.name}</TableCell>
-
-                    {/* Deposit Section */}
-                    <TableCell>
-                      <Input
-                        type="number"
-                        placeholder="₹0.00"
-                        value={deposit.cash || ''}
-                        onChange={(e) =>
-                          handleDepositChange(
-                            customer.id,
-                            'cash',
-                            e.target.value
-                          )
-                        }
-                        className="text-right"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        placeholder="₹0.00"
-                        value={deposit.bank || ''}
-                        onChange={(e) =>
-                          handleDepositChange(
-                            customer.id,
-                            'bank',
-                            e.target.value
-                          )
-                        }
-                        className="text-right"
-                      />
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                        ₹{depositTotal.toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-             <UiTableFooter>
-                <TableRow className="font-bold bg-muted/50 text-right">
-                    <TableCell colSpan={2}>Total</TableCell>
-                    <TableCell>₹{totals.cash.toFixed(2)}</TableCell>
-                    <TableCell>₹{totals.bank.toFixed(2)}</TableCell>
-                    <TableCell>₹{totals.total.toFixed(2)}</TableCell>
+        {selectedDate ? (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[50px]">Sr.</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead className="w-[150px] text-right">Cash</TableHead>
+                  <TableHead className="w-[150px] text-right">Bank</TableHead>
+                  <TableHead className="w-[150px] text-right">Total</TableHead>
                 </TableRow>
-            </UiTableFooter>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {customers.map((customer, index) => {
+                  const deposit = deposits.find(
+                    (d) => d.customerId === customer.id
+                  )!;
+                  const depositTotal = getDepositTotal(deposit);
+
+                  return (
+                    <TableRow key={customer.id}>
+                      <TableCell className="font-medium">{index + 1}</TableCell>
+                      <TableCell>{customer.name}</TableCell>
+
+                      {/* Deposit Section */}
+                      <TableCell>
+                        <Input
+                          type="number"
+                          placeholder="₹0.00"
+                          value={deposit.cash || ''}
+                          onChange={(e) =>
+                            handleDepositChange(
+                              customer.id,
+                              'cash',
+                              e.target.value
+                            )
+                          }
+                          className="text-right"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          placeholder="₹0.00"
+                          value={deposit.bank || ''}
+                          onChange={(e) =>
+                            handleDepositChange(
+                              customer.id,
+                              'bank',
+                              e.target.value
+                            )
+                          }
+                          className="text-right"
+                        />
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        ₹{depositTotal.toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+              <UiTableFooter>
+                <TableRow className="font-bold bg-muted/50 text-right">
+                  <TableCell colSpan={2}>Total</TableCell>
+                  <TableCell>₹{totals.cash.toFixed(2)}</TableCell>
+                  <TableCell>₹{totals.bank.toFixed(2)}</TableCell>
+                  <TableCell>₹{totals.total.toFixed(2)}</TableCell>
+                </TableRow>
+              </UiTableFooter>
+            </Table>
+          </div>
+        ) : (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>Select a Date</AlertTitle>
+            <AlertDescription>
+              Please pick a date to view and manage deposits.
+            </AlertDescription>
+          </Alert>
+        )}
       </CardContent>
-      <CardFooter className="flex justify-end gap-2">
-          <Button
-              variant="outline"
-              onClick={() => window.print()}
-            >
-              <Printer className="mr-2 h-4 w-4" /> Print
-            </Button>
-            <Button variant="secondary" onClick={handleSaveDraft}>
-              <Save className="mr-2 h-4 w-4" /> Save Draft
-            </Button>
-            <Button>
-              <Send className="mr-2 h-4 w-4" /> Submit
-            </Button>
-      </CardFooter>
+      {selectedDate && (
+        <CardFooter className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => window.print()}>
+            <Printer className="mr-2 h-4 w-4" /> Print
+          </Button>
+          <Button variant="secondary" onClick={handleSaveDraft}>
+            <Save className="mr-2 h-4 w-4" /> Save Draft
+          </Button>
+          <Button>
+            <Send className="mr-2 h-4 w-4" /> Submit
+          </Button>
+        </CardFooter>
+      )}
     </Card>
   );
 }
