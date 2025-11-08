@@ -1,5 +1,13 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import {
+  doc,
+  setDoc,
+  getDoc,
+  serverTimestamp,
+  Timestamp,
+} from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
 import {
   Card,
   CardHeader,
@@ -25,12 +33,14 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Printer, Save, Send, CalendarIcon, Info } from 'lucide-react';
+import { Printer, Save, Send, CalendarIcon, Info, Loader2 } from 'lucide-react';
 import { customers } from '@/lib/data';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, startOfMonth } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 type Deposit = {
   customerId: string;
@@ -38,33 +48,90 @@ type Deposit = {
   bank: number;
 };
 
-const DEPOSITS_STORAGE_KEY = 'deposits-draft';
+type MonthlyDepositDoc = {
+  id: string;
+  date: Timestamp;
+  deposits: Deposit[];
+  createdAt: Timestamp;
+};
+
+const DEPOSITS_DRAFT_KEY = 'deposits-draft';
+
+const getMonthId = (date: Date) => format(date, 'yyyy-MM');
 
 export default function DepositsPage() {
+  const firestore = useFirestore();
   const [isClient, setIsClient] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-  const [deposits, setDeposits] = useState<Deposit[]>(
-    customers.map((c) => ({
-      customerId: c.id,
-      cash: 0,
-      bank: 0,
-    }))
-  );
+  const [deposits, setDeposits] = useState<Deposit[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
+  const loadDataForMonth = useCallback(
+    async (date: Date) => {
+      setIsLoading(true);
+      const monthId = getMonthId(date);
+      const docRef = doc(firestore, 'monthlyDeposits', monthId);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        const data = docSnap.data() as MonthlyDepositDoc;
+        setDeposits(data.deposits);
+        toast({
+          title: 'Data Loaded',
+          description: `Showing submitted data for ${format(date, 'MMMM yyyy')}.`,
+        });
+      } else {
+        // Check for local draft if no submitted data exists
+        const savedDraft = localStorage.getItem(`${DEPOSITS_DRAFT_KEY}-${monthId}`);
+        if (savedDraft) {
+          const draftData = JSON.parse(savedDraft);
+          setDeposits(draftData);
+          toast({
+            title: 'Draft Loaded',
+            description: `Your previously saved draft for ${format(date, 'MMMM yyyy')} has been loaded.`,
+          });
+        } else {
+          // Initialize with empty data for new month
+          setDeposits(
+            customers.map((c) => ({
+              customerId: c.id,
+              cash: 0,
+              bank: 0,
+            }))
+          );
+        }
+      }
+      setIsLoading(false);
+    },
+    [firestore, toast]
+  );
+  
   useEffect(() => {
     setIsClient(true);
-    const savedData = localStorage.getItem(DEPOSITS_STORAGE_KEY);
-    if (savedData) {
-      const { date, data } = JSON.parse(savedData);
-      setSelectedDate(new Date(date));
-      setDeposits(data);
-      toast({
-        title: 'Draft Loaded',
-        description: 'Your previously saved draft has been loaded.',
-      });
+    // On initial mount, check for a globally saved draft to ease transition.
+    const globalDraft = localStorage.getItem(DEPOSITS_DRAFT_KEY);
+    if(globalDraft) {
+        const {date, data} = JSON.parse(globalDraft);
+        const draftDate = new Date(date);
+        setSelectedDate(draftDate);
+        setDeposits(data);
+        localStorage.removeItem(DEPOSITS_DRAFT_KEY); // Remove old draft
+        localStorage.setItem(`${DEPOSITS_DRAFT_KEY}-${getMonthId(draftDate)}`, JSON.stringify(data));
+         toast({
+            title: 'Draft Loaded',
+            description: 'Your previously saved draft has been loaded.',
+          });
     }
   }, []);
+
+  useEffect(() => {
+    if (selectedDate) {
+      loadDataForMonth(selectedDate);
+    } else {
+      setDeposits([]);
+    }
+  }, [selectedDate, loadDataForMonth]);
 
   const handleDepositChange = (
     customerId: string,
@@ -110,15 +177,58 @@ export default function DepositsPage() {
       });
       return;
     }
-    const dataToSave = {
-      date: selectedDate.toISOString(),
-      data: deposits,
-    };
-    localStorage.setItem(DEPOSITS_STORAGE_KEY, JSON.stringify(dataToSave));
+    const monthId = getMonthId(selectedDate);
+    localStorage.setItem(
+      `${DEPOSITS_DRAFT_KEY}-${monthId}`,
+      JSON.stringify(deposits)
+    );
     toast({
       title: 'Draft Saved',
       description: 'Your deposits data has been saved locally.',
     });
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedDate) {
+      toast({
+        variant: 'destructive',
+        title: 'Date Not Selected',
+        description: 'Please select a date before submitting.',
+      });
+      return;
+    }
+    setIsLoading(true);
+    const monthId = getMonthId(selectedDate);
+    const docRef = doc(firestore, 'monthlyDeposits', monthId);
+    const dataToSubmit = {
+      id: monthId,
+      date: Timestamp.fromDate(startOfMonth(selectedDate)),
+      deposits,
+      createdAt: serverTimestamp(),
+    };
+
+    setDoc(docRef, dataToSubmit, { merge: true })
+      .then(() => {
+        toast({
+          title: 'Success',
+          description: `Deposits for ${format(
+            selectedDate,
+            'MMMM yyyy'
+          )} have been submitted.`,
+        });
+        localStorage.removeItem(`${DEPOSITS_DRAFT_KEY}-${monthId}`);
+      })
+      .catch((serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'write',
+          requestResourceData: dataToSubmit,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   };
 
   if (!isClient) {
@@ -146,9 +256,9 @@ export default function DepositsPage() {
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {selectedDate ? (
-                  format(selectedDate, 'PPP')
+                  format(selectedDate, 'MMMM yyyy')
                 ) : (
-                  <span>Pick a date</span>
+                  <span>Pick a month</span>
                 )}
               </Button>
             </PopoverTrigger>
@@ -156,7 +266,7 @@ export default function DepositsPage() {
               <Calendar
                 mode="single"
                 selected={selectedDate}
-                onSelect={setSelectedDate}
+                onSelect={(date) => date && setSelectedDate(startOfMonth(date))}
                 initialFocus
               />
             </PopoverContent>
@@ -164,7 +274,11 @@ export default function DepositsPage() {
         </div>
       </CardHeader>
       <CardContent>
-        {selectedDate ? (
+        {isLoading ? (
+          <div className='flex items-center justify-center p-8'>
+            <Loader2 className='h-8 w-8 animate-spin text-muted-foreground' />
+          </div>
+        ) : selectedDate ? (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -180,15 +294,13 @@ export default function DepositsPage() {
                 {customers.map((customer, index) => {
                   const deposit = deposits.find(
                     (d) => d.customerId === customer.id
-                  )!;
+                  ) ?? { customerId: customer.id, cash: 0, bank: 0 };
                   const depositTotal = getDepositTotal(deposit);
 
                   return (
                     <TableRow key={customer.id}>
                       <TableCell className="font-medium">{index + 1}</TableCell>
                       <TableCell>{customer.name}</TableCell>
-
-                      {/* Deposit Section */}
                       <TableCell>
                         <Input
                           type="number"
@@ -201,7 +313,7 @@ export default function DepositsPage() {
                               e.target.value
                             )
                           }
-                          className="text-right"
+                          className="text-right w-[150px]"
                         />
                       </TableCell>
                       <TableCell>
@@ -216,7 +328,7 @@ export default function DepositsPage() {
                               e.target.value
                             )
                           }
-                          className="text-right"
+                          className="text-right w-[150px]"
                         />
                       </TableCell>
                       <TableCell className="text-right font-medium">
@@ -241,21 +353,22 @@ export default function DepositsPage() {
             <Info className="h-4 w-4" />
             <AlertTitle>Select a Date</AlertTitle>
             <AlertDescription>
-              Please pick a date to view and manage deposits.
+              Please pick a month to view and manage deposits.
             </AlertDescription>
           </Alert>
         )}
       </CardContent>
       {selectedDate && (
         <CardFooter className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => window.print()}>
+          <Button variant="outline" onClick={() => window.print()} disabled={isLoading}>
             <Printer className="mr-2 h-4 w-4" /> Print
           </Button>
-          <Button variant="secondary" onClick={handleSaveDraft}>
+          <Button variant="secondary" onClick={handleSaveDraft} disabled={isLoading}>
             <Save className="mr-2 h-4 w-4" /> Save Draft
           </Button>
-          <Button>
-            <Send className="mr-2 h-4 w-4" /> Submit
+          <Button onClick={handleSubmit} disabled={isLoading}>
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+             Submit
           </Button>
         </CardFooter>
       )}

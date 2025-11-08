@@ -1,5 +1,13 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import {
+  doc,
+  setDoc,
+  getDoc,
+  serverTimestamp,
+  Timestamp,
+} from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
 import {
   Card,
   CardHeader,
@@ -32,13 +40,22 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Printer, Save, Send, CalendarIcon, Info } from 'lucide-react';
+import {
+  Printer,
+  Save,
+  Send,
+  CalendarIcon,
+  Info,
+  Loader2,
+} from 'lucide-react';
 import Link from 'next/link';
 import { customers } from '@/lib/data';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, startOfMonth } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 type LoanChangeType = 'new' | 'increase' | 'decrease';
 
@@ -50,67 +67,100 @@ type Loan = {
   changeBank: number;
   interestCash: number;
   interestBank: number;
-  interestTotal: number; // Calculated total interest
+  interestTotal: number;
 };
 
-// Assuming a default annual interest rate from settings, e.g., 12%
+type MonthlyLoanDoc = {
+  id: string;
+  date: Timestamp;
+  loans: Loan[];
+  createdAt: Timestamp;
+};
+
 const ANNUAL_INTEREST_RATE = 0.12;
-const LOANS_STORAGE_KEY = 'loans-draft';
+const LOANS_DRAFT_KEY = 'loans-draft';
+const getMonthId = (date: Date) => format(date, 'yyyy-MM');
 
 export default function LoansPage() {
+  const firestore = useFirestore();
   const [isClient, setIsClient] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [loans, setLoans] = useState<Loan[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  // Initialize state and load from localStorage
+  const loadDataForMonth = useCallback(
+    async (date: Date) => {
+      setIsLoading(true);
+      const monthId = getMonthId(date);
+      const docRef = doc(firestore, 'monthlyLoans', monthId);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        const data = docSnap.data() as MonthlyLoanDoc;
+        setLoans(data.loans);
+        toast({
+          title: 'Data Loaded',
+          description: `Showing submitted data for ${format(
+            date,
+            'MMMM yyyy'
+          )}.`,
+        });
+      } else {
+        const savedDraft = localStorage.getItem(`${LOANS_DRAFT_KEY}-${monthId}`);
+        if (savedDraft) {
+          setLoans(JSON.parse(savedDraft));
+          toast({
+            title: 'Draft Loaded',
+            description: `Your previously saved draft for ${format(
+              date,
+              'MMMM yyyy'
+            )} has been loaded.`,
+          });
+        } else {
+          // TODO: Fetch previous month's closing balance as carry forward for new month.
+          const initialLoans = customers.map((c) => ({
+            customerId: c.id,
+            carryFwd: 10000,
+            changeType: 'new' as LoanChangeType,
+            changeCash: 0,
+            changeBank: 0,
+            interestCash: (10000 * ANNUAL_INTEREST_RATE) / 12,
+            interestBank: 0,
+            interestTotal: (10000 * ANNUAL_INTEREST_RATE) / 12,
+          }));
+          setLoans(initialLoans);
+        }
+      }
+      setIsLoading(false);
+    },
+    [firestore, toast]
+  );
+  
   useEffect(() => {
     setIsClient(true);
-    const savedData = localStorage.getItem(LOANS_STORAGE_KEY);
-    if (savedData) {
-      const { date, data } = JSON.parse(savedData);
-      setSelectedDate(new Date(date));
-      setLoans(data);
-      toast({
-        title: 'Draft Loaded',
-        description: 'Your previously saved draft has been loaded.',
-      });
-    } else {
-      // Initialize with default data if nothing is saved
-      const initialLoans = customers.map((c) => ({
-        customerId: c.id,
-        carryFwd: 10000, // Example carryFwd, should be fetched
-        changeType: 'new' as LoanChangeType,
-        changeCash: 0,
-        changeBank: 0,
-        interestCash: 0,
-        interestBank: 0,
-        interestTotal: (10000 * ANNUAL_INTEREST_RATE) / 12,
-      }));
-      setLoans(initialLoans);
+     const globalDraft = localStorage.getItem(LOANS_DRAFT_KEY);
+    if(globalDraft) {
+        const {date, data} = JSON.parse(globalDraft);
+        const draftDate = new Date(date);
+        setSelectedDate(draftDate);
+        setLoans(data);
+        localStorage.removeItem(LOANS_DRAFT_KEY);
+        localStorage.setItem(`${LOANS_DRAFT_KEY}-${getMonthId(draftDate)}`, JSON.stringify(data));
+         toast({
+            title: 'Draft Loaded',
+            description: 'Your previously saved draft has been loaded.',
+          });
     }
   }, []);
 
-  // Update interest total whenever carryFwd changes (only on initial load for now)
   useEffect(() => {
-    if (loans.length > 0) {
-      setLoans((prevLoans) =>
-        prevLoans.map((loan) => {
-          const monthlyInterest = (loan.carryFwd * ANNUAL_INTEREST_RATE) / 12;
-          const currentInterestSum = loan.interestCash + loan.interestBank;
-          if (Math.abs(currentInterestSum - monthlyInterest) > 0.01) {
-            return {
-              ...loan,
-              interestTotal: monthlyInterest,
-              interestCash: monthlyInterest, // Default to cash
-              interestBank: 0,
-            };
-          }
-          return { ...loan, interestTotal: monthlyInterest };
-        })
-      );
+    if (selectedDate) {
+      loadDataForMonth(selectedDate);
+    } else {
+      setLoans([]);
     }
-  }, []);
+  }, [selectedDate, loadDataForMonth]);
 
   const handleLoanChange = (
     customerId: string,
@@ -121,17 +171,11 @@ export default function LoansPage() {
       prev.map((loan) => {
         if (loan.customerId === customerId) {
           const newLoan = { ...loan };
-          const numericValue = Number(value) || 0;
+          let numericValue =
+            typeof value === 'string' ? parseFloat(value) || 0 : value;
 
           if (field === 'changeType') {
             newLoan.changeType = value as LoanChangeType;
-            if (value === 'decrease') {
-              newLoan.changeCash = -Math.abs(newLoan.changeCash);
-              newLoan.changeBank = -Math.abs(newLoan.changeBank);
-            } else {
-              newLoan.changeCash = Math.abs(newLoan.changeCash);
-              newLoan.changeBank = Math.abs(newLoan.changeBank);
-            }
           } else if (field === 'interestCash') {
             newLoan.interestCash = numericValue;
             newLoan.interestBank = newLoan.interestTotal - numericValue;
@@ -153,11 +197,6 @@ export default function LoansPage() {
     return (Number(loan.changeCash) || 0) + (Number(loan.changeBank) || 0);
   };
 
-  const getInterestTotal = (loan: Loan) => {
-    // Return the calculated total, not the sum of inputs
-    return loan.interestTotal;
-  };
-
   const handleSaveDraft = () => {
     if (!selectedDate) {
       toast({
@@ -167,15 +206,58 @@ export default function LoansPage() {
       });
       return;
     }
-    const dataToSave = {
-      date: selectedDate.toISOString(),
-      data: loans,
-    };
-    localStorage.setItem(LOANS_STORAGE_KEY, JSON.stringify(dataToSave));
+    const monthId = getMonthId(selectedDate);
+    localStorage.setItem(
+      `${LOANS_DRAFT_KEY}-${monthId}`,
+      JSON.stringify(loans)
+    );
     toast({
       title: 'Draft Saved',
       description: 'Your loans data has been saved locally.',
     });
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedDate) {
+      toast({
+        variant: 'destructive',
+        title: 'Date Not Selected',
+        description: 'Please select a date before submitting.',
+      });
+      return;
+    }
+    setIsLoading(true);
+    const monthId = getMonthId(selectedDate);
+    const docRef = doc(firestore, 'monthlyLoans', monthId);
+    const dataToSubmit = {
+      id: monthId,
+      date: Timestamp.fromDate(startOfMonth(selectedDate)),
+      loans,
+      createdAt: serverTimestamp(),
+    };
+
+    setDoc(docRef, dataToSubmit, { merge: true })
+      .then(() => {
+        toast({
+          title: 'Success',
+          description: `Loans for ${format(
+            selectedDate,
+            'MMMM yyyy'
+          )} have been submitted.`,
+        });
+        localStorage.removeItem(`${LOANS_DRAFT_KEY}-${monthId}`);
+      })
+      .catch((serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'write',
+          requestResourceData: dataToSubmit,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   };
 
   const totals = useMemo(() => {
@@ -231,9 +313,9 @@ export default function LoansPage() {
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {selectedDate ? (
-                  format(selectedDate, 'PPP')
+                  format(selectedDate, 'MMMM yyyy')
                 ) : (
-                  <span>Pick a date</span>
+                  <span>Pick a month</span>
                 )}
               </Button>
             </PopoverTrigger>
@@ -241,7 +323,7 @@ export default function LoansPage() {
               <Calendar
                 mode="single"
                 selected={selectedDate}
-                onSelect={setSelectedDate}
+                onSelect={(date) => date && setSelectedDate(startOfMonth(date))}
                 initialFocus
               />
             </PopoverContent>
@@ -249,7 +331,11 @@ export default function LoansPage() {
         </div>
       </CardHeader>
       <CardContent>
-        {selectedDate ? (
+         {isLoading ? (
+          <div className='flex items-center justify-center p-8'>
+            <Loader2 className='h-8 w-8 animate-spin text-muted-foreground' />
+          </div>
+        ) : selectedDate ? (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -282,35 +368,23 @@ export default function LoansPage() {
                 {customers.map((customer, index) => {
                   const loan = loans.find(
                     (l) => l.customerId === customer.id
-                  )!;
-                  if (!loan) return null; // Defensive check
+                  );
+                  if (!loan) return null;
                   const changeTotal = getChangeTotal(loan);
-                  const interestTotal = getInterestTotal(loan);
 
                   return (
                     <TableRow key={customer.id}>
-                      <TableCell className="font-medium">
-                        {index + 1}
-                      </TableCell>
+                      <TableCell className="font-medium">{index + 1}</TableCell>
                       <TableCell>{customer.name}</TableCell>
                       <TableCell>
                         <Input
                           type="number"
                           placeholder="₹0.00"
                           value={loan.carryFwd || ''}
-                          onChange={(e) =>
-                            handleLoanChange(
-                              customer.id,
-                              'carryFwd',
-                              e.target.value
-                            )
-                          }
                           disabled
-                          className="text-right"
+                          className="text-right w-[150px]"
                         />
                       </TableCell>
-
-                      {/* New Loan / Change Section */}
                       <TableCell>
                         <Select
                           value={loan.changeType}
@@ -318,7 +392,7 @@ export default function LoansPage() {
                             handleLoanChange(customer.id, 'changeType', value)
                           }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="w-[150px]">
                             <SelectValue placeholder="Type" />
                           </SelectTrigger>
                           <SelectContent>
@@ -334,13 +408,9 @@ export default function LoansPage() {
                           placeholder="₹0.00"
                           value={loan.changeCash || ''}
                           onChange={(e) =>
-                            handleLoanChange(
-                              customer.id,
-                              'changeCash',
-                              e.target.value
-                            )
+                            handleLoanChange(customer.id, 'changeCash', e.target.value)
                           }
-                          className="text-right"
+                          className="text-right w-[150px]"
                         />
                       </TableCell>
                       <TableCell>
@@ -349,33 +419,23 @@ export default function LoansPage() {
                           placeholder="₹0.00"
                           value={loan.changeBank || ''}
                           onChange={(e) =>
-                            handleLoanChange(
-                              customer.id,
-                              'changeBank',
-                              e.target.value
-                            )
+                            handleLoanChange(customer.id, 'changeBank', e.target.value)
                           }
-                          className="text-right"
+                          className="text-right w-[150px]"
                         />
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         ₹{changeTotal.toFixed(2)}
                       </TableCell>
-
-                      {/* Interest Section */}
                       <TableCell>
                         <Input
                           type="number"
                           placeholder="₹0.00"
                           value={loan.interestCash || ''}
                           onChange={(e) =>
-                            handleLoanChange(
-                              customer.id,
-                              'interestCash',
-                              e.target.value
-                            )
+                            handleLoanChange(customer.id, 'interestCash', e.target.value)
                           }
-                          className="text-right"
+                          className="text-right w-[150px]"
                         />
                       </TableCell>
                       <TableCell>
@@ -384,17 +444,13 @@ export default function LoansPage() {
                           placeholder="₹0.00"
                           value={loan.interestBank || ''}
                           onChange={(e) =>
-                            handleLoanChange(
-                              customer.id,
-                              'interestBank',
-                              e.target.value
-                            )
+                            handleLoanChange(customer.id, 'interestBank', e.target.value)
                           }
-                          className="text-right"
+                          className="text-right w-[150px]"
                         />
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        ₹{interestTotal.toFixed(2)}
+                        ₹{loan.interestTotal.toFixed(2)}
                       </TableCell>
                     </TableRow>
                   );
@@ -416,27 +472,28 @@ export default function LoansPage() {
             </Table>
           </div>
         ) : (
-           <Alert>
+          <Alert>
             <Info className="h-4 w-4" />
             <AlertTitle>Select a Date</AlertTitle>
             <AlertDescription>
-              Please pick a date to view and manage loans.
+              Please pick a month to view and manage loans.
             </AlertDescription>
           </Alert>
         )}
       </CardContent>
       {selectedDate && (
-      <CardFooter className="flex justify-end gap-2">
-        <Button variant="outline" onClick={() => window.print()}>
-          <Printer className="mr-2 h-4 w-4" /> Print
-        </Button>
-        <Button variant="secondary" onClick={handleSaveDraft}>
-          <Save className="mr-2 h-4 w-4" /> Save Draft
-        </Button>
-        <Button>
-          <Send className="mr-2 h-4 w-4" /> Submit
-        </Button>
-      </CardFooter>
+        <CardFooter className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => window.print()} disabled={isLoading}>
+            <Printer className="mr-2 h-4 w-4" /> Print
+          </Button>
+          <Button variant="secondary" onClick={handleSaveDraft} disabled={isLoading}>
+            <Save className="mr-2 h-4 w-4" /> Save Draft
+          </Button>
+          <Button onClick={handleSubmit} disabled={isLoading}>
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+             Submit
+          </Button>
+        </CardFooter>
       )}
     </Card>
   );

@@ -25,6 +25,112 @@
         }
       },
       "required": ["uid", "email"]
+    },
+    "monthlyDeposit": {
+      "title": "Monthly Deposit",
+      "description": "Represents the total deposits for a specific month.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The unique identifier for the monthly deposit (e.g., '2024-08')."
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The first day of the month for which the deposits are recorded."
+        },
+        "deposits": {
+          "type": "array",
+          "items": {
+            "$ref": "#/entities/deposit"
+          }
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The timestamp when the document was created."
+        }
+      },
+      "required": ["id", "date", "deposits"]
+    },
+    "deposit": {
+      "title": "Deposit",
+      "description": "Represents a single deposit transaction for a customer.",
+      "type": "object",
+      "properties": {
+        "customerId": {
+          "type": "string"
+        },
+        "cash": {
+          "type": "number"
+        },
+        "bank": {
+          "type": "number"
+        }
+      },
+      "required": ["customerId"]
+    },
+     "monthlyLoan": {
+      "title": "Monthly Loan",
+      "description": "Represents the loan data for a specific month.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The unique identifier for the monthly loan record (e.g., '2024-08')."
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The first day of the month for which the loan data is recorded."
+        },
+        "loans": {
+          "type": "array",
+          "items": {
+            "$ref": "#/entities/loan"
+          }
+        },
+         "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The timestamp when the document was created."
+        }
+      },
+      "required": ["id", "date", "loans"]
+    },
+    "loan": {
+      "title": "Loan",
+      "description": "Represents a single customer's loan state for a month.",
+      "type": "object",
+      "properties": {
+        "customerId": {
+          "type": "string"
+        },
+        "carryFwd": {
+          "type": "number"
+        },
+        "changeType": {
+          "type": "string",
+          "enum": ["new", "increase", "decrease"]
+        },
+        "changeCash": {
+          "type": "number"
+        },
+        "changeBank": {
+          "type": "number"
+        },
+        "interestCash": {
+          "type": "number"
+        },
+        "interestBank": {
+          "type": "number"
+        },
+        "interestTotal": {
+            "type": "number"
+        }
+      },
+      "required": ["customerId"]
     }
   },
   "auth": {
@@ -36,6 +142,18 @@
         "$ref": "#/entities/user"
       },
       "description": "Stores public information about a user."
+    },
+    "/monthlyDeposits/{monthId}": {
+      "schema": {
+        "$ref": "#/entities/monthlyDeposit"
+      },
+      "description": "Stores all deposit records for a given month (YYYY-MM)."
+    },
+    "/monthlyLoans/{monthId}": {
+      "schema": {
+        "$ref": "#/entities/monthlyLoan"
+      },
+      "description": "Stores all loan records for a given month (YYYY-MM)."
     }
   }
 }
