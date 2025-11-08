@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Card,
   CardHeader,
@@ -15,6 +15,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter as UiTableFooter,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,13 +63,24 @@ export default function LoansPage() {
     setLoans((prev) =>
       prev.map((loan) => {
         if (loan.customerId === customerId) {
-          return { ...loan, [field]: value };
+          const newLoan = { ...loan, [field]: value };
+
+          // Recalculate totals if the change type affects it
+          if (field === 'changeType' && value === 'decrease') {
+            newLoan.changeCash = Math.abs(Number(newLoan.changeCash)) * -1;
+            newLoan.changeBank = Math.abs(Number(newLoan.changeBank)) * -1;
+          } else if (field === 'changeType' && (value === 'new' || value === 'increase')) {
+            newLoan.changeCash = Math.abs(Number(newLoan.changeCash));
+            newLoan.changeBank = Math.abs(Number(newLoan.changeBank));
+          }
+          
+          return newLoan;
         }
         return loan;
       })
     );
   };
-
+  
   const getChangeTotal = (loan: Loan) => {
     return (Number(loan.changeCash) || 0) + (Number(loan.changeBank) || 0);
   };
@@ -76,6 +88,30 @@ export default function LoansPage() {
   const getInterestTotal = (loan: Loan) => {
     return (Number(loan.interestCash) || 0) + (Number(loan.interestBank) || 0);
   };
+
+  const totals = useMemo(() => {
+    return loans.reduce(
+      (acc, loan) => {
+        acc.carryFwd += Number(loan.carryFwd) || 0;
+        acc.changeCash += Number(loan.changeCash) || 0;
+        acc.changeBank += Number(loan.changeBank) || 0;
+        acc.interestCash += Number(loan.interestCash) || 0;
+        acc.interestBank += Number(loan.interestBank) || 0;
+        return acc;
+      },
+      {
+        carryFwd: 0,
+        changeCash: 0,
+        changeBank: 0,
+        interestCash: 0,
+        interestBank: 0,
+      }
+    );
+  }, [loans]);
+
+  const totalChange = totals.changeCash + totals.changeBank;
+  const totalInterest = totals.interestCash + totals.interestBank;
+
 
   return (
     <Card>
@@ -249,6 +285,19 @@ export default function LoansPage() {
                 );
               })}
             </TableBody>
+             <UiTableFooter>
+                <TableRow className="font-bold bg-muted/50 text-right">
+                    <TableCell colSpan={2}>Total</TableCell>
+                    <TableCell>₹{totals.carryFwd.toFixed(2)}</TableCell>
+                    <TableCell></TableCell>
+                    <TableCell>₹{totals.changeCash.toFixed(2)}</TableCell>
+                    <TableCell>₹{totals.changeBank.toFixed(2)}</TableCell>
+                    <TableCell>₹{totalChange.toFixed(2)}</TableCell>
+                    <TableCell>₹{totals.interestCash.toFixed(2)}</TableCell>
+                    <TableCell>₹{totals.interestBank.toFixed(2)}</TableCell>
+                    <TableCell>₹{totalInterest.toFixed(2)}</TableCell>
+                </TableRow>
+            </UiTableFooter>
           </Table>
         </div>
       </CardContent>

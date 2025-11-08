@@ -15,6 +15,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter as UiTableFooter
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -152,20 +153,22 @@ export default function DepositsPage() {
                 );
               })}
             </TableBody>
-             <TableRow className="font-bold bg-muted/50">
-                <TableCell colSpan={2} className="text-right">
-                  Total
-                </TableCell>
-                <TableCell className="text-right">
-                  ₹{totalDeposits.cash.toFixed(2)}
-                </TableCell>
-                <TableCell className="text-right">
-                  ₹{totalDeposits.bank.toFixed(2)}
-                </TableCell>
-                <TableCell className="text-right">
-                  ₹{totalDeposits.total.toFixed(2)}
-                </TableCell>
-              </TableRow>
+             <UiTableFooter>
+              <TableRow className="font-bold bg-muted/50">
+                  <TableCell colSpan={2} className="text-right">
+                    Total
+                  </TableCell>
+                  <TableCell className="text-right">
+                    ₹{totalDeposits.cash.toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    ₹{totalDeposits.bank.toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    ₹{totalDeposits.total.toFixed(2)}
+                  </TableCell>
+                </TableRow>
+             </UiTableFooter>
           </Table>
         </div>
       </CardContent>
