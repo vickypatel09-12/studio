@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select';
 import { PlusCircle, Printer, Save, Send, Trash2 } from 'lucide-react';
 import { customers } from '@/lib/data';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 type DepositRow = {
   id: number;
@@ -114,11 +115,13 @@ export default function DepositsPage() {
                         <SelectValue placeholder="Select customer" />
                       </SelectTrigger>
                       <SelectContent>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name}
-                          </SelectItem>
-                        ))}
+                        <ScrollArea className="h-[200px]">
+                          {customers.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.name}
+                            </SelectItem>
+                          ))}
+                        </ScrollArea>
                       </SelectContent>
                     </Select>
                   </TableCell>

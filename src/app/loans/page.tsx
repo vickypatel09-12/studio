@@ -27,6 +27,7 @@ import {
 import { PlusCircle, Printer, Save, Send, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { customers } from '@/lib/data';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type LoanRow = {
   id: number;
@@ -107,11 +108,13 @@ export default function LoansPage() {
                         <SelectValue placeholder="Select customer" />
                       </SelectTrigger>
                       <SelectContent>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name}
-                          </SelectItem>
-                        ))}
+                        <ScrollArea className="h-[200px]">
+                          {customers.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.name}
+                            </SelectItem>
+                          ))}
+                        </ScrollArea>
                       </SelectContent>
                     </Select>
                   </TableCell>
@@ -132,6 +135,7 @@ export default function LoansPage() {
                       <SelectContent>
                         <SelectItem value="cash">Cash</SelectItem>
                         <SelectItem value="upi">UPI</SelectItem>
+
                         <SelectItem value="bank_transfer">Bank</SelectItem>
                       </SelectContent>
                     </Select>
