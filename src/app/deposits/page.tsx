@@ -10,7 +10,7 @@ import {
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
-import { useFirestore, useCollection } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   Card,
   CardHeader,
@@ -44,13 +44,13 @@ import {
   Loader2,
   History,
 } from 'lucide-react';
-import { customers } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { format, startOfMonth } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import type { Customer } from '@/lib/data';
 
 type Deposit = {
   customerId: string;
@@ -69,13 +69,19 @@ const getMonthId = (date: Date) => format(date, 'yyyy-MM');
 
 export default function DepositsPage() {
   const firestore = useFirestore();
-  const [isClient, setIsClient] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const monthlyDepositsQuery = useMemo(() => {
+  const customersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'customers'), orderBy('name'));
+  }, [firestore]);
+  
+  const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersQuery);
+
+  const monthlyDepositsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(
       collection(firestore, 'monthlyDeposits'),
@@ -83,12 +89,12 @@ export default function DepositsPage() {
     );
   }, [firestore]);
 
-  const { data: pastEntries, loading: pastEntriesLoading } =
+  const { data: pastEntries, isLoading: pastEntriesLoading } =
     useCollection<MonthlyDepositDoc>(monthlyDepositsQuery);
 
   const loadSubmittedDataForMonth = useCallback(
     async (date: Date) => {
-      if (!firestore) return;
+      if (!firestore || !customers) return;
       setIsLoading(true);
       const monthId = getMonthId(date);
       const docRef = doc(firestore, 'monthlyDeposits', monthId);
@@ -114,12 +120,12 @@ export default function DepositsPage() {
             )}.`,
           });
         } else {
-           // This case should ideally not be hit when clicking from history, but as a fallback:
           toast({
             variant: 'destructive',
             title: 'Not Found',
-            description: `No submitted data found for ${format(date, 'MMMM yyyy')}.`,
+            description: `No submitted data found for ${format(date, 'MMMM yyyy')}. Starting a new entry.`,
           });
+          initializeNewMonth(date);
         }
       } catch (error) {
         console.error('Error loading data:', error);
@@ -132,12 +138,11 @@ export default function DepositsPage() {
         setIsLoading(false);
       }
     },
-    [firestore, toast]
+    [firestore, toast, customers]
   );
   
   const initializeNewMonth = useCallback((date: Date) => {
-     if (!firestore) return;
-      setIsLoading(true);
+     if (!customers) return;
       setDeposits(
         customers.map((c) => ({
           customerId: c.id,
@@ -145,16 +150,7 @@ export default function DepositsPage() {
           bank: 0,
         }))
       );
-      toast({
-        title: 'New Entry',
-        description: `Started a new entry for ${format(date, 'MMMM yyyy')}.`,
-      });
-      setIsLoading(false);
-  }, [firestore, toast]);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  }, [customers]);
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) {
@@ -249,8 +245,10 @@ export default function DepositsPage() {
     loadSubmittedDataForMonth(date);
   };
 
-  if (!isClient) {
-    return null;
+  const pageLoading = customersLoading;
+
+  if (pageLoading) {
+    return <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
   }
 
   return (
@@ -298,7 +296,7 @@ export default function DepositsPage() {
               <div className="flex items-center justify-center p-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : selectedDate ? (
+            ) : selectedDate && customers ? (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>

@@ -32,14 +32,16 @@ import {
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Printer, CalendarIcon, FileDown } from 'lucide-react';
-import { customers } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query } from 'firebase/firestore';
+import type { Customer } from '@/lib/data';
 
 type ReportType = 'monthly' | 'all-time';
 
 // This is placeholder data. In a real application, you would fetch this based on the report type and date.
-const reportData = customers.map((c) => ({
+const reportData = (customers: Customer[] = []) => customers.map((c) => ({
   customerId: c.id,
   customerName: c.name,
   deposit: Math.random() * 5000,
@@ -47,19 +49,23 @@ const reportData = customers.map((c) => ({
   interest: Math.random() * 200,
 }));
 
+
 export default function ReportsPage() {
-  const [isClient, setIsClient] = useState(false);
+  const firestore = useFirestore();
   const [reportType, setReportType] = useState<ReportType>('monthly');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [generatedReport, setGeneratedReport] = useState<typeof reportData | null>(null);
+  const [generatedReport, setGeneratedReport] = useState<ReturnType<typeof reportData> | null>(null);
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  const customersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'customers'));
+  }, [firestore]);
+
+  const { data: customers } = useCollection<Customer>(customersQuery);
 
   const handleGenerateReport = () => {
     // In a real app, you'd fetch data here based on reportType and selectedDate
-    setGeneratedReport(reportData);
+    setGeneratedReport(reportData(customers || []));
   };
   
   const totals = generatedReport?.reduce(
@@ -72,10 +78,6 @@ export default function ReportsPage() {
       { deposit: 0, loan: 0, interest: 0 }
     ) || { deposit: 0, loan: 0, interest: 0 };
 
-
-  if (!isClient) {
-    return null;
-  }
 
   return (
     <Card>

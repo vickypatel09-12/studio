@@ -39,23 +39,39 @@ import {
   MoreHorizontal,
   Trash2,
   Pencil,
+  Loader2
 } from 'lucide-react';
-import { customers as initialCustomers, type Customer } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
+import { useFirestore, useCollection, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking, useMemoFirebase } from '@/firebase';
+import { collection, query, doc } from 'firebase/firestore';
+import type { Customer } from '@/lib/data';
 
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  const firestore = useFirestore();
   const [isImporting, setIsImporting] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [isNewCustomer, setIsNewCustomer] = useState(false);
   const { toast } = useToast();
 
-  const handleExportTemplate = () => {
-    const headers = 'id,name,email,phone\n';
-    const blob = new Blob([headers], { type: 'text/csv;charset=utf-8;' });
+  const customersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'customers'));
+  }, [firestore]);
+
+  const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersQuery);
+
+  const handleExport = () => {
+    if (!customers || customers.length === 0) {
+        toast({ variant: 'destructive', title: 'Export Failed', description: 'No customers to export.'});
+        return;
+    }
+    const headers = 'name,email,phone,address,notes\n';
+    const csvContent = customers.map(c => `${c.name},${c.email || ''},${c.phone || ''},${c.address || ''},${c.notes || ''}`).join('\n');
+    const blob = new Blob([headers + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', 'customer_template.csv');
+    link.setAttribute('download', 'customers.csv');
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -63,6 +79,7 @@ export default function CustomersPage() {
   };
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!firestore) return;
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -75,26 +92,26 @@ export default function CustomersPage() {
              return;
           }
           const headers = lines[0].split(',').map(h => h.trim());
-          const requiredHeaders = ['id', 'name'];
-          if (!requiredHeaders.every(h => headers.includes(h))) {
-            throw new Error('CSV must contain "id" and "name" columns.');
+          if (!headers.includes('name')) {
+            throw new Error('CSV must contain a "name" column.');
           }
 
-          const newCustomers: Customer[] = lines.slice(1).map((line) => {
+          const customerCollection = collection(firestore, 'customers');
+          lines.slice(1).forEach((line) => {
             const values = line.split(',');
             const customerData: any = {};
             headers.forEach((header, index) => {
                 customerData[header] = values[index]?.trim() || '';
             });
-            return {
-                id: customerData.id,
+             addDocumentNonBlocking(customerCollection, {
                 name: customerData.name,
-                email: customerData.email,
-                phone: customerData.phone,
-            } as Customer;
+                email: customerData.email || '',
+                phone: customerData.phone || '',
+                address: customerData.address || '',
+                notes: customerData.notes || '',
+            });
           });
-          setCustomers(prev => [...prev, ...newCustomers]);
-          toast({ title: 'Success', description: 'Customers imported successfully.' });
+          toast({ title: 'Success', description: 'Customers are being imported.' });
           setIsImporting(false);
         } catch (error: any) {
           toast({ variant: 'destructive', title: 'Import Failed', description: error.message });
@@ -105,15 +122,48 @@ export default function CustomersPage() {
   };
 
   const handleDelete = (customerId: string) => {
-    setCustomers(customers.filter(c => c.id !== customerId));
+    if (!firestore) return;
+    const docRef = doc(firestore, 'customers', customerId);
+    deleteDocumentNonBlocking(docRef);
     toast({ title: 'Customer Deleted', description: `Customer ${customerId} has been removed.`});
   };
 
-  const handleUpdateCustomer = () => {
-    if (!editingCustomer) return;
-    setCustomers(customers.map(c => c.id === editingCustomer.id ? editingCustomer : c));
-    toast({ title: 'Customer Updated', description: `Details for ${editingCustomer.name} have been saved.` });
+  const handleSaveCustomer = () => {
+    if (!editingCustomer || !firestore) return;
+
+    const customerData = {
+        name: editingCustomer.name,
+        email: editingCustomer.email || '',
+        phone: editingCustomer.phone || '',
+        address: editingCustomer.address || '',
+        notes: editingCustomer.notes || '',
+    };
+    
+    if (isNewCustomer) {
+        const customerCollection = collection(firestore, 'customers');
+        addDocumentNonBlocking(customerCollection, customerData);
+        toast({ title: 'Customer Added', description: `${editingCustomer.name} has been added.` });
+    } else {
+        const docRef = doc(firestore, 'customers', editingCustomer.id);
+        updateDocumentNonBlocking(docRef, customerData);
+        toast({ title: 'Customer Updated', description: `Details for ${editingCustomer.name} have been saved.` });
+    }
+    closeDialog();
+  }
+
+  const openNewCustomerDialog = () => {
+    setIsNewCustomer(true);
+    setEditingCustomer({ id: '', name: '', email: '', phone: '', address: '', notes: '' });
+  };
+
+  const openEditCustomerDialog = (customer: Customer) => {
+    setIsNewCustomer(false);
+    setEditingCustomer(customer);
+  }
+
+  const closeDialog = () => {
     setEditingCustomer(null);
+    setIsNewCustomer(false);
   }
 
   return (
@@ -131,17 +181,22 @@ export default function CustomersPage() {
               <FileUp className="mr-2 h-4 w-4" />
               Import
             </Button>
-            <Button variant="outline" onClick={handleExportTemplate}>
+            <Button variant="outline" onClick={handleExport}>
               <FileDown className="mr-2 h-4 w-4" />
-              Export Template
+              Export
             </Button>
-            <Button>
+            <Button onClick={openNewCustomerDialog}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Customer
             </Button>
           </div>
         </CardHeader>
         <CardContent>
+         {customersLoading ? (
+             <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+         ) : (
           <Table>
             <TableHeader>
               <TableRow>
@@ -153,7 +208,7 @@ export default function CustomersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customers.map((customer, index) => (
+              {customers?.map((customer, index) => (
                 <TableRow key={customer.id}>
                   <TableCell>{index + 1}</TableCell>
                   <TableCell className="font-medium">{customer.name}</TableCell>
@@ -168,7 +223,7 @@ export default function CustomersPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                         <DropdownMenuItem onClick={() => setEditingCustomer(customer)}>
+                         <DropdownMenuItem onClick={() => openEditCustomerDialog(customer)}>
                           <Pencil className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenuItem>
@@ -183,6 +238,7 @@ export default function CustomersPage() {
               ))}
             </TableBody>
           </Table>
+         )}
         </CardContent>
       </Card>
 
@@ -191,26 +247,21 @@ export default function CustomersPage() {
           <DialogHeader>
             <DialogTitle>Import Customers</DialogTitle>
             <DialogDescription>
-              Upload a CSV file to add new customers. The file must contain 'id' and 'name' columns. Email and phone are optional.
+              Upload a CSV file to add new customers. The file must contain a 'name' column. Email and phone are optional.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <Input type="file" accept=".csv" onChange={handleImport} />
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleExportTemplate}>
-              Download Template
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
       
-      <Dialog open={!!editingCustomer} onOpenChange={(isOpen) => !isOpen && setEditingCustomer(null)}>
+      <Dialog open={!!editingCustomer} onOpenChange={(isOpen) => !isOpen && closeDialog()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Customer</DialogTitle>
+            <DialogTitle>{isNewCustomer ? 'Add New Customer' : 'Edit Customer'}</DialogTitle>
             <DialogDescription>
-              Update the details for {editingCustomer?.name}.
+             {isNewCustomer ? 'Enter the details for the new customer.' : `Update the details for ${editingCustomer?.name}.`}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -226,10 +277,18 @@ export default function CustomersPage() {
               <Label htmlFor="phone" className="text-right">Mobile</Label>
               <Input id="phone" value={editingCustomer?.phone || ''} onChange={(e) => setEditingCustomer(c => c ? {...c, phone: e.target.value} : null)} className="col-span-3" />
             </div>
+             <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="address" className="text-right">Address</Label>
+              <Input id="address" value={editingCustomer?.address || ''} onChange={(e) => setEditingCustomer(c => c ? {...c, address: e.target.value} : null)} className="col-span-3" />
+            </div>
+             <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="notes" className="text-right">Notes</Label>
+              <Input id="notes" value={editingCustomer?.notes || ''} onChange={(e) => setEditingCustomer(c => c ? {...c, notes: e.target.value} : null)} className="col-span-3" />
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingCustomer(null)}>Cancel</Button>
-            <Button onClick={handleUpdateCustomer}>Save Changes</Button>
+            <Button variant="outline" onClick={closeDialog}>Cancel</Button>
+            <Button onClick={handleSaveCustomer}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

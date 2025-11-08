@@ -10,7 +10,7 @@ import {
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
-import { useFirestore, useCollection } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   Card,
   CardHeader,
@@ -52,13 +52,13 @@ import {
   History,
 } from 'lucide-react';
 import Link from 'next/link';
-import { customers } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { format, startOfMonth, subMonths } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import type { Customer } from '@/lib/data';
 
 type LoanChangeType = 'new' | 'increase' | 'decrease';
 
@@ -98,23 +98,28 @@ const calculateClosingBalance = (loan: Loan) => {
 
 export default function LoansPage() {
   const firestore = useFirestore();
-  const [isClient, setIsClient] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const monthlyLoansQuery = useMemo(() => {
+  const customersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'customers'), orderBy('name'));
+  }, [firestore]);
+  const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersQuery);
+
+  const monthlyLoansQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'monthlyLoans'), orderBy('date', 'desc'));
   }, [firestore]);
 
-  const { data: pastEntries, loading: pastEntriesLoading } =
+  const { data: pastEntries, isLoading: pastEntriesLoading } =
     useCollection<MonthlyLoanDoc>(monthlyLoansQuery);
 
   const loadSubmittedDataForMonth = useCallback(
     async (date: Date) => {
-      if (!firestore) return;
+      if (!firestore || !customers) return;
       setIsLoading(true);
       const monthId = getMonthId(date);
       const docRef = doc(firestore, 'monthlyLoans', monthId);
@@ -152,8 +157,9 @@ export default function LoansPage() {
           toast({
             variant: 'destructive',
             title: 'Not Found',
-            description: `No submitted data found for ${format(date, 'MMMM yyyy')}.`,
+            description: `No submitted data found for ${format(date, 'MMMM yyyy')}. Starting a new entry.`,
           });
+           initializeNewMonth(date);
         }
       } catch (error) {
         console.error('Error loading data:', error);
@@ -166,11 +172,11 @@ export default function LoansPage() {
         setIsLoading(false);
       }
     },
-    [firestore, toast]
+    [firestore, toast, customers]
   );
   
   const initializeNewMonth = useCallback(async (date: Date) => {
-    if (!firestore) return;
+    if (!firestore || !customers) return;
     setIsLoading(true);
     const prevMonth = subMonths(date, 1);
     const prevMonthId = getMonthId(prevMonth);
@@ -216,10 +222,7 @@ export default function LoansPage() {
         }));
         toast({
           title: 'New Month',
-          description: `No data found for ${format(
-            date,
-            'MMMM yyyy'
-          )}. Starting fresh.`,
+          description: `No data for previous month. Starting fresh.`,
         });
       }
       setLoans(initialLoans);
@@ -234,12 +237,7 @@ export default function LoansPage() {
       setIsLoading(false);
     }
 
-  }, [firestore, toast]);
-
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  }, [firestore, toast, customers]);
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) {
@@ -358,8 +356,10 @@ export default function LoansPage() {
 
   const totalChange = totals.changeCash + totals.changeBank;
 
-  if (!isClient) {
-    return null;
+  const pageLoading = customersLoading;
+
+  if (pageLoading) {
+    return <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
   }
 
   return (
@@ -411,7 +411,7 @@ export default function LoansPage() {
               <div className="flex items-center justify-center p-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : selectedDate ? (
+            ) : selectedDate && customers ? (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
