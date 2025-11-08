@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Card,
   CardHeader,
@@ -34,46 +34,83 @@ type LoanChangeType = 'new' | 'increase' | 'decrease';
 
 type Loan = {
   customerId: string;
-  carryFwd: number | string;
+  carryFwd: number;
   changeType: LoanChangeType;
-  changeCash: number | string;
-  changeBank: number | string;
-  interestCash: number | string;
-  interestBank: number | string;
+  changeCash: number;
+  changeBank: number;
+  interestCash: number;
+  interestBank: number;
+  interestTotal: number; // Calculated total interest
 };
+
+// Assuming a default annual interest rate from settings, e.g., 12%
+const ANNUAL_INTEREST_RATE = 0.12;
 
 export default function LoansPage() {
   const [loans, setLoans] = useState<Loan[]>(
     customers.map((c) => ({
       customerId: c.id,
-      carryFwd: '',
+      carryFwd: 10000, // Example carryFwd, should be fetched
       changeType: 'new',
-      changeCash: '',
-      changeBank: '',
-      interestCash: '',
-      interestBank: '',
+      changeCash: 0,
+      changeBank: 0,
+      interestCash: 0,
+      interestBank: 0,
+      interestTotal: (10000 * ANNUAL_INTEREST_RATE) / 12, // Pre-calculate interest
     }))
   );
 
+  // Update interest total whenever carryFwd changes
+  useEffect(() => {
+    setLoans((prevLoans) =>
+      prevLoans.map((loan) => {
+        const monthlyInterest = (loan.carryFwd * ANNUAL_INTEREST_RATE) / 12;
+        // Keep user's cash/bank distribution if it's valid, otherwise reset
+        const currentInterestSum = loan.interestCash + loan.interestBank;
+        if (Math.abs(currentInterestSum - monthlyInterest) > 0.01) {
+          return {
+            ...loan,
+            interestTotal: monthlyInterest,
+            interestCash: monthlyInterest, // Default to cash
+            interestBank: 0,
+          };
+        }
+        return { ...loan, interestTotal: monthlyInterest };
+      })
+    );
+  }, []); // This should be triggered when carryFwd data is fetched/updated. For now, it runs once.
+
+
   const handleLoanChange = (
     customerId: string,
-    field: keyof Omit<Loan, 'customerId'>,
+    field: keyof Omit<Loan, 'customerId' | 'interestTotal'>,
     value: string | number
   ) => {
     setLoans((prev) =>
       prev.map((loan) => {
         if (loan.customerId === customerId) {
-          const newLoan = { ...loan, [field]: value };
+          const newLoan = { ...loan };
+          const numericValue = Number(value) || 0;
 
-          // Recalculate totals if the change type affects it
-          if (field === 'changeType' && value === 'decrease') {
-            newLoan.changeCash = Math.abs(Number(newLoan.changeCash)) * -1;
-            newLoan.changeBank = Math.abs(Number(newLoan.changeBank)) * -1;
-          } else if (field === 'changeType' && (value === 'new' || value === 'increase')) {
-            newLoan.changeCash = Math.abs(Number(newLoan.changeCash));
-            newLoan.changeBank = Math.abs(Number(newLoan.changeBank));
+          if (field === 'changeType') {
+            newLoan.changeType = value as LoanChangeType;
+            if (value === 'decrease') {
+              newLoan.changeCash = -Math.abs(newLoan.changeCash);
+              newLoan.changeBank = -Math.abs(newLoan.changeBank);
+            } else {
+              newLoan.changeCash = Math.abs(newLoan.changeCash);
+              newLoan.changeBank = Math.abs(newLoan.changeBank);
+            }
+          } else if (field === 'interestCash') {
+            newLoan.interestCash = numericValue;
+            newLoan.interestBank = newLoan.interestTotal - numericValue;
+          } else if (field === 'interestBank') {
+            newLoan.interestBank = numericValue;
+            newLoan.interestCash = newLoan.interestTotal - numericValue;
+          } else {
+             (newLoan as any)[field] = numericValue;
           }
-          
+
           return newLoan;
         }
         return loan;
@@ -86,7 +123,8 @@ export default function LoansPage() {
   };
 
   const getInterestTotal = (loan: Loan) => {
-    return (Number(loan.interestCash) || 0) + (Number(loan.interestBank) || 0);
+    // Return the calculated total, not the sum of inputs
+    return loan.interestTotal;
   };
 
   const totals = useMemo(() => {
@@ -97,6 +135,7 @@ export default function LoansPage() {
         acc.changeBank += Number(loan.changeBank) || 0;
         acc.interestCash += Number(loan.interestCash) || 0;
         acc.interestBank += Number(loan.interestBank) || 0;
+        acc.interestTotal += Number(loan.interestTotal) || 0;
         return acc;
       },
       {
@@ -105,13 +144,12 @@ export default function LoansPage() {
         changeBank: 0,
         interestCash: 0,
         interestBank: 0,
+        interestTotal: 0
       }
     );
   }, [loans]);
 
   const totalChange = totals.changeCash + totals.changeBank;
-  const totalInterest = totals.interestCash + totals.interestBank;
-
 
   return (
     <Card>
@@ -158,12 +196,12 @@ export default function LoansPage() {
               </TableRow>
               <TableRow>
                 <TableHead className="w-[200px]">Type</TableHead>
-                <TableHead className="w-[150px]">Cash</TableHead>
-                <TableHead className="w-[150px]">Bank</TableHead>
-                <TableHead className="w-[150px]">Total</TableHead>
-                <TableHead className="w-[150px]">Cash</TableHead>
-                <TableHead className="w-[150px]">Bank</TableHead>
-                <TableHead className="w-[150px]">Total</TableHead>
+                <TableHead className="w-[150px] text-right">Cash</TableHead>
+                <TableHead className="w-[150px] text-right">Bank</TableHead>
+                <TableHead className="w-[150px] text-right">Total</TableHead>
+                <TableHead className="w-[150px] text-right">Cash</TableHead>
+                <TableHead className="w-[150px] text-right">Bank</TableHead>
+                <TableHead className="w-[150px] text-right">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -180,7 +218,7 @@ export default function LoansPage() {
                       <Input
                         type="number"
                         placeholder="₹0.00"
-                        value={loan.carryFwd}
+                        value={loan.carryFwd || ''}
                         onChange={(e) =>
                           handleLoanChange(
                             customer.id,
@@ -189,6 +227,7 @@ export default function LoansPage() {
                           )
                         }
                         disabled
+                        className="text-right"
                       />
                     </TableCell>
 
@@ -214,7 +253,7 @@ export default function LoansPage() {
                       <Input
                         type="number"
                         placeholder="₹0.00"
-                        value={loan.changeCash}
+                        value={loan.changeCash || ''}
                         onChange={(e) =>
                           handleLoanChange(
                             customer.id,
@@ -222,13 +261,14 @@ export default function LoansPage() {
                             e.target.value
                           )
                         }
+                        className="text-right"
                       />
                     </TableCell>
                     <TableCell>
                       <Input
                         type="number"
                         placeholder="₹0.00"
-                        value={loan.changeBank}
+                        value={loan.changeBank || ''}
                         onChange={(e) =>
                           handleLoanChange(
                             customer.id,
@@ -236,14 +276,11 @@ export default function LoansPage() {
                             e.target.value
                           )
                         }
+                        className="text-right"
                       />
                     </TableCell>
-                    <TableCell>
-                      <div className="flex h-10 items-center rounded-md border border-input bg-background px-3">
-                        <span className="text-sm font-medium">
-                          ₹{changeTotal.toFixed(2)}
-                        </span>
-                      </div>
+                    <TableCell className="text-right font-medium">
+                        ₹{changeTotal.toFixed(2)}
                     </TableCell>
 
                     {/* Interest Section */}
@@ -251,7 +288,7 @@ export default function LoansPage() {
                       <Input
                         type="number"
                         placeholder="₹0.00"
-                        value={loan.interestCash}
+                        value={loan.interestCash || ''}
                         onChange={(e) =>
                           handleLoanChange(
                             customer.id,
@@ -259,13 +296,14 @@ export default function LoansPage() {
                             e.target.value
                           )
                         }
+                        className="text-right"
                       />
                     </TableCell>
                     <TableCell>
                       <Input
                         type="number"
                         placeholder="₹0.00"
-                        value={loan.interestBank}
+                        value={loan.interestBank || ''}
                         onChange={(e) =>
                           handleLoanChange(
                             customer.id,
@@ -273,14 +311,11 @@ export default function LoansPage() {
                             e.target.value
                           )
                         }
+                        className="text-right"
                       />
                     </TableCell>
-                    <TableCell>
-                      <div className="flex h-10 items-center rounded-md border border-input bg-background px-3">
-                        <span className="text-sm font-medium">
-                          ₹{interestTotal.toFixed(2)}
-                        </span>
-                      </div>
+                    <TableCell className="text-right font-medium">
+                       ₹{interestTotal.toFixed(2)}
                     </TableCell>
                   </TableRow>
                 );
@@ -296,7 +331,7 @@ export default function LoansPage() {
                     <TableCell>₹{totalChange.toFixed(2)}</TableCell>
                     <TableCell>₹{totals.interestCash.toFixed(2)}</TableCell>
                     <TableCell>₹{totals.interestBank.toFixed(2)}</TableCell>
-                    <TableCell>₹{totalInterest.toFixed(2)}</TableCell>
+                    <TableCell>₹{totals.interestTotal.toFixed(2)}</TableCell>
                 </TableRow>
             </UiTableFooter>
           </Table>
