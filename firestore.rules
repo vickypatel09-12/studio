@@ -15,7 +15,7 @@ service cloud.firestore {
     }
     
     // MONTHLY DEPOSITS & LOANS: Publicly readable, but only writable by authenticated users.
-    match /monthlyDeposites/{monthId} {
+    match /monthlyDeposits/{monthId} {
       allow read, list: if true;
       allow create, update, delete: if isSignedIn();
     }
