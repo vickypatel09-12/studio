@@ -29,7 +29,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -73,12 +72,20 @@ export default function CustomersPage() {
             const values = line.split(',');
             const customerData: any = {};
             headers.forEach((header, index) => {
-                customerData[header] = values[index].trim();
+                customerData[header] = values[index]?.trim() || '';
             });
              if (!customerData.id || !customerData.name) {
                 throw new Error('CSV must contain "id" and "name" columns.');
             }
-            return customerData as Customer;
+            return {
+                id: customerData.id,
+                name: customerData.name,
+                email: customerData.email,
+                phone: customerData.phone,
+                address: customerData.address || '',
+                joinDate: customerData.joinDate || new Date().toISOString().split('T')[0],
+                status: customerData.status || 'active',
+            } as Customer;
           });
           setCustomers(prev => [...prev, ...newCustomers]);
           toast({ title: 'Success', description: 'Customers imported successfully.' });
@@ -111,9 +118,9 @@ export default function CustomersPage() {
               <FileUp className="mr-2 h-4 w-4" />
               Import
             </Button>
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleExportTemplate}>
               <FileDown className="mr-2 h-4 w-4" />
-              Export
+              Export Template
             </Button>
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -125,38 +132,20 @@ export default function CustomersPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Customer</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Join Date</TableHead>
+                <TableHead className="w-[80px]">Sr. No.</TableHead>
+                <TableHead>Customer Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Mobile</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customers.map((customer) => (
+              {customers.map((customer, index) => (
                 <TableRow key={customer.id}>
-                  <TableCell>
-                    <div className="font-medium">{customer.name}</div>
-                    <div className="hidden text-sm text-muted-foreground md:inline">
-                      {customer.email}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        customer.status === 'active' ? 'default' : 'secondary'
-                      }
-                      className={
-                        customer.status === 'active'
-                          ? 'bg-accent text-accent-foreground'
-                          : ''
-                      }
-                    >
-                      {customer.status}
-                    </Badge>
-                  </TableCell>
+                  <TableCell>{index + 1}</TableCell>
+                  <TableCell className="font-medium">{customer.name}</TableCell>
+                  <TableCell>{customer.email}</TableCell>
                   <TableCell>{customer.phone}</TableCell>
-                  <TableCell>{customer.joinDate}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
