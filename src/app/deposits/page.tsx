@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Card,
   CardHeader,
@@ -25,64 +25,47 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Printer, Save, Send } from 'lucide-react';
-import { customers, type Customer } from '@/lib/data';
+import { customers } from '@/lib/data';
 
 type Deposit = {
   customerId: string;
-  depositAmount: number | string;
-  paymentMethod: 'cash' | 'bank' | 'split';
-  cashAmount: number | string;
-  bankAmount: number | string;
+  cashAmount: number;
+  bankAmount: number;
 };
 
 export default function DepositsPage() {
   const [deposits, setDeposits] = useState<Deposit[]>(
     customers.map((c) => ({
       customerId: c.id,
-      depositAmount: '',
-      paymentMethod: 'cash',
-      cashAmount: '',
-      bankAmount: '',
+      cashAmount: 0,
+      bankAmount: 0,
     }))
   );
 
   const handleDepositChange = (
     customerId: string,
     field: keyof Omit<Deposit, 'customerId'>,
-    value: string | number
+    value: string
   ) => {
+    const numericValue = Number(value) || 0;
     setDeposits((prev) =>
-      prev.map((deposit) => {
-        if (deposit.customerId === customerId) {
-          const newDeposit = { ...deposit, [field]: value };
-
-          if (
-            (field === 'cashAmount' || field === 'bankAmount') &&
-            newDeposit.paymentMethod === 'split'
-          ) {
-            const cash = Number(newDeposit.cashAmount) || 0;
-            const bank = Number(newDeposit.bankAmount) || 0;
-            newDeposit.depositAmount = cash + bank;
-          }
-
-          if (field === 'paymentMethod' && value !== 'split') {
-            newDeposit.cashAmount = '';
-            newDeposit.bankAmount = '';
-          }
-          
-          if (field === 'paymentMethod' && value === 'split') {
-             const cash = Number(newDeposit.cashAmount) || 0;
-            const bank = Number(newDeposit.bankAmount) || 0;
-            newDeposit.depositAmount = cash + bank;
-          }
-
-
-          return newDeposit;
-        }
-        return deposit;
-      })
+      prev.map((deposit) =>
+        deposit.customerId === customerId
+          ? { ...deposit, [field]: numericValue }
+          : deposit
+      )
     );
   };
+  
+  const totalDeposits = useMemo(() => {
+    return deposits.reduce((acc, deposit) => {
+      acc.cash += deposit.cashAmount;
+      acc.bank += deposit.bankAmount;
+      acc.total += deposit.cashAmount + deposit.bankAmount;
+      return acc;
+    }, { cash: 0, bank: 0, total: 0 });
+  }, [deposits]);
+
 
   return (
     <Card>
@@ -128,8 +111,9 @@ export default function DepositsPage() {
               <TableRow>
                 <TableHead className="w-[80px]">Sr. No.</TableHead>
                 <TableHead>Customer Name</TableHead>
-                <TableHead className="w-[200px]">Payment Method</TableHead>
-                <TableHead className="w-[300px]">Deposit Amount</TableHead>
+                <TableHead className="w-[150px] text-right">Cash</TableHead>
+                <TableHead className="w-[150px] text-right">Bank</TableHead>
+                <TableHead className="w-[150px] text-right">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -137,94 +121,62 @@ export default function DepositsPage() {
                 const deposit = deposits.find(
                   (d) => d.customerId === customer.id
                 )!;
+                const total = deposit.cashAmount + deposit.bankAmount;
                 return (
                   <TableRow key={customer.id}>
                     <TableCell className="font-medium">{index + 1}</TableCell>
                     <TableCell>{customer.name}</TableCell>
                     <TableCell>
-                      <Select
-                        value={deposit.paymentMethod}
-                        onValueChange={(value) =>
-                          handleDepositChange(
-                            customer.id,
-                            'paymentMethod',
-                            value
-                          )
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select method" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="cash">Cash</SelectItem>
-                          <SelectItem value="bank">Bank</SelectItem>
-                          <SelectItem value="split">Split</SelectItem>
-                        </SelectContent>
-                      </Select>
+                       <Input
+                          type="number"
+                          placeholder="₹0.00"
+                          value={deposit.cashAmount || ''}
+                          onChange={(e) =>
+                            handleDepositChange(
+                              customer.id,
+                              'cashAmount',
+                              e.target.value
+                            )
+                          }
+                          className="text-right"
+                        />
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        {deposit.paymentMethod === 'split' ? (
-                          <>
-                            <Input
-                              type="number"
-                              placeholder="Cash"
-                              value={deposit.cashAmount}
-                              onChange={(e) =>
-                                handleDepositChange(
-                                  customer.id,
-                                  'cashAmount',
-                                  e.target.value
-                                )
-                              }
-                            />
-                            <Input
-                              type="number"
-                              placeholder="Bank"
-                              value={deposit.bankAmount}
-                              onChange={(e) =>
-                                handleDepositChange(
-                                  customer.id,
-                                  'bankAmount',
-                                  e.target.value
-                                )
-                              }
-                            />
-                             <div className="flex items-center rounded-md border border-input bg-background px-3">
-                                <span className="text-sm text-muted-foreground">Split:</span>
-                                <Input
-                                  type="number"
-                                  placeholder="₹0.00"
-                                  value={deposit.depositAmount}
-                                  readOnly
-                                  className="border-none focus-visible:ring-0"
-                                />
-                              </div>
-                          </>
-                        ) : (
-                          <div className="flex items-center rounded-md border border-input bg-background px-3">
-                             <span className="text-sm text-muted-foreground capitalize">{deposit.paymentMethod}:</span>
-                            <Input
-                              type="number"
-                              placeholder="₹0.00"
-                              value={deposit.depositAmount}
-                              onChange={(e) =>
-                                handleDepositChange(
-                                  customer.id,
-                                  'depositAmount',
-                                  e.target.value
-                                )
-                              }
-                              className="border-none focus-visible:ring-0"
-                            />
-                          </div>
-                        )}
-                      </div>
+                       <Input
+                          type="number"
+                          placeholder="₹0.00"
+                          value={deposit.bankAmount || ''}
+                          onChange={(e) =>
+                            handleDepositChange(
+                              customer.id,
+                              'bankAmount',
+                              e.target.value
+                            )
+                          }
+                          className="text-right"
+                        />
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                       ₹{total.toFixed(2)}
                     </TableCell>
                   </TableRow>
                 );
               })}
             </TableBody>
+             <TableRow className="font-bold bg-muted/50">
+                <TableCell colSpan={2} className="text-right">
+                  Total
+                </TableCell>
+                <TableCell className="text-right">
+                  ₹{totalDeposits.cash.toFixed(2)}
+                </TableCell>
+                <TableCell className="text-right">
+                  ₹{totalDeposits.bank.toFixed(2)}
+                </TableCell>
+                <TableCell className="text-right">
+                  ₹{totalDeposits.total.toFixed(2)}
+                </TableCell>
+              </TableRow>
           </Table>
         </div>
       </CardContent>
