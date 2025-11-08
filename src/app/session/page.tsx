@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -116,12 +116,14 @@ function SessionManagement() {
     }
 
     setIsProcessing(true);
-    const newSession: Omit<Session, 'endDate'> = {
+    const newSession: Omit<Session, 'endDate'> & {endDate?: any} = {
       id: 'status',
       status: 'active',
       startDate: Timestamp.fromDate(startDate),
       interestRate: interestRate,
     };
+    delete newSession.endDate;
+
     setDocumentNonBlocking(sessionDocRef, newSession, { merge: false });
     toast({
       title: 'Session Started',
@@ -177,7 +179,7 @@ function SessionManagement() {
     };
     delete newSessionState.endDate;
 
-    setDocumentNonBlocking(sessionDocRef, newSessionState, { merge: false });
+    setDocumentNonBlocking(sessionDocRef, newSessionState, { merge: true });
 
     toast({
       title: 'Session Reverted',
