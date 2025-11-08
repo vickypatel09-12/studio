@@ -7,24 +7,20 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // CUSTOMERS: Anyone authenticated can create a customer. Only the creator can manage their own customer document.
-    // For this app, we are not enforcing user-specific ownership on customers, so any authenticated user can manage any customer.
-    // In a multi-user system, you would add: && request.auth.uid == customerId
+    // CUSTOMERS: Allow anyone to read the list of customers.
+    // Authenticated users can create, update, and delete.
     match /customers/{customerId} {
-      allow read, list: if isSignedIn();
+      allow read, list: if true;
       allow create, update, delete: if isSignedIn();
     }
     
-    // MONTHLY DEPOSITS & LOANS: Any authenticated user can read the list of monthly entries and create/update/delete them.
-    // This allows the "Submission History" feature to work for all users.
+    // MONTHLY DEPOSITS & LOANS: Any authenticated user can read, list, and manage entries.
     match /monthlyDeposits/{monthId} {
-      allow read, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn();
+      allow read, list, create, update, delete: if isSignedIn();
     }
 
     match /monthlyLoans/{monthId} {
-       allow read, list: if isSignedIn();
-       allow create, update, delete: if isSignedIn();
+       allow read, list, create, update, delete: if isSignedIn();
     }
 
     // SETTINGS: Publicly readable, but only writable from the server/admin console.
