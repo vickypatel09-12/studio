@@ -12,18 +12,15 @@ service cloud.firestore {
     match /monthlyDeposits/{monthId} {
       allow read, write: if true;
     }
+    match /monthlyDeposits {
+        allow list: if true;
+    }
  
     match /monthlyLoans/{monthId} {
       allow read, write: if true;
     }
-
-    // Allow listing of documents for submission history
-    match /monthlyDeposits {
-      allow list: if true;
-    }
-
     match /monthlyLoans {
-      allow list: if true;
+        allow list: if true;
     }
   }
 }
