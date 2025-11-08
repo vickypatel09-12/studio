@@ -188,6 +188,7 @@ export default function LoansPage() {
                             e.target.value
                           )
                         }
+                        disabled
                       />
                     </TableCell>
 
