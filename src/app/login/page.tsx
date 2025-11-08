@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useAuth, useUser, initiateEmailSignIn, initiateEmailSignUp } from '@/firebase';
+import { useAuth, useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -19,7 +19,12 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Landmark } from 'lucide-react';
-import { onAuthStateChanged } from 'firebase/auth';
+import {
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  AuthError,
+} from 'firebase/auth';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
@@ -54,34 +59,71 @@ export default function LoginPage() {
       router.push('/');
     }
   }, [user, isUserLoading, router]);
-  
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (user) => {
         setIsLoading(false);
         if (user) {
-            router.push('/');
+          router.push('/');
         }
-    }, (error) => {
+      },
+      (error) => {
         setIsLoading(false);
         toast({
           variant: 'destructive',
           title: 'Authentication Error',
           description: error.message,
         });
-    });
+      }
+    );
     return () => unsubscribe();
   }, [auth, router, toast]);
 
+  const handleAuthError = (error: AuthError) => {
+    let title = 'An error occurred';
+    let description = error.message;
+
+    if (error.code === 'auth/invalid-credential') {
+        title = 'Login Failed';
+        description = 'The email or password you entered is incorrect. Please try again.';
+    } else if (error.code === 'auth/email-already-in-use') {
+        title = 'Sign Up Failed';
+        description = 'An account with this email address already exists.';
+    }
+
+    toast({
+        variant: 'destructive',
+        title: title,
+        description: description,
+    });
+  }
+
   const onLoginSubmit = (data: LoginValues) => {
     setIsLoading(true);
-    initiateEmailSignIn(auth, data.email, data.password);
+    signInWithEmailAndPassword(auth, data.email, data.password)
+      .catch((error: AuthError) => {
+        handleAuthError(error);
+      })
+      .finally(() => {
+        // onAuthStateChanged will handle success and redirect, so we only need to stop loading here
+        setIsLoading(false);
+      });
   };
 
   const onSignupSubmit = (data: SignupValues) => {
     setIsLoading(true);
-    initiateEmailSignUp(auth, data.email, data.password);
+    createUserWithEmailAndPassword(auth, data.email, data.password)
+      .catch((error: AuthError) => {
+        handleAuthError(error);
+      })
+      .finally(() => {
+        // onAuthStateChanged will handle success and redirect
+        setIsLoading(false);
+      });
   };
-  
+
   if (isUserLoading || user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -92,12 +134,12 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-       <div className="mb-8 flex items-center gap-2">
-            <Landmark className="size-8 text-primary" />
-            <span className="font-headline text-2xl font-semibold">
-              Bachat Bank
-            </span>
-        </div>
+      <div className="mb-8 flex items-center gap-2">
+        <Landmark className="size-8 text-primary" />
+        <span className="font-headline text-2xl font-semibold">
+          Bachat Bank
+        </span>
+      </div>
       <Tabs defaultValue="login" className="w-full max-w-sm">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="login">Login</TabsTrigger>
@@ -141,12 +183,12 @@ export default function LoginPage() {
                 Create a new account to get started.
               </CardDescription>
             </CardHeader>
-             <form onSubmit={signupForm.handleSubmit(onSignupSubmit)}>
+            <form onSubmit={signupForm.handleSubmit(onSignupSubmit)}>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
                   <Input id="signup-email" type="email" placeholder="m@example.com" {...signupForm.register('email')} />
-                   {signupForm.formState.errors.email && <p className="text-sm text-destructive">{signupForm.formState.errors.email.message}</p>}
+                  {signupForm.formState.errors.email && <p className="text-sm text-destructive">{signupForm.formState.errors.email.message}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-password">Password</Label>
@@ -156,7 +198,7 @@ export default function LoginPage() {
               </CardContent>
               <CardFooter>
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Sign Up
                 </Button>
               </CardFooter>
