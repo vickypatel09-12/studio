@@ -55,6 +55,7 @@ type Loan = {
 const ANNUAL_INTEREST_RATE = 0.12;
 
 export default function LoansPage() {
+  const [isClient, setIsClient] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [loans, setLoans] = useState<Loan[]>(
     customers.map((c) => ({
@@ -71,6 +72,7 @@ export default function LoansPage() {
 
   // Update interest total whenever carryFwd changes
   useEffect(() => {
+    setIsClient(true);
     setLoans((prevLoans) =>
       prevLoans.map((loan) => {
         const monthlyInterest = (loan.carryFwd * ANNUAL_INTEREST_RATE) / 12;
@@ -159,6 +161,10 @@ export default function LoansPage() {
   }, [loans]);
 
   const totalChange = totals.changeCash + totals.changeBank;
+  
+  if (!isClient) {
+    return null;
+  }
 
   return (
     <Card>
