@@ -10,8 +10,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Inter', 'sans-serif'],
-        headline: ['Inter', 'sans-serif'],
+        body: ['PT Sans', 'Noto Sans Gujarati', 'sans-serif'],
+        headline: ['PT Sans', 'Noto Sans Gujarati', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {
