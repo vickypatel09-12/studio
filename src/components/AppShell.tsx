@@ -29,6 +29,8 @@ function getPageTitle(pathname: string) {
       return 'Dashboard';
     case '/customers':
       return 'Customers';
+    case '/deposits':
+      return 'Monthly Deposits';
     case '/loans':
       return 'Loan & Interest';
     case '/reports':
