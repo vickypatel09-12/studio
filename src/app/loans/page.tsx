@@ -103,16 +103,16 @@ export default function LoansPage() {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  
+
   const monthlyLoansQuery = useMemo(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'monthlyLoans'), orderBy('date', 'desc'));
   }, [firestore]);
 
-  const { data: pastEntries, loading: pastEntriesLoading } = useCollection<MonthlyLoanDoc>(monthlyLoansQuery);
+  const { data: pastEntries, loading: pastEntriesLoading } =
+    useCollection<MonthlyLoanDoc>(monthlyLoansQuery);
 
-
-  const loadDataForMonth = useCallback(
+  const loadSubmittedDataForMonth = useCallback(
     async (date: Date) => {
       if (!firestore) return;
       setIsLoading(true);
@@ -149,58 +149,11 @@ export default function LoansPage() {
             )}.`,
           });
         } else {
-          // Fetch previous month's closing balance as carry forward for new month.
-          const prevMonth = subMonths(date, 1);
-          const prevMonthId = getMonthId(prevMonth);
-          const prevDocRef = doc(firestore, 'monthlyLoans', prevMonthId);
-          const prevDocSnap = await getDoc(prevDocRef);
-
-          let initialLoans: Loan[] = [];
-          if (prevDocSnap.exists()) {
-            const prevData = prevDocSnap.data() as MonthlyLoanDoc;
-            initialLoans = customers.map((c) => {
-              const prevLoan = prevData.loans.find((l) => l.customerId === c.id);
-              const carryFwd = prevLoan ? calculateClosingBalance(prevLoan) : 0;
-              const interestTotal = (carryFwd * ANNUAL_INTEREST_RATE) / 12;
-              return {
-                customerId: c.id,
-                carryFwd: carryFwd,
-                changeType: 'new' as LoanChangeType,
-                changeCash: 0,
-                changeBank: 0,
-                interestCash: interestTotal,
-                interestBank: 0,
-                interestTotal: interestTotal,
-              };
-            });
-            toast({
-              title: 'New Month Initialized',
-              description: `Carry forward balances from ${format(
-                prevMonth,
-                'MMMM yyyy'
-              )} have been loaded.`,
-            });
-          } else {
-            initialLoans = customers.map((c) => ({
-              customerId: c.id,
-              carryFwd: 0,
-              changeType: 'new' as LoanChangeType,
-              changeCash: 0,
-              changeBank: 0,
-              interestCash: 0,
-              interestBank: 0,
-              interestTotal: 0,
-            }));
-            toast({
-              title: 'New Month',
-              description: `No data found for ${format(
-                date,
-                'MMMM yyyy'
-              )}. Starting fresh.`,
-            });
-          }
-
-          setLoans(initialLoans);
+          toast({
+            variant: 'destructive',
+            title: 'Not Found',
+            description: `No submitted data found for ${format(date, 'MMMM yyyy')}.`,
+          });
         }
       } catch (error) {
         console.error('Error loading data:', error);
@@ -215,18 +168,89 @@ export default function LoansPage() {
     },
     [firestore, toast]
   );
+  
+  const initializeNewMonth = useCallback(async (date: Date) => {
+    if (!firestore) return;
+    setIsLoading(true);
+    const prevMonth = subMonths(date, 1);
+    const prevMonthId = getMonthId(prevMonth);
+    const prevDocRef = doc(firestore, 'monthlyLoans', prevMonthId);
+    
+    try {
+      const prevDocSnap = await getDoc(prevDocRef);
+      let initialLoans: Loan[] = [];
+      if (prevDocSnap.exists()) {
+        const prevData = prevDocSnap.data() as MonthlyLoanDoc;
+        initialLoans = customers.map((c) => {
+          const prevLoan = prevData.loans.find((l) => l.customerId === c.id);
+          const carryFwd = prevLoan ? calculateClosingBalance(prevLoan) : 0;
+          const interestTotal = (carryFwd * ANNUAL_INTEREST_RATE) / 12;
+          return {
+            customerId: c.id,
+            carryFwd: carryFwd,
+            changeType: 'new' as LoanChangeType,
+            changeCash: 0,
+            changeBank: 0,
+            interestCash: interestTotal,
+            interestBank: 0,
+            interestTotal: interestTotal,
+          };
+        });
+        toast({
+          title: 'New Month Initialized',
+          description: `Carry forward balances from ${format(
+            prevMonth,
+            'MMMM yyyy'
+          )} have been loaded.`,
+        });
+      } else {
+        initialLoans = customers.map((c) => ({
+          customerId: c.id,
+          carryFwd: 0,
+          changeType: 'new' as LoanChangeType,
+          changeCash: 0,
+          changeBank: 0,
+          interestCash: 0,
+          interestBank: 0,
+          interestTotal: 0,
+        }));
+        toast({
+          title: 'New Month',
+          description: `No data found for ${format(
+            date,
+            'MMMM yyyy'
+          )}. Starting fresh.`,
+        });
+      }
+      setLoans(initialLoans);
+    } catch (error) {
+       console.error('Error initializing new month:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Initialization Error',
+          description: 'Could not initialize new month data.',
+        });
+    } finally {
+      setIsLoading(false);
+    }
+
+  }, [firestore, toast]);
+
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  useEffect(() => {
-    if (selectedDate && firestore) {
-      loadDataForMonth(selectedDate);
-    } else {
-      setLoans([]);
+  const handleDateSelect = (date: Date | undefined) => {
+    if (!date) {
+        setSelectedDate(undefined);
+        setLoans([]);
+        return;
     }
-  }, [selectedDate, firestore, loadDataForMonth]);
+    const newDate = startOfMonth(date);
+    setSelectedDate(newDate);
+    initializeNewMonth(newDate);
+  }
 
   const handleLoanChange = (
     customerId: string,
@@ -326,9 +350,10 @@ export default function LoansPage() {
       }
     );
   }, [loans]);
-  
+
   const handlePastEntryClick = (date: Date) => {
     setSelectedDate(date);
+    loadSubmittedDataForMonth(date);
   };
 
   const totalChange = totals.changeCash + totals.changeBank;
@@ -374,9 +399,7 @@ export default function LoansPage() {
                   <Calendar
                     mode="single"
                     selected={selectedDate}
-                    onSelect={(date) =>
-                      date && setSelectedDate(startOfMonth(date))
-                    }
+                    onSelect={handleDateSelect}
                     initialFocus
                   />
                 </PopoverContent>
@@ -567,7 +590,8 @@ export default function LoansPage() {
                 <Info className="h-4 w-4" />
                 <AlertTitle>Select a Date</AlertTitle>
                 <AlertDescription>
-                  Please pick a month to view and manage loans, or select one from the submission history.
+                  Please pick a month to view and manage loans, or select one
+                  from the submission history.
                 </AlertDescription>
               </Alert>
             )}
@@ -614,7 +638,12 @@ export default function LoansPage() {
                 {pastEntries.map((entry) => (
                   <Button
                     key={entry.id}
-                    variant={getMonthId(entry.date.toDate()) === (selectedDate && getMonthId(selectedDate)) ? 'default' : 'outline'}
+                    variant={
+                      getMonthId(entry.date.toDate()) ===
+                      (selectedDate && getMonthId(selectedDate))
+                        ? 'default'
+                        : 'outline'
+                    }
                     onClick={() => handlePastEntryClick(entry.date.toDate())}
                   >
                     {format(entry.date.toDate(), 'MMMM yyyy')}

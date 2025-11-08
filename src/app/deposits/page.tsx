@@ -77,13 +77,16 @@ export default function DepositsPage() {
 
   const monthlyDepositsQuery = useMemo(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'monthlyDeposits'), orderBy('date', 'desc'));
+    return query(
+      collection(firestore, 'monthlyDeposits'),
+      orderBy('date', 'desc')
+    );
   }, [firestore]);
 
-  const { data: pastEntries, loading: pastEntriesLoading } = useCollection<MonthlyDepositDoc>(monthlyDepositsQuery);
+  const { data: pastEntries, loading: pastEntriesLoading } =
+    useCollection<MonthlyDepositDoc>(monthlyDepositsQuery);
 
-
-  const loadDataForMonth = useCallback(
+  const loadSubmittedDataForMonth = useCallback(
     async (date: Date) => {
       if (!firestore) return;
       setIsLoading(true);
@@ -94,37 +97,37 @@ export default function DepositsPage() {
 
         if (docSnap.exists()) {
           const data = docSnap.data() as MonthlyDepositDoc;
-          // Ensure all customers are present, even if not in saved data
-          const allCustomerDeposits = customers.map(customer => {
-            const savedDeposit = data.deposits.find(d => d.customerId === customer.id);
-            return savedDeposit || { customerId: customer.id, cash: 0, bank: 0 };
+          const allCustomerDeposits = customers.map((customer) => {
+            const savedDeposit = data.deposits.find(
+              (d) => d.customerId === customer.id
+            );
+            return (
+              savedDeposit || { customerId: customer.id, cash: 0, bank: 0 }
+            );
           });
           setDeposits(allCustomerDeposits);
           toast({
             title: 'Data Loaded',
-            description: `Showing submitted data for ${format(date, 'MMMM yyyy')}.`,
+            description: `Showing submitted data for ${format(
+              date,
+              'MMMM yyyy'
+            )}.`,
           });
         } else {
-          // Initialize with empty data for new month if no submitted data exists
-          setDeposits(
-            customers.map((c) => ({
-              customerId: c.id,
-              cash: 0,
-              bank: 0,
-            }))
-          );
-           toast({
-            title: 'New Month',
-            description: `No data found for ${format(date, 'MMMM yyyy')}. You can create a new entry.`,
+           // This case should ideally not be hit when clicking from history, but as a fallback:
+          toast({
+            variant: 'destructive',
+            title: 'Not Found',
+            description: `No submitted data found for ${format(date, 'MMMM yyyy')}.`,
           });
         }
       } catch (error) {
-         console.error("Error loading data:", error);
-         toast({
-            variant: 'destructive',
-            title: 'Error Loading Data',
-            description: 'Could not load data from Firestore.',
-          });
+        console.error('Error loading data:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Error Loading Data',
+          description: 'Could not load data from Firestore.',
+        });
       } finally {
         setIsLoading(false);
       }
@@ -132,17 +135,37 @@ export default function DepositsPage() {
     [firestore, toast]
   );
   
+  const initializeNewMonth = useCallback((date: Date) => {
+     if (!firestore) return;
+      setIsLoading(true);
+      setDeposits(
+        customers.map((c) => ({
+          customerId: c.id,
+          cash: 0,
+          bank: 0,
+        }))
+      );
+      toast({
+        title: 'New Entry',
+        description: `Started a new entry for ${format(date, 'MMMM yyyy')}.`,
+      });
+      setIsLoading(false);
+  }, [firestore, toast]);
+
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  useEffect(() => {
-    if (selectedDate && firestore) {
-      loadDataForMonth(selectedDate);
-    } else {
-      setDeposits([]);
+  const handleDateSelect = (date: Date | undefined) => {
+    if (!date) {
+        setSelectedDate(undefined);
+        setDeposits([]);
+        return;
     }
-  }, [selectedDate, firestore, loadDataForMonth]);
+    const newDate = startOfMonth(date);
+    setSelectedDate(newDate);
+    initializeNewMonth(newDate);
+  }
 
   const handleDepositChange = (
     customerId: string,
@@ -220,9 +243,10 @@ export default function DepositsPage() {
         setIsLoading(false);
       });
   };
-  
+
   const handlePastEntryClick = (date: Date) => {
     setSelectedDate(date);
+    loadSubmittedDataForMonth(date);
   };
 
   if (!isClient) {
@@ -262,9 +286,7 @@ export default function DepositsPage() {
                   <Calendar
                     mode="single"
                     selected={selectedDate}
-                    onSelect={(date) =>
-                      date && setSelectedDate(startOfMonth(date))
-                    }
+                    onSelect={handleDateSelect}
                     initialFocus
                   />
                 </PopoverContent>
@@ -362,7 +384,8 @@ export default function DepositsPage() {
                 <Info className="h-4 w-4" />
                 <AlertTitle>Select a Date</AlertTitle>
                 <AlertDescription>
-                  Please pick a month to view and manage deposits, or select one from the submission history.
+                  Please pick a month to view and manage deposits, or select one
+                  from the submission history.
                 </AlertDescription>
               </Alert>
             )}
@@ -409,7 +432,12 @@ export default function DepositsPage() {
                 {pastEntries.map((entry) => (
                   <Button
                     key={entry.id}
-                    variant={getMonthId(entry.date.toDate()) === (selectedDate && getMonthId(selectedDate)) ? 'default' : 'outline'}
+                    variant={
+                      getMonthId(entry.date.toDate()) ===
+                      (selectedDate && getMonthId(selectedDate))
+                        ? 'default'
+                        : 'outline'
+                    }
                     onClick={() => handlePastEntryClick(entry.date.toDate())}
                   >
                     {format(entry.date.toDate(), 'MMMM yyyy')}
