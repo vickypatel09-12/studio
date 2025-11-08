@@ -22,6 +22,8 @@ import { SidebarNav } from '@/components/SidebarNav';
 import { usePathname } from 'next/navigation';
 import { Landmark, LogOut, User, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
+import { FirebaseClientProvider } from '@/firebase';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 function getPageTitle(pathname: string) {
   switch (pathname) {
@@ -107,7 +109,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             )}
           </div>
         </header>
-        <main className="p-4 sm:p-6">{children}</main>
+        <main className="p-4 sm:p-6">
+          <FirebaseClientProvider>
+            {children}
+            <FirebaseErrorListener />
+          </FirebaseClientProvider>
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );
