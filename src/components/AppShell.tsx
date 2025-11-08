@@ -9,10 +9,18 @@ import {
   SidebarContent,
   SidebarFooter,
 } from '@/components/ui/sidebar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { SidebarNav } from '@/components/SidebarNav';
 import { usePathname } from 'next/navigation';
-import { Landmark, LogOut, User } from 'lucide-react';
+import { Landmark, LogOut, User, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 
 function getPageTitle(pathname: string) {
@@ -60,18 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <SidebarNav />
         </SidebarContent>
         <SidebarFooter>
-          <div className="flex items-center gap-3 p-3">
-            <User className="size-9 rounded-full border bg-card p-1.5" />
-            <div className="flex flex-col text-sm">
-              <span className="font-semibold">Vikesh</span>
-              <span className="text-xs text-muted-foreground">
-                vikesh@example.com
-              </span>
-            </div>
-            <Button variant="ghost" size="icon" className="ml-auto">
-              <LogOut className="size-5" />
-            </Button>
-          </div>
+          {/* User menu moved to header */}
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
@@ -79,6 +76,30 @@ export function AppShell({ children }: { children: ReactNode }) {
           <SidebarTrigger className="md:hidden" />
           <div className="flex-1">
             <h1 className="font-headline text-lg font-semibold">{title}</h1>
+          </div>
+          <div className="ml-auto">
+             <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-2">
+                  <User className="size-5 rounded-full" />
+                  <div className="flex flex-col items-start text-sm">
+                    <span className="font-semibold">Vikesh</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>Profile</DropdownMenuItem>
+                <DropdownMenuItem>Settings</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                  <LogOut className="mr-2 size-4" />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
         <main className="flex-1 p-4 sm:p-6">{children}</main>
