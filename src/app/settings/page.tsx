@@ -26,7 +26,8 @@ type SessionStatus = 'closed' | 'active';
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const [sessionStatus, setSessionStatus] = useState<SessionStatus>('active');
+  const [sessionStatus, setSessionStatus] = useState<SessionStatus>('closed');
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
 
   const handleSave = () => {
     toast({
@@ -36,13 +37,25 @@ export default function SettingsPage() {
   };
 
   const handleSessionAction = (action: SessionStatus) => {
+    if (action === 'closed' && !selectedMonth) {
+      toast({
+        variant: 'destructive',
+        title: 'Selection Required',
+        description: 'Please select a month before ending the session.',
+      });
+      return;
+    }
     setSessionStatus(action);
     toast({
       title: `Session ${action === 'active' ? 'Started' : 'Ended'}`,
-      description: `The accounting session for the selected month has been ${
-        action === 'active' ? 'started' : 'ended'
-      }.`,
+      description: `The accounting session for ${
+        selectedMonth || 'the selected month'
+      } has been ${action === 'active' ? 'started' : 'ended'}.`,
     });
+     // Reset month selection after action
+    if (action === 'active') {
+      setSelectedMonth('');
+    }
   };
 
   return (
@@ -72,7 +85,7 @@ export default function SettingsPage() {
               </p>
             </div>
             <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-              <Select defaultValue="july-2024">
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Select Month" />
                 </SelectTrigger>
@@ -90,20 +103,23 @@ export default function SettingsPage() {
               </div>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <Button
-                variant="outline"
-                onClick={() => handleSessionAction('active')}
-                disabled={sessionStatus === 'active'}
-              >
-                <Power className="mr-2" /> Start Session
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => handleSessionAction('closed')}
-                disabled={sessionStatus === 'closed'}
-              >
-                <PowerOff className="mr-2" /> End Session
-              </Button>
+             {sessionStatus === 'closed' ? (
+                <Button
+                  variant="outline"
+                  onClick={() => handleSessionAction('active')}
+                  disabled={!selectedMonth}
+                >
+                  <Power className="mr-2" /> Start Session
+                </Button>
+              ) : (
+                <Button
+                  variant="destructive"
+                  onClick={() => handleSessionAction('closed')}
+                  disabled={!selectedMonth}
+                >
+                  <PowerOff className="mr-2" /> End Session
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
