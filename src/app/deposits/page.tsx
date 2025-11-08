@@ -33,7 +33,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Printer, Save, Send, CalendarIcon, Info, Loader2 } from 'lucide-react';
+import { Printer, Send, CalendarIcon, Info, Loader2 } from 'lucide-react';
 import { customers } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { format, startOfMonth } from 'date-fns';
@@ -55,8 +55,6 @@ type MonthlyDepositDoc = {
   createdAt: Timestamp;
 };
 
-const DEPOSITS_DRAFT_KEY = 'deposits-draft';
-
 const getMonthId = (date: Date) => format(date, 'yyyy-MM');
 
 export default function DepositsPage() {
@@ -72,27 +70,18 @@ export default function DepositsPage() {
       setIsLoading(true);
       const monthId = getMonthId(date);
       const docRef = doc(firestore, 'monthlyDeposits', monthId);
-      const docSnap = await getDoc(docRef);
+      try {
+        const docSnap = await getDoc(docRef);
 
-      if (docSnap.exists()) {
-        const data = docSnap.data() as MonthlyDepositDoc;
-        setDeposits(data.deposits);
-        toast({
-          title: 'Data Loaded',
-          description: `Showing submitted data for ${format(date, 'MMMM yyyy')}.`,
-        });
-      } else {
-        // Check for local draft if no submitted data exists
-        const savedDraft = localStorage.getItem(`${DEPOSITS_DRAFT_KEY}-${monthId}`);
-        if (savedDraft) {
-          const draftData = JSON.parse(savedDraft);
-          setDeposits(draftData);
+        if (docSnap.exists()) {
+          const data = docSnap.data() as MonthlyDepositDoc;
+          setDeposits(data.deposits);
           toast({
-            title: 'Draft Loaded',
-            description: `Your previously saved draft for ${format(date, 'MMMM yyyy')} has been loaded.`,
+            title: 'Data Loaded',
+            description: `Showing submitted data for ${format(date, 'MMMM yyyy')}.`,
           });
         } else {
-          // Initialize with empty data for new month
+          // Initialize with empty data for new month if no submitted data exists
           setDeposits(
             customers.map((c) => ({
               customerId: c.id,
@@ -100,29 +89,27 @@ export default function DepositsPage() {
               bank: 0,
             }))
           );
+           toast({
+            title: 'New Month',
+            description: `No data found for ${format(date, 'MMMM yyyy')}. You can create a new entry.`,
+          });
         }
+      } catch (error) {
+         console.error("Error loading data:", error);
+         toast({
+            variant: 'destructive',
+            title: 'Error Loading Data',
+            description: 'Could not load data from Firestore.',
+          });
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     },
     [firestore, toast]
   );
   
   useEffect(() => {
     setIsClient(true);
-    // On initial mount, check for a globally saved draft to ease transition.
-    const globalDraft = localStorage.getItem(DEPOSITS_DRAFT_KEY);
-    if(globalDraft) {
-        const {date, data} = JSON.parse(globalDraft);
-        const draftDate = new Date(date);
-        setSelectedDate(draftDate);
-        setDeposits(data);
-        localStorage.removeItem(DEPOSITS_DRAFT_KEY); // Remove old draft
-        localStorage.setItem(`${DEPOSITS_DRAFT_KEY}-${getMonthId(draftDate)}`, JSON.stringify(data));
-         toast({
-            title: 'Draft Loaded',
-            description: 'Your previously saved draft has been loaded.',
-          });
-    }
   }, []);
 
   useEffect(() => {
@@ -168,26 +155,6 @@ export default function DepositsPage() {
     );
   }, [deposits]);
 
-  const handleSaveDraft = () => {
-    if (!selectedDate) {
-      toast({
-        variant: 'destructive',
-        title: 'Date Not Selected',
-        description: 'Please select a date before saving a draft.',
-      });
-      return;
-    }
-    const monthId = getMonthId(selectedDate);
-    localStorage.setItem(
-      `${DEPOSITS_DRAFT_KEY}-${monthId}`,
-      JSON.stringify(deposits)
-    );
-    toast({
-      title: 'Draft Saved',
-      description: 'Your deposits data has been saved locally.',
-    });
-  };
-
   const handleSubmit = async () => {
     if (!selectedDate) {
       toast({
@@ -216,7 +183,6 @@ export default function DepositsPage() {
             'MMMM yyyy'
           )} have been submitted.`,
         });
-        localStorage.removeItem(`${DEPOSITS_DRAFT_KEY}-${monthId}`);
       })
       .catch((serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -313,7 +279,7 @@ export default function DepositsPage() {
                               e.target.value
                             )
                           }
-                          className="text-right w-[150px]"
+                          className="text-right w-full"
                         />
                       </TableCell>
                       <TableCell>
@@ -328,7 +294,7 @@ export default function DepositsPage() {
                               e.target.value
                             )
                           }
-                          className="text-right w-[150px]"
+                          className="text-right w-full"
                         />
                       </TableCell>
                       <TableCell className="text-right font-medium">
@@ -362,9 +328,6 @@ export default function DepositsPage() {
         <CardFooter className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => window.print()} disabled={isLoading}>
             <Printer className="mr-2 h-4 w-4" /> Print
-          </Button>
-          <Button variant="secondary" onClick={handleSaveDraft} disabled={isLoading}>
-            <Save className="mr-2 h-4 w-4" /> Save Draft
           </Button>
           <Button onClick={handleSubmit} disabled={isLoading}>
             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}

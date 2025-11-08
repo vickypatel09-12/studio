@@ -42,7 +42,6 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import {
   Printer,
-  Save,
   Send,
   CalendarIcon,
   Info,
@@ -78,7 +77,7 @@ type MonthlyLoanDoc = {
 };
 
 const ANNUAL_INTEREST_RATE = 0.12;
-const LOANS_DRAFT_KEY = 'loans-draft';
+
 const getMonthId = (date: Date) => format(date, 'yyyy-MM');
 
 export default function LoansPage() {
@@ -94,28 +93,18 @@ export default function LoansPage() {
       setIsLoading(true);
       const monthId = getMonthId(date);
       const docRef = doc(firestore, 'monthlyLoans', monthId);
-      const docSnap = await getDoc(docRef);
+      try {
+        const docSnap = await getDoc(docRef);
 
-      if (docSnap.exists()) {
-        const data = docSnap.data() as MonthlyLoanDoc;
-        setLoans(data.loans);
-        toast({
-          title: 'Data Loaded',
-          description: `Showing submitted data for ${format(
-            date,
-            'MMMM yyyy'
-          )}.`,
-        });
-      } else {
-        const savedDraft = localStorage.getItem(`${LOANS_DRAFT_KEY}-${monthId}`);
-        if (savedDraft) {
-          setLoans(JSON.parse(savedDraft));
+        if (docSnap.exists()) {
+          const data = docSnap.data() as MonthlyLoanDoc;
+          setLoans(data.loans);
           toast({
-            title: 'Draft Loaded',
-            description: `Your previously saved draft for ${format(
+            title: 'Data Loaded',
+            description: `Showing submitted data for ${format(
               date,
               'MMMM yyyy'
-            )} has been loaded.`,
+            )}.`,
           });
         } else {
           // TODO: Fetch previous month's closing balance as carry forward for new month.
@@ -130,28 +119,28 @@ export default function LoansPage() {
             interestTotal: (10000 * ANNUAL_INTEREST_RATE) / 12,
           }));
           setLoans(initialLoans);
+           toast({
+            title: 'New Month',
+            description: `No data found for ${format(date, 'MMMM yyyy')}. You can create a new entry.`,
+          });
         }
+      } catch (error) {
+        console.error("Error loading data:", error);
+        toast({
+           variant: 'destructive',
+           title: 'Error Loading Data',
+           description: 'Could not load data from Firestore.',
+         });
       }
-      setIsLoading(false);
+      finally {
+        setIsLoading(false);
+      }
     },
     [firestore, toast]
   );
   
   useEffect(() => {
     setIsClient(true);
-     const globalDraft = localStorage.getItem(LOANS_DRAFT_KEY);
-    if(globalDraft) {
-        const {date, data} = JSON.parse(globalDraft);
-        const draftDate = new Date(date);
-        setSelectedDate(draftDate);
-        setLoans(data);
-        localStorage.removeItem(LOANS_DRAFT_KEY);
-        localStorage.setItem(`${LOANS_DRAFT_KEY}-${getMonthId(draftDate)}`, JSON.stringify(data));
-         toast({
-            title: 'Draft Loaded',
-            description: 'Your previously saved draft has been loaded.',
-          });
-    }
   }, []);
 
   useEffect(() => {
@@ -197,26 +186,6 @@ export default function LoansPage() {
     return (Number(loan.changeCash) || 0) + (Number(loan.changeBank) || 0);
   };
 
-  const handleSaveDraft = () => {
-    if (!selectedDate) {
-      toast({
-        variant: 'destructive',
-        title: 'Date Not Selected',
-        description: 'Please select a date before saving a draft.',
-      });
-      return;
-    }
-    const monthId = getMonthId(selectedDate);
-    localStorage.setItem(
-      `${LOANS_DRAFT_KEY}-${monthId}`,
-      JSON.stringify(loans)
-    );
-    toast({
-      title: 'Draft Saved',
-      description: 'Your loans data has been saved locally.',
-    });
-  };
-
   const handleSubmit = async () => {
     if (!selectedDate) {
       toast({
@@ -245,7 +214,6 @@ export default function LoansPage() {
             'MMMM yyyy'
           )} have been submitted.`,
         });
-        localStorage.removeItem(`${LOANS_DRAFT_KEY}-${monthId}`);
       })
       .catch((serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -382,7 +350,7 @@ export default function LoansPage() {
                           placeholder="₹0.00"
                           value={loan.carryFwd || ''}
                           disabled
-                          className="text-right w-[150px]"
+                          className="text-right w-full"
                         />
                       </TableCell>
                       <TableCell>
@@ -392,7 +360,7 @@ export default function LoansPage() {
                             handleLoanChange(customer.id, 'changeType', value)
                           }
                         >
-                          <SelectTrigger className="w-[150px]">
+                          <SelectTrigger className="w-full">
                             <SelectValue placeholder="Type" />
                           </SelectTrigger>
                           <SelectContent>
@@ -410,7 +378,7 @@ export default function LoansPage() {
                           onChange={(e) =>
                             handleLoanChange(customer.id, 'changeCash', e.target.value)
                           }
-                          className="text-right w-[150px]"
+                          className="text-right w-full"
                         />
                       </TableCell>
                       <TableCell>
@@ -421,7 +389,7 @@ export default function LoansPage() {
                           onChange={(e) =>
                             handleLoanChange(customer.id, 'changeBank', e.target.value)
                           }
-                          className="text-right w-[150px]"
+                          className="text-right w-full"
                         />
                       </TableCell>
                       <TableCell className="text-right font-medium">
@@ -435,7 +403,7 @@ export default function LoansPage() {
                           onChange={(e) =>
                             handleLoanChange(customer.id, 'interestCash', e.target.value)
                           }
-                          className="text-right w-[150px]"
+                          className="text-right w-full"
                         />
                       </TableCell>
                       <TableCell>
@@ -446,7 +414,7 @@ export default function LoansPage() {
                           onChange={(e) =>
                             handleLoanChange(customer.id, 'interestBank', e.target.value)
                           }
-                          className="text-right w-[150px]"
+                          className="text-right w-full"
                         />
                       </TableCell>
                       <TableCell className="text-right font-medium">
@@ -485,9 +453,6 @@ export default function LoansPage() {
         <CardFooter className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => window.print()} disabled={isLoading}>
             <Printer className="mr-2 h-4 w-4" /> Print
-          </Button>
-          <Button variant="secondary" onClick={handleSaveDraft} disabled={isLoading}>
-            <Save className="mr-2 h-4 w-4" /> Save Draft
           </Button>
           <Button onClick={handleSubmit} disabled={isLoading}>
             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
