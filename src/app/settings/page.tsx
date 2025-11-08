@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardHeader,
@@ -30,6 +30,12 @@ export default function SettingsPage() {
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>('closed');
   const [sessionStartDate, setSessionStartDate] = useState<Date | null>(null);
   const [sessionEndDate, setSessionEndDate] = useState<Date | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
 
   const handleSave = () => {
     toast({
@@ -104,6 +110,10 @@ export default function SettingsPage() {
   };
 
   const isSessionComplete = sessionStatus === 'closed' && sessionStartDate && sessionEndDate;
+
+  if (!isClient) {
+    return null;
+  }
 
   return (
     <div className="flex justify-center">
