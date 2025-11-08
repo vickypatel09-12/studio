@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Card,
   CardHeader,
@@ -45,6 +45,11 @@ export default function DepositsPage() {
       bankAmount: 0,
     }))
   );
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleDepositChange = (
     customerId: string,
@@ -70,6 +75,9 @@ export default function DepositsPage() {
     }, { cash: 0, bank: 0, total: 0 });
   }, [deposits]);
 
+  if (!isClient) {
+    return null;
+  }
 
   return (
     <Card>
