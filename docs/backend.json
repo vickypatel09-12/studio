@@ -1,159 +1,247 @@
 {
   "entities": {
-    "user": {
-      "title": "User",
-      "description": "Represents a user of the application",
+    "Customer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Customer",
       "type": "object",
+      "description": "Represents a customer profile in the Bachat Bank ERP system.",
       "properties": {
-        "uid": {
+        "id": {
           "type": "string",
-          "description": "The user's unique ID."
+          "description": "Unique identifier for the Customer entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The full name of the customer."
+        },
+        "contactNumber": {
+          "type": "string",
+          "description": "The contact phone number of the customer."
+        },
+        "address": {
+          "type": "string",
+          "description": "The address of the customer."
         },
         "email": {
           "type": "string",
-          "format": "email",
-          "description": "The user's email address."
+          "description": "The email address of the customer.",
+          "format": "email"
         },
-        "displayName": {
+        "notes": {
           "type": "string",
-          "description": "The user's display name."
-        },
-        "photoURL": {
-          "type": "string",
-          "format": "uri",
-          "description": "URL of the user's profile picture."
+          "description": "Any notes relevant to the customer."
         }
       },
-      "required": ["uid", "email"]
+      "required": [
+        "id",
+        "name"
+      ]
     },
-    "monthlyDeposit": {
-      "title": "Monthly Deposit",
-      "description": "Represents the total deposits for a specific month.",
+    "MonthlyDeposit": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MonthlyDeposit",
       "type": "object",
+      "description": "Represents a monthly deposit entry for a customer.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "The unique identifier for the monthly deposit (e.g., '2024-08')."
+          "description": "Unique identifier for the MonthlyDeposit entity."
         },
-        "date": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The first day of the month for which the deposits are recorded."
-        },
-        "deposits": {
-          "type": "array",
-          "items": {
-            "$ref": "#/entities/deposit"
-          }
-        },
-        "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "The timestamp when the document was created."
-        }
-      },
-      "required": ["id", "date", "deposits"]
-    },
-    "deposit": {
-      "title": "Deposit",
-      "description": "Represents a single deposit transaction for a customer.",
-      "type": "object",
-      "properties": {
         "customerId": {
-          "type": "string"
+          "type": "string",
+          "description": "Reference to Customer. (Relationship: Customer 1:N MonthlyDeposit)"
         },
-        "cash": {
-          "type": "number"
+        "depositAmount": {
+          "type": "number",
+          "description": "The amount deposited by the customer for the month."
         },
-        "bank": {
-          "type": "number"
+        "paymentMethod": {
+          "type": "string",
+          "description": "The method of payment used for the deposit (e.g., cash, check, online transfer)."
+        },
+        "depositDate": {
+          "type": "string",
+          "description": "The date the deposit was made.",
+          "format": "date-time"
+        },
+        "month": {
+          "type": "string",
+          "description": "The month the deposit was made."
         }
       },
-      "required": ["customerId"]
+      "required": [
+        "id",
+        "customerId",
+        "depositAmount",
+        "paymentMethod",
+        "depositDate"
+      ]
     },
-     "monthlyLoan": {
-      "title": "Monthly Loan",
-      "description": "Represents the loan data for a specific month.",
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "The unique identifier for the monthly loan record (e.g., '2024-08')."
-        },
-        "date": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The first day of the month for which the loan data is recorded."
-        },
-        "loans": {
-          "type": "array",
-          "items": {
-            "$ref": "#/entities/loan"
-          }
-        },
-         "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "The timestamp when the document was created."
-        }
-      },
-      "required": ["id", "date", "loans"]
-    },
-    "loan": {
+    "Loan": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Loan",
-      "description": "Represents a single customer's loan state for a month.",
       "type": "object",
+      "description": "Represents a loan issued to a customer.",
       "properties": {
-        "customerId": {
-          "type": "string"
-        },
-        "carryFwd": {
-          "type": "number"
-        },
-        "changeType": {
+        "id": {
           "type": "string",
-          "enum": ["new", "increase", "decrease"]
+          "description": "Unique identifier for the Loan entity."
         },
-        "changeCash": {
-          "type": "number"
+        "customerId": {
+          "type": "string",
+          "description": "Reference to Customer. (Relationship: Customer 1:N Loan)"
         },
-        "changeBank": {
-          "type": "number"
+        "carryForwardLoan": {
+          "type": "number",
+          "description": "The amount of loan carried forward from the previous period."
         },
-        "interestCash": {
-          "type": "number"
+        "newLoanAmount": {
+          "type": "number",
+          "description": "The amount of new loan issued or change in loan amount."
         },
-        "interestBank": {
-          "type": "number"
+        "interestRate": {
+          "type": "number",
+          "description": "The interest rate applied to the loan."
         },
-        "interestTotal": {
-            "type": "number"
+        "interestAmount": {
+          "type": "number",
+          "description": "The calculated interest amount on the loan."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "The payment method used for loan installments."
+        },
+        "loanDate": {
+          "type": "string",
+          "description": "The date when the loan was issued or updated.",
+          "format": "date-time"
+        },
+        "month": {
+          "type": "string",
+          "description": "The month the loan was created."
         }
       },
-      "required": ["customerId"]
+      "required": [
+        "id",
+        "customerId",
+        "carryForwardLoan",
+        "newLoanAmount",
+        "interestRate",
+        "interestAmount",
+        "loanDate"
+      ]
+    },
+    "Setting": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Setting",
+      "type": "object",
+      "description": "Represents application settings such as interest rates and monthly session start/end dates.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Setting entity."
+        },
+        "interestRate": {
+          "type": "number",
+          "description": "The default interest rate used for loan calculations."
+        },
+        "sessionStart": {
+          "type": "string",
+          "description": "The start date of the monthly session.",
+          "format": "date-time"
+        },
+        "sessionEnd": {
+          "type": "string",
+          "description": "The end date of the monthly session.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id"
+      ]
     }
   },
   "auth": {
-    "providers": []
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": {
-        "$ref": "#/entities/user"
+    "structure": [
+      {
+        "path": "/customers/{customerId}",
+        "definition": {
+          "entityName": "Customer",
+          "schema": {
+            "$ref": "#/backend/entities/Customer"
+          },
+          "description": "Stores customer profiles. Each document represents a customer. Includes denormalized 'customerId' for secure referencing in subcollections.",
+          "params": [
+            {
+              "name": "customerId",
+              "description": "The unique identifier for the customer."
+            }
+          ]
+        }
       },
-      "description": "Stores public information about a user."
-    },
-    "/monthlyDeposits/{monthId}": {
-      "schema": {
-        "$ref": "#/entities/monthlyDeposit"
+      {
+        "path": "/customers/{customerId}/monthlyDeposits/{monthlyDepositId}",
+        "definition": {
+          "entityName": "MonthlyDeposit",
+          "schema": {
+            "$ref": "#/backend/entities/MonthlyDeposit"
+          },
+          "description": "Stores monthly deposit entries for a specific customer. Requires 'customerId' to match the parent customer document. ",
+          "params": [
+            {
+              "name": "customerId",
+              "description": "The unique identifier for the customer who made the deposit."
+            },
+            {
+              "name": "monthlyDepositId",
+              "description": "The unique identifier for the monthly deposit."
+            }
+          ]
+        }
       },
-      "description": "Stores all deposit records for a given month (YYYY-MM)."
-    },
-    "/monthlyLoans/{monthId}": {
-      "schema": {
-        "$ref": "#/entities/monthlyLoan"
+      {
+        "path": "/customers/{customerId}/loans/{loanId}",
+        "definition": {
+          "entityName": "Loan",
+          "schema": {
+            "$ref": "#/backend/entities/Loan"
+          },
+          "description": "Stores loan information for a specific customer. Requires 'customerId' to match the parent customer document.",
+          "params": [
+            {
+              "name": "customerId",
+              "description": "The unique identifier for the customer who received the loan."
+            },
+            {
+              "name": "loanId",
+              "description": "The unique identifier for the loan."
+            }
+          ]
+        }
       },
-      "description": "Stores all loan records for a given month (YYYY-MM)."
-    }
+      {
+        "path": "/settings/{settingId}",
+        "definition": {
+          "entityName": "Setting",
+          "schema": {
+            "$ref": "#/backend/entities/Setting"
+          },
+          "description": "Stores application settings, such as interest rates and monthly session dates. There is expected to be a single document for global settings.",
+          "params": [
+            {
+              "name": "settingId",
+              "description": "The unique identifier for the setting document (e.g., 'global')."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support the Bachat Bank ERP system, focusing on Customers, Monthly Deposits, Loans, and Settings. It prioritizes Authorization Independence, Clarity, and predictable data structures. Path-Based ownership is used for most resources. Each path follows the naming convention `/entityName/{entityId}`. For entities owned by a `Customer` such as `MonthlyDeposit` and `Loan`, the paths are structured as `/customers/{customerId}/monthlyDeposits/{monthlyDepositId}` and `/customers/{customerId}/loans/{loanId}` respectively. This structure ensures proper scoping and security. Settings are global and stored in a single document at the path `/settings/{settingId}`.\n\nAuthorization Independence:\nAuthorization will be managed through Firebase Authentication, with rules enforcing that users can only access data related to their customer accounts or that they have global admin roles. Since this application does not contain user role separation, we rely on path-based ownership.\n\nQAPs (Rules are not Filters):\nSegregation is achieved by using distinct collections for each entity, ensuring that rules can be applied consistently without complex filtering. The path-based ownership for customer-related data (`/customers/{customerId}/...`) ensures that users can only access their own data, supporting secure `list` operations."
   }
 }
