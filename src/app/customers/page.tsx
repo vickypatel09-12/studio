@@ -31,12 +31,14 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   PlusCircle,
   FileDown,
   FileUp,
   MoreHorizontal,
   Trash2,
+  Pencil,
 } from 'lucide-react';
 import { customers as initialCustomers, type Customer } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
@@ -44,6 +46,7 @@ import { useToast } from '@/hooks/use-toast';
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [isImporting, setIsImporting] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const { toast } = useToast();
 
   const handleExportTemplate = () => {
@@ -67,16 +70,22 @@ export default function CustomersPage() {
         try {
           const text = e.target?.result as string;
           const lines = text.split('\n').filter(line => line.trim() !== '');
+          if (lines.length <= 1) {
+             toast({ variant: 'destructive', title: 'Import Failed', description: 'CSV file is empty or contains only headers.' });
+             return;
+          }
           const headers = lines[0].split(',').map(h => h.trim());
+          const requiredHeaders = ['id', 'name'];
+          if (!requiredHeaders.every(h => headers.includes(h))) {
+            throw new Error('CSV must contain "id" and "name" columns.');
+          }
+
           const newCustomers: Customer[] = lines.slice(1).map((line) => {
             const values = line.split(',');
             const customerData: any = {};
             headers.forEach((header, index) => {
                 customerData[header] = values[index]?.trim() || '';
             });
-             if (!customerData.id || !customerData.name) {
-                throw new Error('CSV must contain "id" and "name" columns.');
-            }
             return {
                 id: customerData.id,
                 name: customerData.name,
@@ -99,6 +108,13 @@ export default function CustomersPage() {
     setCustomers(customers.filter(c => c.id !== customerId));
     toast({ title: 'Customer Deleted', description: `Customer ${customerId} has been removed.`});
   };
+
+  const handleUpdateCustomer = () => {
+    if (!editingCustomer) return;
+    setCustomers(customers.map(c => c.id === editingCustomer.id ? editingCustomer : c));
+    toast({ title: 'Customer Updated', description: `Details for ${editingCustomer.name} have been saved.` });
+    setEditingCustomer(null);
+  }
 
   return (
     <>
@@ -152,6 +168,10 @@ export default function CustomersPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                         <DropdownMenuItem onClick={() => setEditingCustomer(customer)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDelete(customer.id)} className='text-destructive focus:text-destructive'>
                           <Trash2 className="mr-2 h-4 w-4" />
                           Delete
@@ -171,7 +191,7 @@ export default function CustomersPage() {
           <DialogHeader>
             <DialogTitle>Import Customers</DialogTitle>
             <DialogDescription>
-              Upload a CSV file to add new customers. Email and phone are optional.
+              Upload a CSV file to add new customers. The file must contain 'id' and 'name' columns. Email and phone are optional.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -184,6 +204,36 @@ export default function CustomersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      <Dialog open={!!editingCustomer} onOpenChange={(isOpen) => !isOpen && setEditingCustomer(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Customer</DialogTitle>
+            <DialogDescription>
+              Update the details for {editingCustomer?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">Name</Label>
+              <Input id="name" value={editingCustomer?.name || ''} onChange={(e) => setEditingCustomer(c => c ? {...c, name: e.target.value} : null)} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="email" className="text-right">Email</Label>
+              <Input id="email" value={editingCustomer?.email || ''} onChange={(e) => setEditingCustomer(c => c ? {...c, email: e.target.value} : null)} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="phone" className="text-right">Mobile</Label>
+              <Input id="phone" value={editingCustomer?.phone || ''} onChange={(e) => setEditingCustomer(c => c ? {...c, phone: e.target.value} : null)} className="col-span-3" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingCustomer(null)}>Cancel</Button>
+            <Button onClick={handleUpdateCustomer}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </>
   );
 }
