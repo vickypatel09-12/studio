@@ -72,6 +72,10 @@ export default function LoansPage() {
     return (Number(loan.changeCash) || 0) + (Number(loan.changeBank) || 0);
   };
 
+  const getInterestTotal = (loan: Loan) => {
+    return (Number(loan.interestCash) || 0) + (Number(loan.interestBank) || 0);
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -126,7 +130,7 @@ export default function LoansPage() {
                 <TableHead colSpan={4} className="text-center">
                   New Loan / Change
                 </TableHead>
-                <TableHead colSpan={2} className="text-center">
+                <TableHead colSpan={3} className="text-center">
                   Interest
                 </TableHead>
               </TableRow>
@@ -137,12 +141,14 @@ export default function LoansPage() {
                 <TableHead className="w-[150px]">Total</TableHead>
                 <TableHead className="w-[150px]">Cash</TableHead>
                 <TableHead className="w-[150px]">Bank</TableHead>
+                <TableHead className="w-[150px]">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {customers.map((customer, index) => {
                 const loan = loans.find((l) => l.customerId === customer.id)!;
                 const changeTotal = getChangeTotal(loan);
+                const interestTotal = getInterestTotal(loan);
 
                 return (
                   <TableRow key={customer.id}>
@@ -245,6 +251,13 @@ export default function LoansPage() {
                           )
                         }
                       />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex h-10 items-center rounded-md border border-input bg-background px-3">
+                        <span className="text-sm font-medium">
+                          ₹{interestTotal.toFixed(2)}
+                        </span>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
