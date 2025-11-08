@@ -3,6 +3,7 @@ import './globals.css';
 import { AppShell } from '@/components/AppShell';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 export const metadata: Metadata = {
   title: 'Bachat Bank ERP',
@@ -33,10 +34,13 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <FirebaseClientProvider>
-          <AppShell>{children}</AppShell>
-          <Toaster />
-        </FirebaseClientProvider>
+        <AppShell>
+          <FirebaseClientProvider>
+            {children}
+            <FirebaseErrorListener />
+          </FirebaseClientProvider>
+        </AppShell>
+        <Toaster />
       </body>
     </html>
   );
