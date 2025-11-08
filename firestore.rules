@@ -7,28 +7,26 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // CUSTOMERS: Allow anyone to read the list of customers.
-    // Authenticated users can create, update, and delete.
+    // CUSTOMERS: Allow reads by authenticated users, and writes by authenticated users.
     match /customers/{customerId} {
-      allow read, list: if true;
-      allow create, update, delete: if isSignedIn();
+      allow read, list: if isSignedIn();
+      allow write: if isSignedIn();
     }
     
-    // MONTHLY DEPOSITS & LOANS: Publicly readable, but only writable by authenticated users.
+    // MONTHLY DEPOSITS & LOANS: Allow reads and writes only by authenticated users.
     match /monthlyDeposits/{monthId} {
-      allow read, list: if true;
-      allow create, update, delete: if isSignedIn();
+      allow read, list: if isSignedIn();
+      allow write: if isSignedIn();
     }
 
     match /monthlyLoans/{monthId} {
-       allow read, list: if true;
-       allow create, update, delete: if isSignedIn();
+       allow read, list: if isSignedIn();
+       allow write: if isSignedIn();
     }
 
-    // SESSION: Writable by authenticated users, readable by all.
+    // SESSION: Writable and readable by authenticated users.
     match /session/status {
-      allow read: if true;
-      allow write: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
   }
 }

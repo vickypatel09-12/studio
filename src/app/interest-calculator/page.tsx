@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { AppShell } from '@/components/AppShell';
 
 const formSchema = z.object({
   carryFwdLoan: z.coerce.number().min(0, 'Loan must be a positive number.'),
@@ -41,7 +42,7 @@ const formSchema = z.object({
     .min(1, 'Period must be at least 1 month.'),
 });
 
-export default function InterestCalculatorPage() {
+function InterestCalculator() {
   const [result, setResult] = useState<CalculateInterestOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -162,5 +163,14 @@ export default function InterestCalculatorPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+
+export default function InterestCalculatorPage() {
+  return (
+    <AppShell>
+      <InterestCalculator />
+    </AppShell>
   );
 }

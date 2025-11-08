@@ -51,6 +51,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import type { Customer } from '@/lib/data';
+import { AppShell } from '@/components/AppShell';
 
 type Deposit = {
   customerId: string;
@@ -67,7 +68,7 @@ type MonthlyDepositDoc = {
 
 const getMonthId = (date: Date) => format(date, 'yyyy-MM');
 
-export default function DepositsPage() {
+function Deposits() {
   const firestore = useFirestore();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [deposits, setDeposits] = useState<Deposit[]>([]);
@@ -451,5 +452,13 @@ export default function DepositsPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function DepositsPage() {
+  return (
+    <AppShell>
+      <Deposits />
+    </AppShell>
   );
 }

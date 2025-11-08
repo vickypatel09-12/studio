@@ -59,6 +59,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import type { Customer } from '@/lib/data';
+import { AppShell } from '@/components/AppShell';
 
 type LoanChangeType = 'new' | 'increase' | 'decrease';
 
@@ -96,7 +97,7 @@ const calculateClosingBalance = (loan: Loan) => {
   return (Number(loan.carryFwd) || 0) + adjustment;
 };
 
-export default function LoansPage() {
+function Loans() {
   const firestore = useFirestore();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [loans, setLoans] = useState<Loan[]>([]);
@@ -659,5 +660,14 @@ export default function LoansPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+
+export default function LoansPage() {
+  return (
+    <AppShell>
+      <Loans />
+    </AppShell>
   );
 }

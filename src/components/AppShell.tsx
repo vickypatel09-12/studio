@@ -19,9 +19,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { SidebarNav } from '@/components/SidebarNav';
-import { usePathname } from 'next/navigation';
-import { Landmark, LogOut, User, ChevronDown } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Landmark, LogOut, User, ChevronDown, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth, useUser } from '@/firebase';
+import { signOut } from 'firebase/auth';
 
 function getPageTitle(pathname: string) {
   switch (pathname) {
@@ -47,12 +49,29 @@ function getPageTitle(pathname: string) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
   const title = getPageTitle(pathname);
-  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
-  }, []);
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isUserLoading, router]);
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/login');
+  };
+
+  if (isUserLoading || !user) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider>
@@ -81,34 +100,33 @@ export function AppShell({ children }: { children: ReactNode }) {
             <h1 className="font-headline text-lg font-semibold">{title}</h1>
           </div>
           <div className="ml-auto">
-            {isClient && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center gap-2">
-                    <User className="size-5 rounded-full" />
-                    <div className="flex flex-col items-start text-sm">
-                      <span className="font-semibold">Vikesh</span>
-                    </div>
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>Profile</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive">
-                    <LogOut className="mr-2 size-4" />
-                    Log out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-2">
+                  <User className="size-5 rounded-full" />
+                  <div className="flex flex-col items-start text-sm">
+                    <span className="font-semibold">{user.email}</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>Profile</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                >
+                  <LogOut className="mr-2 size-4" />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
-        <main className="p-4 sm:p-6">
-          {children}
-        </main>
+        <main className="p-4 sm:p-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

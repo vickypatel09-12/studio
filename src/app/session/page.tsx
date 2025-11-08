@@ -20,6 +20,7 @@ import {
 import { doc, Timestamp } from 'firebase/firestore';
 import { Loader2, Play, StopCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { AppShell } from '@/components/AppShell';
 
 type Session = {
   id: 'status';
@@ -28,7 +29,7 @@ type Session = {
   endDate?: Timestamp;
 };
 
-export default function SessionManagementPage() {
+function SessionManagement() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -149,5 +150,13 @@ export default function SessionManagementPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+export default function SessionManagementPage() {
+  return (
+    <AppShell>
+      <SessionManagement />
+    </AppShell>
   );
 }

@@ -45,8 +45,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking, useMemoFirebase } from '@/firebase';
 import { collection, query, doc } from 'firebase/firestore';
 import type { Customer } from '@/lib/data';
+import { AppShell } from '@/components/AppShell';
 
-export default function CustomersPage() {
+function Customers() {
   const firestore = useFirestore();
   const [isImporting, setIsImporting] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -292,7 +293,14 @@ export default function CustomersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </>
   );
+}
+
+export default function CustomersPage() {
+  return (
+    <AppShell>
+      <Customers />
+    </AppShell>
+  )
 }

@@ -22,6 +22,8 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import type { Customer } from '@/lib/data';
 import { format } from 'date-fns';
+import { AppShell } from '@/components/AppShell';
+
 
 type MonthlyDepositDoc = {
   id: string;
@@ -53,7 +55,7 @@ type Transaction = {
 };
 
 
-export default function Dashboard() {
+function Dashboard() {
   const firestore = useFirestore();
 
   const customersQuery = useMemoFirebase(() => {
@@ -257,4 +259,12 @@ export default function Dashboard() {
       </Card>
     </div>
   );
+}
+
+export default function DashboardPage() {
+  return (
+    <AppShell>
+      <Dashboard />
+    </AppShell>
+  )
 }

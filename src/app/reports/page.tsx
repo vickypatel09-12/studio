@@ -37,6 +37,7 @@ import { format } from 'date-fns';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query } from 'firebase/firestore';
 import type { Customer } from '@/lib/data';
+import { AppShell } from '@/components/AppShell';
 
 type ReportType = 'monthly' | 'all-time';
 
@@ -49,8 +50,7 @@ const reportData = (customers: Customer[] = []) => customers.map((c) => ({
   interest: Math.random() * 200,
 }));
 
-
-export default function ReportsPage() {
+function Reports() {
   const firestore = useFirestore();
   const [reportType, setReportType] = useState<ReportType>('monthly');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -190,5 +190,13 @@ export default function ReportsPage() {
         </CardFooter>
       )}
     </Card>
+  );
+}
+
+export default function ReportsPage() {
+  return (
+    <AppShell>
+      <Reports />
+    </AppShell>
   );
 }
