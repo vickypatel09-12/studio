@@ -67,6 +67,7 @@ export default function DepositsPage() {
 
   const loadDataForMonth = useCallback(
     async (date: Date) => {
+      if (!firestore) return;
       setIsLoading(true);
       const monthId = getMonthId(date);
       const docRef = doc(firestore, 'monthlyDeposits', monthId);
@@ -113,12 +114,12 @@ export default function DepositsPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedDate) {
+    if (selectedDate && firestore) {
       loadDataForMonth(selectedDate);
     } else {
       setDeposits([]);
     }
-  }, [selectedDate, loadDataForMonth]);
+  }, [selectedDate, firestore, loadDataForMonth]);
 
   const handleDepositChange = (
     customerId: string,
@@ -156,7 +157,7 @@ export default function DepositsPage() {
   }, [deposits]);
 
   const handleSubmit = async () => {
-    if (!selectedDate) {
+    if (!selectedDate || !firestore) {
       toast({
         variant: 'destructive',
         title: 'Date Not Selected',

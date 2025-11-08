@@ -90,6 +90,7 @@ export default function LoansPage() {
 
   const loadDataForMonth = useCallback(
     async (date: Date) => {
+      if (!firestore) return;
       setIsLoading(true);
       const monthId = getMonthId(date);
       const docRef = doc(firestore, 'monthlyLoans', monthId);
@@ -144,12 +145,12 @@ export default function LoansPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedDate) {
+    if (selectedDate && firestore) {
       loadDataForMonth(selectedDate);
     } else {
       setLoans([]);
     }
-  }, [selectedDate, loadDataForMonth]);
+  }, [selectedDate, firestore, loadDataForMonth]);
 
   const handleLoanChange = (
     customerId: string,
@@ -187,7 +188,7 @@ export default function LoansPage() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedDate) {
+    if (!selectedDate || !firestore) {
       toast({
         variant: 'destructive',
         title: 'Date Not Selected',
