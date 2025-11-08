@@ -6,6 +6,7 @@ import {
   CardTitle,
   CardContent,
   CardDescription,
+  CardFooter,
 } from '@/components/ui/card';
 import {
   Table,
@@ -87,21 +88,6 @@ export default function DepositsPage() {
               <SelectItem value="may-2024">May 2024</SelectItem>
             </SelectContent>
           </Select>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => window.print()}
-              className="w-full"
-            >
-              <Printer className="mr-2 h-4 w-4" /> Print
-            </Button>
-            <Button variant="secondary" className="w-full">
-              <Save className="mr-2 h-4 w-4" /> Save Draft
-            </Button>
-            <Button className="w-full">
-              <Send className="mr-2 h-4 w-4" /> Submit
-            </Button>
-          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -183,6 +169,20 @@ export default function DepositsPage() {
           </Table>
         </div>
       </CardContent>
+       <CardFooter className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => window.print()}
+            >
+              <Printer className="mr-2 h-4 w-4" /> Print
+            </Button>
+            <Button variant="secondary">
+              <Save className="mr-2 h-4 w-4" /> Save Draft
+            </Button>
+            <Button>
+              <Send className="mr-2 h-4 w-4" /> Submit
+            </Button>
+      </CardFooter>
     </Card>
   );
 }
