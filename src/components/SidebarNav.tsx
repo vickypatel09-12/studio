@@ -12,6 +12,7 @@ import {
   Users,
   Banknote,
   FileText,
+  Clock,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -27,6 +28,7 @@ const navItems = [
     label: 'Interest Calculator',
     icon: Calculator,
   },
+  { href: '/session', label: 'Session Management', icon: Clock },
 ];
 
 export function SidebarNav() {

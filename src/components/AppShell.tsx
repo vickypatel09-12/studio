@@ -37,6 +37,8 @@ function getPageTitle(pathname: string) {
       return 'Reports';
     case '/interest-calculator':
       return 'Interest Calculation Tool';
+    case '/session':
+      return 'Session Management';
     default:
       if (pathname.startsWith('/customers/')) return 'Customer Details';
       return 'Bachat Bank ERP';

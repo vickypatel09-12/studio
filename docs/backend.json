@@ -130,6 +130,40 @@
         "interestAmount",
         "loanDate"
       ]
+    },
+    "Session": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Session",
+      "type": "object",
+      "description": "Represents a financial session.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the session, typically 'status'."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the session.",
+          "enum": [
+            "active",
+            "closed"
+          ]
+        },
+        "startDate": {
+          "type": "string",
+          "description": "The start date of the session.",
+          "format": "date-time"
+        },
+        "endDate": {
+          "type": "string",
+          "description": "The end date of the session.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "status"
+      ]
     }
   },
   "auth": {
@@ -195,8 +229,19 @@
             }
           ]
         }
+      },
+      {
+        "path": "/session/status",
+        "definition": {
+          "entityName": "Session",
+          "schema": {
+            "$ref": "#/backend/entities/Session"
+          },
+          "description": "Stores the current state of the financial session (active/closed).",
+          "params": []
+        }
       }
     ],
-    "reasoning": "The Firestore data structure is designed to support the Bachat Bank ERP system, focusing on Customers, Monthly Deposits, and Loans. It prioritizes Authorization Independence, Clarity, and predictable data structures. Path-Based ownership is used for most resources. Each path follows the naming convention `/entityName/{entityId}`. For entities owned by a `Customer` such as `MonthlyDeposit` and `Loan`, the paths are structured as `/customers/{customerId}/monthlyDeposits/{monthlyDepositId}` and `/customers/{customerId}/loans/{loanId}` respectively. This structure ensures proper scoping and security. Settings have been removed as they are no longer needed.\n\nAuthorization Independence:\nAuthorization will be managed through Firebase Authentication, with rules enforcing that users can only access data related to their customer accounts or that they have global admin roles. Since this application does not contain user role separation, we rely on path-based ownership.\n\nQAPs (Rules are not Filters):\nSegregation is achieved by using distinct collections for each entity, ensuring that rules can be applied consistently without complex filtering. The path-based ownership for customer-related data (`/customers/{customerId}/...`) ensures that users can only access their own data, supporting secure `list` operations."
+    "reasoning": "The Firestore data structure is designed to support the Bachat Bank ERP system, focusing on Customers, Monthly Deposits, and Loans. It prioritizes Authorization Independence, Clarity, and predictable data structures. Path-Based ownership is used for most resources. Each path follows the naming convention `/entityName/{entityId}`. For entities owned by a `Customer` such as `MonthlyDeposit` and `Loan`, the paths are structured as `/customers/{customerId}/monthlyDeposits/{monthlyDepositId}` and `/customers/{customerId}/loans/{loanId}` respectively. This structure ensures proper scoping and security. A new path /session/status has been added to manage the application's financial session state.\n\nAuthorization Independence:\nAuthorization will be managed through Firebase Authentication, with rules enforcing that users can only access data related to their customer accounts or that they have global admin roles. Since this application does not contain user role separation, we rely on path-based ownership.\n\nQAPs (Rules are not Filters):\nSegregation is achieved by using distinct collections for each entity, ensuring that rules can be applied consistently without complex filtering. The path-based ownership for customer-related data (`/customers/{customerId}/...`) ensures that users can only access their own data, supporting secure `list` operations."
   }
 }
