@@ -29,12 +29,15 @@ import { Printer, Save, Send, CalendarIcon } from 'lucide-react';
 import { customers } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 type Deposit = {
   customerId: string;
   cash: number;
   bank: number;
 };
+
+const DEPOSITS_STORAGE_KEY = 'deposits-draft';
 
 export default function DepositsPage() {
   const [isClient, setIsClient] = useState(false);
@@ -46,10 +49,17 @@ export default function DepositsPage() {
       bank: 0,
     }))
   );
+  const { toast } = useToast();
 
   useEffect(() => {
     setIsClient(true);
-    // Here you would fetch initial deposit data for the selected date
+    const savedData = localStorage.getItem(DEPOSITS_STORAGE_KEY);
+    if (savedData) {
+      const { date, data } = JSON.parse(savedData);
+      setSelectedDate(new Date(date));
+      setDeposits(data);
+       toast({ title: 'Draft Loaded', description: 'Your previously saved draft has been loaded.' });
+    }
   }, []);
 
 
@@ -89,6 +99,18 @@ export default function DepositsPage() {
     );
   }, [deposits]);
   
+  const handleSaveDraft = () => {
+    const dataToSave = {
+      date: selectedDate.toISOString(),
+      data: deposits,
+    };
+    localStorage.setItem(DEPOSITS_STORAGE_KEY, JSON.stringify(dataToSave));
+    toast({
+      title: 'Draft Saved',
+      description: 'Your deposits data has been saved locally.',
+    });
+  };
+
   if (!isClient) {
     return null;
   }
@@ -211,7 +233,7 @@ export default function DepositsPage() {
             >
               <Printer className="mr-2 h-4 w-4" /> Print
             </Button>
-            <Button variant="secondary">
+            <Button variant="secondary" onClick={handleSaveDraft}>
               <Save className="mr-2 h-4 w-4" /> Save Draft
             </Button>
             <Button>

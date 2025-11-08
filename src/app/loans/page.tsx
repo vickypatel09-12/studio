@@ -37,6 +37,8 @@ import Link from 'next/link';
 import { customers } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
+
 
 type LoanChangeType = 'new' | 'increase' | 'decrease';
 
@@ -53,43 +55,59 @@ type Loan = {
 
 // Assuming a default annual interest rate from settings, e.g., 12%
 const ANNUAL_INTEREST_RATE = 0.12;
+const LOANS_STORAGE_KEY = 'loans-draft';
 
 export default function LoansPage() {
   const [isClient, setIsClient] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [loans, setLoans] = useState<Loan[]>(
-    customers.map((c) => ({
-      customerId: c.id,
-      carryFwd: 10000, // Example carryFwd, should be fetched
-      changeType: 'new',
-      changeCash: 0,
-      changeBank: 0,
-      interestCash: 0,
-      interestBank: 0,
-      interestTotal: (10000 * ANNUAL_INTEREST_RATE) / 12, // Pre-calculate interest
-    }))
-  );
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const { toast } = useToast();
 
-  // Update interest total whenever carryFwd changes
+  // Initialize state and load from localStorage
   useEffect(() => {
     setIsClient(true);
-    setLoans((prevLoans) =>
-      prevLoans.map((loan) => {
-        const monthlyInterest = (loan.carryFwd * ANNUAL_INTEREST_RATE) / 12;
-        // Keep user's cash/bank distribution if it's valid, otherwise reset
-        const currentInterestSum = loan.interestCash + loan.interestBank;
-        if (Math.abs(currentInterestSum - monthlyInterest) > 0.01) {
-          return {
-            ...loan,
-            interestTotal: monthlyInterest,
-            interestCash: monthlyInterest, // Default to cash
-            interestBank: 0,
-          };
-        }
-        return { ...loan, interestTotal: monthlyInterest };
-      })
-    );
-  }, []); // This should be triggered when carryFwd data is fetched/updated. For now, it runs once.
+    const savedData = localStorage.getItem(LOANS_STORAGE_KEY);
+    if (savedData) {
+      const { date, data } = JSON.parse(savedData);
+      setSelectedDate(new Date(date));
+      setLoans(data);
+      toast({ title: 'Draft Loaded', description: 'Your previously saved draft has been loaded.' });
+    } else {
+      // Initialize with default data if nothing is saved
+      const initialLoans = customers.map((c) => ({
+        customerId: c.id,
+        carryFwd: 10000, // Example carryFwd, should be fetched
+        changeType: 'new' as LoanChangeType,
+        changeCash: 0,
+        changeBank: 0,
+        interestCash: 0,
+        interestBank: 0,
+        interestTotal: (10000 * ANNUAL_INTEREST_RATE) / 12,
+      }));
+      setLoans(initialLoans);
+    }
+  }, []);
+
+  // Update interest total whenever carryFwd changes (only on initial load for now)
+  useEffect(() => {
+    if (loans.length > 0) {
+        setLoans((prevLoans) =>
+        prevLoans.map((loan) => {
+            const monthlyInterest = (loan.carryFwd * ANNUAL_INTEREST_RATE) / 12;
+            const currentInterestSum = loan.interestCash + loan.interestBank;
+            if (Math.abs(currentInterestSum - monthlyInterest) > 0.01) {
+            return {
+                ...loan,
+                interestTotal: monthlyInterest,
+                interestCash: monthlyInterest, // Default to cash
+                interestBank: 0,
+            };
+            }
+            return { ...loan, interestTotal: monthlyInterest };
+        })
+        );
+    }
+  }, []);
 
 
   const handleLoanChange = (
@@ -137,6 +155,19 @@ export default function LoansPage() {
     // Return the calculated total, not the sum of inputs
     return loan.interestTotal;
   };
+  
+  const handleSaveDraft = () => {
+    const dataToSave = {
+      date: selectedDate.toISOString(),
+      data: loans,
+    };
+    localStorage.setItem(LOANS_STORAGE_KEY, JSON.stringify(dataToSave));
+    toast({
+      title: 'Draft Saved',
+      description: 'Your loans data has been saved locally.',
+    });
+  };
+
 
   const totals = useMemo(() => {
     return loans.reduce(
@@ -238,6 +269,7 @@ export default function LoansPage() {
             <TableBody>
               {customers.map((customer, index) => {
                 const loan = loans.find((l) => l.customerId === customer.id)!;
+                if (!loan) return null; // Defensive check
                 const changeTotal = getChangeTotal(loan);
                 const interestTotal = getInterestTotal(loan);
 
@@ -375,7 +407,7 @@ export default function LoansPage() {
             >
               <Printer className="mr-2 h-4 w-4" /> Print
             </Button>
-            <Button variant="secondary">
+            <Button variant="secondary" onClick={handleSaveDraft}>
               <Save className="mr-2 h-4 w-4" /> Save Draft
             </Button>
             <Button>
