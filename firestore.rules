@@ -8,7 +8,6 @@ service cloud.firestore {
     }
  
     // WARNING: The following rules are insecure and are for development purposes only.
-    // They allow anyone to read and write to the monthly deposits and loans collections.
     // You should implement proper authentication and security rules before deploying to production.
     match /monthlyDeposits/{monthId} {
       allow read, write: if true;
@@ -16,6 +15,15 @@ service cloud.firestore {
  
     match /monthlyLoans/{monthId} {
       allow read, write: if true;
+    }
+
+    // Allow listing of documents for submission history
+    match /monthlyDeposits {
+      allow list: if true;
+    }
+
+    match /monthlyLoans {
+      allow list: if true;
     }
   }
 }
