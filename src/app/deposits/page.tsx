@@ -108,9 +108,12 @@ export default function DepositsPage() {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
+               <TableRow>
+                <TableHead rowSpan={2} className="w-[80px]">Sr. No.</TableHead>
+                <TableHead rowSpan={2}>Customer Name</TableHead>
+                <TableHead colSpan={3} className="text-center">Deposit Amount</TableHead>
+              </TableRow>
               <TableRow>
-                <TableHead className="w-[80px]">Sr. No.</TableHead>
-                <TableHead>Customer Name</TableHead>
                 <TableHead className="w-[150px] text-right">Cash</TableHead>
                 <TableHead className="w-[150px] text-right">Bank</TableHead>
                 <TableHead className="w-[150px] text-right">Total</TableHead>
