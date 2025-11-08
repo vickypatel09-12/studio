@@ -92,13 +92,14 @@ export default function SettingsPage() {
         'PPpp'
       )}.`,
     });
-    setSelectedMonth(''); // Reset selection
+    // Don't reset selected month so the completed session info is visible
   };
   
   const handleRevertStart = () => {
     setSessionStatus('closed');
     setSessionStartDate(null);
     setActiveSessionMonth(null);
+    setSelectedMonth(''); // Reset selection
     toast({
       title: 'Action Reverted',
       description: 'The session start has been cancelled.',
@@ -144,7 +145,7 @@ export default function SettingsPage() {
               <Select
                 value={selectedMonth}
                 onValueChange={setSelectedMonth}
-                disabled={sessionStatus === 'active'}
+                disabled={sessionStatus === 'active' && !sessionEndDate}
               >
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Select Month" />
@@ -167,12 +168,14 @@ export default function SettingsPage() {
                       : ''
                   }
                 >
-                  {sessionStatus === 'active' ? `Active (${activeSessionMonth})` : 'Closed'}
+                  {sessionStatus === 'active' && activeSessionMonth
+                    ? `Active (${activeSessionMonth} since ${format(sessionStartDate!, 'dd MMM yyyy')})`
+                    : 'Closed'}
                 </Badge>
               </div>
             </div>
              <div className="flex flex-col gap-2 sm:flex-row">
-              {sessionStatus === 'closed' && (
+              {sessionStatus === 'closed' && !sessionEndDate && (
                 <Button
                   onClick={handleStartSession}
                   disabled={!selectedMonth}
@@ -180,11 +183,12 @@ export default function SettingsPage() {
                   <Power className="mr-2" /> Start Session
                 </Button>
               )}
-              {sessionStatus === 'active' && (
+              {sessionStatus === 'active' && !sessionEndDate && (
                 <>
                 <Button
                   variant="destructive"
                   onClick={handleEndSession}
+                  disabled={selectedMonth !== activeSessionMonth}
                 >
                   <PowerOff className="mr-2" /> End Session for {activeSessionMonth}
                 </Button>
