@@ -170,7 +170,7 @@ export default function LoansPage() {
     <Card>
       <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <CardTitle>Loans & Interest</CardTitle>
+          <CardTitle>Loans &amp; Interest</CardTitle>
           <CardDescription>
             Manage customer loans for the selected period. Use the{' '}
             <Button variant="link" asChild className="h-auto p-0">
@@ -217,7 +217,7 @@ export default function LoansPage() {
                   Sr.
                 </TableHead>
                 <TableHead rowSpan={2}>Customer</TableHead>
-                <TableHead rowSpan={2}>Carry Fwd</TableHead>
+                <TableHead rowSpan={2} className="w-[150px]">Carry Fwd</TableHead>
                 <TableHead colSpan={4} className="text-center">
                   New Loan / Change
                 </TableHead>
@@ -226,7 +226,7 @@ export default function LoansPage() {
                 </TableHead>
               </TableRow>
               <TableRow>
-                <TableHead className="w-[200px]">Type</TableHead>
+                <TableHead className="w-[150px]">Type</TableHead>
                 <TableHead className="w-[150px] text-right">Cash</TableHead>
                 <TableHead className="w-[150px] text-right">Bank</TableHead>
                 <TableHead className="w-[150px] text-right">Total</TableHead>

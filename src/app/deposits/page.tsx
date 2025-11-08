@@ -136,15 +136,10 @@ export default function DepositsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead rowSpan={2} className="w-[50px]">
+                <TableHead className="w-[50px]">
                   Sr.
                 </TableHead>
-                <TableHead rowSpan={2}>Customer</TableHead>
-                <TableHead colSpan={3} className="text-center">
-                  Deposit
-                </TableHead>
-              </TableRow>
-              <TableRow>
+                <TableHead>Customer</TableHead>
                 <TableHead className="w-[150px] text-right">Cash</TableHead>
                 <TableHead className="w-[150px] text-right">Bank</TableHead>
                 <TableHead className="w-[150px] text-right">Total</TableHead>
