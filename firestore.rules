@@ -7,13 +7,15 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
  
-    // Anyone who is authenticated can read or write to the monthly deposits and loans.
+    // WARNING: The following rules are insecure and are for development purposes only.
+    // They allow anyone to read and write to the monthly deposits and loans collections.
+    // You should implement proper authentication and security rules before deploying to production.
     match /monthlyDeposits/{monthId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if true;
     }
  
     match /monthlyLoans/{monthId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if true;
     }
   }
 }

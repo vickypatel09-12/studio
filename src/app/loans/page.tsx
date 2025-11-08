@@ -50,7 +50,7 @@ import {
 import Link from 'next/link';
 import { customers } from '@/lib/data';
 import { cn } from '@/lib/utils';
-import { format, startOfMonth } from 'date-fns';
+import { format, startOfMonth, subMonths } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -80,6 +80,18 @@ const ANNUAL_INTEREST_RATE = 0.12;
 
 const getMonthId = (date: Date) => format(date, 'yyyy-MM');
 
+const calculateClosingBalance = (loan: Loan) => {
+  const changeTotal = (Number(loan.changeCash) || 0) + (Number(loan.changeBank) || 0);
+  let adjustment = 0;
+  if (loan.changeType === 'new' || loan.changeType === 'increase') {
+    adjustment = changeTotal;
+  } else if (loan.changeType === 'decrease') {
+    adjustment = -changeTotal;
+  }
+  return (Number(loan.carryFwd) || 0) + adjustment;
+}
+
+
 export default function LoansPage() {
   const firestore = useFirestore();
   const [isClient, setIsClient] = useState(false);
@@ -99,7 +111,20 @@ export default function LoansPage() {
 
         if (docSnap.exists()) {
           const data = docSnap.data() as MonthlyLoanDoc;
-          setLoans(data.loans);
+           const allCustomerLoans = customers.map(customer => {
+            const savedLoan = data.loans.find(d => d.customerId === customer.id);
+            return savedLoan || { 
+              customerId: customer.id,
+              carryFwd: 0,
+              changeType: 'new' as LoanChangeType,
+              changeCash: 0,
+              changeBank: 0,
+              interestCash: 0,
+              interestBank: 0,
+              interestTotal: 0,
+            };
+          });
+          setLoans(allCustomerLoans);
           toast({
             title: 'Data Loaded',
             description: `Showing submitted data for ${format(
@@ -108,22 +133,52 @@ export default function LoansPage() {
             )}.`,
           });
         } else {
-          // TODO: Fetch previous month's closing balance as carry forward for new month.
-          const initialLoans = customers.map((c) => ({
-            customerId: c.id,
-            carryFwd: 10000,
-            changeType: 'new' as LoanChangeType,
-            changeCash: 0,
-            changeBank: 0,
-            interestCash: (10000 * ANNUAL_INTEREST_RATE) / 12,
-            interestBank: 0,
-            interestTotal: (10000 * ANNUAL_INTEREST_RATE) / 12,
-          }));
+          // Fetch previous month's closing balance as carry forward for new month.
+          const prevMonth = subMonths(date, 1);
+          const prevMonthId = getMonthId(prevMonth);
+          const prevDocRef = doc(firestore, 'monthlyLoans', prevMonthId);
+          const prevDocSnap = await getDoc(prevDocRef);
+
+          let initialLoans: Loan[] = [];
+          if (prevDocSnap.exists()) {
+            const prevData = prevDocSnap.data() as MonthlyLoanDoc;
+            initialLoans = customers.map(c => {
+               const prevLoan = prevData.loans.find(l => l.customerId === c.id);
+               const carryFwd = prevLoan ? calculateClosingBalance(prevLoan) : 0;
+               const interestTotal = (carryFwd * ANNUAL_INTEREST_RATE) / 12;
+               return {
+                  customerId: c.id,
+                  carryFwd: carryFwd,
+                  changeType: 'new' as LoanChangeType,
+                  changeCash: 0,
+                  changeBank: 0,
+                  interestCash: interestTotal,
+                  interestBank: 0,
+                  interestTotal: interestTotal,
+               }
+            });
+             toast({
+              title: 'New Month Initialized',
+              description: `Carry forward balances from ${format(prevMonth, 'MMMM yyyy')} have been loaded.`,
+            });
+          } else {
+             initialLoans = customers.map((c) => ({
+              customerId: c.id,
+              carryFwd: 0,
+              changeType: 'new' as LoanChangeType,
+              changeCash: 0,
+              changeBank: 0,
+              interestCash: 0,
+              interestBank: 0,
+              interestTotal: 0,
+            }));
+            toast({
+              title: 'New Month',
+              description: `No data found for ${format(date, 'MMMM yyyy')}. Starting fresh.`,
+            });
+          }
+          
           setLoans(initialLoans);
-           toast({
-            title: 'New Month',
-            description: `No data found for ${format(date, 'MMMM yyyy')}. You can create a new entry.`,
-          });
         }
       } catch (error) {
         console.error("Error loading data:", error);
@@ -168,10 +223,10 @@ export default function LoansPage() {
             newLoan.changeType = value as LoanChangeType;
           } else if (field === 'interestCash') {
             newLoan.interestCash = numericValue;
-            newLoan.interestBank = newLoan.interestTotal - numericValue;
+            newLoan.interestBank = (newLoan.interestTotal || 0) - numericValue;
           } else if (field === 'interestBank') {
             newLoan.interestBank = numericValue;
-            newLoan.interestCash = newLoan.interestTotal - numericValue;
+            newLoan.interestCash = (newLoan.interestTotal || 0) - numericValue;
           } else {
             (newLoan as any)[field] = numericValue;
           }

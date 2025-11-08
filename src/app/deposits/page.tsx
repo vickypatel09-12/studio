@@ -76,7 +76,12 @@ export default function DepositsPage() {
 
         if (docSnap.exists()) {
           const data = docSnap.data() as MonthlyDepositDoc;
-          setDeposits(data.deposits);
+          // Ensure all customers are present, even if not in saved data
+          const allCustomerDeposits = customers.map(customer => {
+            const savedDeposit = data.deposits.find(d => d.customerId === customer.id);
+            return savedDeposit || { customerId: customer.id, cash: 0, bank: 0 };
+          });
+          setDeposits(allCustomerDeposits);
           toast({
             title: 'Data Loaded',
             description: `Showing submitted data for ${format(date, 'MMMM yyyy')}.`,
