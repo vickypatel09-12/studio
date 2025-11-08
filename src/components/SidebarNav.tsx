@@ -12,6 +12,7 @@ import {
   Calculator,
   Users,
   Banknote,
+  FileText,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -21,6 +22,7 @@ const navItems = [
   { href: '/customers', label: 'Customers', icon: Users },
   { href: '/deposits', label: 'Monthly Deposits', icon: Banknote },
   { href: '/loans', label: 'Loans & Interest', icon: Landmark },
+  { href: '/reports', label: 'Reports', icon: FileText },
   {
     href: '/interest-calculator',
     label: 'Interest Calculator',

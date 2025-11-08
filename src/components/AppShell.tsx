@@ -8,6 +8,7 @@ import {
   SidebarHeader,
   SidebarContent,
   SidebarFooter,
+  SheetTitle,
 } from '@/components/ui/sidebar';
 import {
   DropdownMenu,
@@ -70,6 +71,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </SidebarHeader>
         <SidebarContent>
+          <SheetTitle className="sr-only">Sidebar</SheetTitle>
           <SidebarNav />
         </SidebarContent>
         <SidebarFooter>{/* User menu moved to header */}</SidebarFooter>
