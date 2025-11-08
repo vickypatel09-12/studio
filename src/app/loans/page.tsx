@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import {
   Card,
   CardHeader,
@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/select';
 import { Printer, Save, Send } from 'lucide-react';
 import Link from 'next/link';
-import { customers, type Customer } from '@/lib/data';
+import { customers } from '@/lib/data';
 
 type LoanChangeType = 'new' | 'increase' | 'decrease';
 
@@ -36,7 +36,8 @@ type Loan = {
   changeType: LoanChangeType;
   changeCash: number | string;
   changeBank: number | string;
-  interest: number | string;
+  interestCash: number | string;
+  interestBank: number | string;
 };
 
 export default function LoansPage() {
@@ -47,7 +48,8 @@ export default function LoansPage() {
       changeType: 'new',
       changeCash: '',
       changeBank: '',
-      interest: '',
+      interestCash: '',
+      interestBank: '',
     }))
   );
 
@@ -124,13 +126,17 @@ export default function LoansPage() {
                 <TableHead colSpan={4} className="text-center">
                   New Loan / Change
                 </TableHead>
-                <TableHead rowSpan={2}>Interest</TableHead>
+                <TableHead colSpan={2} className="text-center">
+                  Interest
+                </TableHead>
               </TableRow>
               <TableRow>
                 <TableHead className="w-[200px]">Type</TableHead>
                 <TableHead className="w-[150px]">Cash</TableHead>
                 <TableHead className="w-[150px]">Bank</TableHead>
                 <TableHead className="w-[150px]">Total</TableHead>
+                <TableHead className="w-[150px]">Cash</TableHead>
+                <TableHead className="w-[150px]">Bank</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -211,15 +217,30 @@ export default function LoansPage() {
                       </div>
                     </TableCell>
 
+                    {/* Interest Section */}
                     <TableCell>
                       <Input
                         type="number"
                         placeholder="₹0.00"
-                        value={loan.interest}
+                        value={loan.interestCash}
                         onChange={(e) =>
                           handleLoanChange(
                             customer.id,
-                            'interest',
+                            'interestCash',
+                            e.target.value
+                          )
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        placeholder="₹0.00"
+                        value={loan.interestBank}
+                        onChange={(e) =>
+                          handleLoanChange(
+                            customer.id,
+                            'interestBank',
                             e.target.value
                           )
                         }
