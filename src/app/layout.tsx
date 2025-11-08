@@ -35,10 +35,8 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <FirebaseClientProvider>
-          <AppShell>
-            {children}
-            <FirebaseErrorListener />
-          </AppShell>
+          <AppShell>{children}</AppShell>
+          <FirebaseErrorListener />
         </FirebaseClientProvider>
         <Toaster />
       </body>
