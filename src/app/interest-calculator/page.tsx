@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   calculateInterest,
   type CalculateInterestOutput,
@@ -44,7 +44,12 @@ const formSchema = z.object({
 export default function InterestCalculatorPage() {
   const [result, setResult] = useState<CalculateInterestOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -88,58 +93,60 @@ export default function InterestCalculatorPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <FormField
-                control={form.control}
-                name="carryFwdLoan"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Carry Forward Loan Amount (₹)</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="e.g., 10000" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="interestRate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Annual Interest Rate (%)</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="e.g., 12" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="periodInMonths"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Period (in months)</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="e.g., 1" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      The number of months to calculate interest for.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Calculate Interest
-              </Button>
-            </form>
-          </Form>
+          {isClient && (
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                <FormField
+                  control={form.control}
+                  name="carryFwdLoan"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Carry Forward Loan Amount (₹)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="e.g., 10000" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="interestRate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Annual Interest Rate (%)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="e.g., 12" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="periodInMonths"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Period (in months)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="e.g., 1" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        The number of months to calculate interest for.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Calculate Interest
+                </Button>
+              </form>
+            </Form>
+          )}
 
           {result && (
             <div className="mt-8 rounded-lg border bg-card p-6">
