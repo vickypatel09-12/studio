@@ -7,21 +7,19 @@ import {
 } from '@/components/ui/sidebar';
 import {
   LayoutDashboard,
-  CircleDollarSign,
   Landmark,
-  Users,
   FileText,
   Settings,
   Calculator,
+  Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/deposits', label: 'Monthly Deposits', icon: CircleDollarSign },
-  { href: '/loans', label: 'Loans & Interest', icon: Landmark },
   { href: '/customers', label: 'Customers', icon: Users },
+  { href: '/loans', label: 'Loans & Interest', icon: Landmark },
   { href: '/reports', label: 'Reports', icon: FileText },
   {
     href: '/interest-calculator',

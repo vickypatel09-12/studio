@@ -27,12 +27,10 @@ function getPageTitle(pathname: string) {
   switch (pathname) {
     case '/':
       return 'Dashboard';
-    case '/deposits':
-      return 'Monthly Deposits';
+    case '/customers':
+      return 'Customers';
     case '/loans':
       return 'Loan & Interest';
-    case '/customers':
-      return 'Customer Management';
     case '/reports':
       return 'Reports';
     case '/settings':
@@ -54,7 +52,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     setIsClient(true);
   }, []);
 
-
   return (
     <SidebarProvider>
       <Sidebar>
@@ -73,9 +70,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <SidebarContent>
           <SidebarNav />
         </SidebarContent>
-        <SidebarFooter>
-          {/* User menu moved to header */}
-        </SidebarFooter>
+        <SidebarFooter>{/* User menu moved to header */}</SidebarFooter>
       </Sidebar>
       <SidebarInset>
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm lg:px-6">
@@ -84,8 +79,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             <h1 className="font-headline text-lg font-semibold">{title}</h1>
           </div>
           <div className="ml-auto">
-             {isClient && (
-               <DropdownMenu>
+            {isClient && (
+              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center gap-2">
                     <User className="size-5 rounded-full" />
@@ -110,7 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             )}
           </div>
         </header>
-        <main className="flex-1 p-6">{children}</main>
+        <main className="p-4 sm:p-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );
