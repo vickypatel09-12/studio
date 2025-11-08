@@ -37,10 +37,6 @@ type Loan = {
   changeCash: number | string;
   changeBank: number | string;
   interest: number | string;
-  paymentAmount: number | string;
-  paymentMethod: 'cash' | 'bank' | 'split';
-  cashAmount: number | string;
-  bankAmount: number | string;
 };
 
 export default function LoansPage() {
@@ -52,10 +48,6 @@ export default function LoansPage() {
       changeCash: '',
       changeBank: '',
       interest: '',
-      paymentAmount: '',
-      paymentMethod: 'cash',
-      cashAmount: '',
-      bankAmount: '',
     }))
   );
 
@@ -67,28 +59,7 @@ export default function LoansPage() {
     setLoans((prev) =>
       prev.map((loan) => {
         if (loan.customerId === customerId) {
-          const newLoan = { ...loan, [field]: value };
-          
-          if (
-            (field === 'cashAmount' || field === 'bankAmount') &&
-            newLoan.paymentMethod === 'split'
-          ) {
-            const cash = Number(newLoan.cashAmount) || 0;
-            const bank = Number(newLoan.bankAmount) || 0;
-            newLoan.paymentAmount = cash + bank;
-          }
-
-          if (field === 'paymentMethod' && value !== 'split') {
-            newLoan.cashAmount = '';
-            newLoan.bankAmount = '';
-          }
-          if (field === 'paymentMethod' && value === 'split') {
-            const cash = Number(newLoan.cashAmount) || 0;
-            const bank = Number(newLoan.bankAmount) || 0;
-            newLoan.paymentAmount = cash + bank;
-          }
-
-          return newLoan;
+          return { ...loan, [field]: value };
         }
         return loan;
       })
@@ -97,7 +68,7 @@ export default function LoansPage() {
 
   const getChangeTotal = (loan: Loan) => {
     return (Number(loan.changeCash) || 0) + (Number(loan.changeBank) || 0);
-  }
+  };
 
   return (
     <Card>
@@ -145,20 +116,21 @@ export default function LoansPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead rowSpan={2} className="w-[50px]">Sr.</TableHead>
+                <TableHead rowSpan={2} className="w-[50px]">
+                  Sr.
+                </TableHead>
                 <TableHead rowSpan={2}>Customer</TableHead>
                 <TableHead rowSpan={2}>Carry Fwd</TableHead>
-                <TableHead colSpan={4} className="text-center">New Loan / Change</TableHead>
+                <TableHead colSpan={4} className="text-center">
+                  New Loan / Change
+                </TableHead>
                 <TableHead rowSpan={2}>Interest</TableHead>
-                <TableHead colSpan={2} className="text-center">Payment</TableHead>
               </TableRow>
               <TableRow>
                 <TableHead className="w-[200px]">Type</TableHead>
                 <TableHead className="w-[150px]">Cash</TableHead>
                 <TableHead className="w-[150px]">Bank</TableHead>
                 <TableHead className="w-[150px]">Total</TableHead>
-                <TableHead className="w-[200px]">Method</TableHead>
-                <TableHead className="w-[300px]">Amount</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -171,12 +143,23 @@ export default function LoansPage() {
                     <TableCell className="font-medium">{index + 1}</TableCell>
                     <TableCell>{customer.name}</TableCell>
                     <TableCell>
-                      <Input type="number" placeholder="₹0.00" value={loan.carryFwd} onChange={(e) => handleLoanChange(customer.id, 'carryFwd', e.target.value)} />
+                      <Input
+                        type="number"
+                        placeholder="₹0.00"
+                        value={loan.carryFwd}
+                        onChange={(e) =>
+                          handleLoanChange(
+                            customer.id,
+                            'carryFwd',
+                            e.target.value
+                          )
+                        }
+                      />
                     </TableCell>
-                    
+
                     {/* New Loan / Change Section */}
                     <TableCell>
-                       <Select
+                      <Select
                         value={loan.changeType}
                         onValueChange={(value: LoanChangeType) =>
                           handleLoanChange(customer.id, 'changeType', value)
@@ -193,89 +176,54 @@ export default function LoansPage() {
                       </Select>
                     </TableCell>
                     <TableCell>
-                        <Input type="number" placeholder="₹0.00" value={loan.changeCash} onChange={(e) => handleLoanChange(customer.id, 'changeCash', e.target.value)} />
-                    </TableCell>
-                     <TableCell>
-                        <Input type="number" placeholder="₹0.00" value={loan.changeBank} onChange={(e) => handleLoanChange(customer.id, 'changeBank', e.target.value)} />
-                    </TableCell>
-                    <TableCell>
-                        <div className="flex items-center rounded-md border border-input bg-background px-3 h-10">
-                            <span className="text-sm font-medium">₹{changeTotal.toFixed(2)}</span>
-                        </div>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <Input type="number" placeholder="₹0.00" value={loan.interest} onChange={(e) => handleLoanChange(customer.id, 'interest', e.target.value)} />
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={loan.paymentMethod}
-                        onValueChange={(value) =>
-                          handleLoanChange(customer.id, 'paymentMethod', value)
+                      <Input
+                        type="number"
+                        placeholder="₹0.00"
+                        value={loan.changeCash}
+                        onChange={(e) =>
+                          handleLoanChange(
+                            customer.id,
+                            'changeCash',
+                            e.target.value
+                          )
                         }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Method" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="cash">Cash</SelectItem>
-                          <SelectItem value="bank">Bank</SelectItem>
-                          <SelectItem value="split">Split</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      />
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        {loan.paymentMethod === 'split' ? (
-                          <>
-                            <Input
-                              type="number"
-                              placeholder="Cash"
-                              value={loan.cashAmount}
-                              onChange={(e) =>
-                                handleLoanChange(
-                                  customer.id,
-                                  'cashAmount',
-                                  e.target.value
-                                )
-                              }
-                            />
-                            <Input
-                              type="number"
-                              placeholder="Bank"
-                              value={loan.bankAmount}
-                              onChange={(e) =>
-                                handleLoanChange(
-                                  customer.id,
-                                  'bankAmount',
-                                  e.target.value
-                                )
-                              }
-                            />
-                            <div className="flex items-center rounded-md border border-input bg-background px-3 h-10 w-full">
-                               <span className="text-sm text-muted-foreground mr-1">Split:</span>
-                               <span className="font-medium">₹{Number(loan.paymentAmount).toFixed(2)}</span>
-                              </div>
-                          </>
-                        ) : (
-                          <div className="flex items-center rounded-md border border-input bg-background px-3">
-                            <span className="text-sm text-muted-foreground capitalize">{loan.paymentMethod}:</span>
-                            <Input
-                              type="number"
-                              placeholder="₹0.00"
-                              value={loan.paymentAmount}
-                              onChange={(e) =>
-                                handleLoanChange(
-                                  customer.id,
-                                  'paymentAmount',
-                                  e.target.value
-                                )
-                              }
-                              className="border-none focus-visible:ring-0"
-                            />
-                          </div>
-                        )}
+                      <Input
+                        type="number"
+                        placeholder="₹0.00"
+                        value={loan.changeBank}
+                        onChange={(e) =>
+                          handleLoanChange(
+                            customer.id,
+                            'changeBank',
+                            e.target.value
+                          )
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex h-10 items-center rounded-md border border-input bg-background px-3">
+                        <span className="text-sm font-medium">
+                          ₹{changeTotal.toFixed(2)}
+                        </span>
                       </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <Input
+                        type="number"
+                        placeholder="₹0.00"
+                        value={loan.interest}
+                        onChange={(e) =>
+                          handleLoanChange(
+                            customer.id,
+                            'interest',
+                            e.target.value
+                          )
+                        }
+                      />
                     </TableCell>
                   </TableRow>
                 );
