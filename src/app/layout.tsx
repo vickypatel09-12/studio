@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AppShell } from '@/components/AppShell';
 import { Toaster } from '@/components/ui/toaster';
+import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
   title: 'Bachat Bank ERP',
@@ -32,8 +33,10 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <AppShell>{children}</AppShell>
-        <Toaster />
+        <FirebaseClientProvider>
+          <AppShell>{children}</AppShell>
+          <Toaster />
+        </FirebaseClientProvider>
       </body>
     </html>
   );
