@@ -35,8 +35,6 @@ function getPageTitle(pathname: string) {
       return 'Loan & Interest';
     case '/reports':
       return 'Reports';
-    case '/settings':
-      return 'Settings';
     case '/interest-calculator':
       return 'Interest Calculation Tool';
     default:
@@ -96,7 +94,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem>Profile</DropdownMenuItem>
-                  <DropdownMenuItem>Settings</DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive">
                     <LogOut className="mr-2 size-4" />

@@ -8,7 +8,6 @@ import {
 import {
   LayoutDashboard,
   Landmark,
-  Settings,
   Calculator,
   Users,
   Banknote,
@@ -28,7 +27,6 @@ const navItems = [
     label: 'Interest Calculator',
     icon: Calculator,
   },
-  { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export function SidebarNav() {

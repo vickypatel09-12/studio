@@ -24,11 +24,5 @@ service cloud.firestore {
        allow read, list: if true;
        allow create, update, delete: if isSignedIn();
     }
-
-    // SETTINGS: Publicly readable, but only writable from the server/admin console.
-    match /settings/{settingId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
   }
 }
