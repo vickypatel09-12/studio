@@ -20,14 +20,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Printer, Save, Send } from 'lucide-react';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Printer, Save, Send, CalendarIcon } from 'lucide-react';
 import { customers } from '@/lib/data';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 type Deposit = {
   customerId: string;
@@ -36,6 +37,7 @@ type Deposit = {
 };
 
 export default function DepositsPage() {
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [deposits, setDeposits] = useState<Deposit[]>(
     customers.map((c) => ({
       customerId: c.id,
@@ -79,16 +81,32 @@ export default function DepositsPage() {
           </CardDescription>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Select defaultValue="july-2024">
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Select Month" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="july-2024">July 2024</SelectItem>
-              <SelectItem value="june-2024">June 2024</SelectItem>
-              <SelectItem value="may-2024">May 2024</SelectItem>
-            </SelectContent>
-          </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={'outline'}
+                  className={cn(
+                    'w-full justify-start text-left font-normal sm:w-[240px]',
+                    !selectedDate && 'text-muted-foreground'
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? (
+                    format(selectedDate, 'PPP')
+                  ) : (
+                    <span>Pick a date</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
         </div>
       </CardHeader>
       <CardContent>
