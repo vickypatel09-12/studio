@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import {
   Card,
   CardHeader,
@@ -25,9 +26,68 @@ import {
 } from '@/components/ui/select';
 import { Printer, Save, Send } from 'lucide-react';
 import Link from 'next/link';
-import { customers } from '@/lib/data';
+import { customers, type Customer } from '@/lib/data';
+
+type Loan = {
+  customerId: string;
+  carryFwd: number | string;
+  newChange: number | string;
+  interest: number | string;
+  paymentAmount: number | string;
+  paymentMethod: 'cash' | 'bank' | 'split';
+  cashAmount: number | string;
+  bankAmount: number | string;
+};
 
 export default function LoansPage() {
+  const [loans, setLoans] = useState<Loan[]>(
+    customers.map((c) => ({
+      customerId: c.id,
+      carryFwd: '',
+      newChange: '',
+      interest: '',
+      paymentAmount: '',
+      paymentMethod: 'cash',
+      cashAmount: '',
+      bankAmount: '',
+    }))
+  );
+
+  const handleLoanChange = (
+    customerId: string,
+    field: keyof Omit<Loan, 'customerId'>,
+    value: string | number
+  ) => {
+    setLoans((prev) =>
+      prev.map((loan) => {
+        if (loan.customerId === customerId) {
+          const newLoan = { ...loan, [field]: value };
+          if (
+            (field === 'cashAmount' || field === 'bankAmount') &&
+            newLoan.paymentMethod === 'split'
+          ) {
+            const cash = Number(newLoan.cashAmount) || 0;
+            const bank = Number(newLoan.bankAmount) || 0;
+            newLoan.paymentAmount = cash + bank;
+          }
+
+          if (field === 'paymentMethod' && value !== 'split') {
+            newLoan.cashAmount = '';
+            newLoan.bankAmount = '';
+          }
+           if (field === 'paymentMethod' && value === 'split') {
+             const cash = Number(newLoan.cashAmount) || 0;
+            const bank = Number(newLoan.bankAmount) || 0;
+            newLoan.paymentAmount = cash + bank;
+          }
+
+          return newLoan;
+        }
+        return loan;
+      })
+    );
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -79,38 +139,105 @@ export default function LoansPage() {
                 <TableHead>Carry Fwd</TableHead>
                 <TableHead>New/Change</TableHead>
                 <TableHead>Interest</TableHead>
-                <TableHead>Payment</TableHead>
+                <TableHead className="w-[200px]">Payment Method</TableHead>
+                <TableHead className="w-[300px]">Payment</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customers.map((customer, index) => (
-                <TableRow key={customer.id}>
-                  <TableCell className="font-medium">{index + 1}</TableCell>
-                  <TableCell>{customer.name}</TableCell>
-                  <TableCell>
-                    <Input type="number" placeholder="₹0.00" />
-                  </TableCell>
-                  <TableCell>
-                    <Input type="number" placeholder="₹0.00" />
-                  </TableCell>
-                  <TableCell>
-                    <Input type="number" placeholder="₹0.00" />
-                  </TableCell>
-                  <TableCell>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Method" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cash">Cash</SelectItem>
-                        <SelectItem value="upi">UPI</SelectItem>
-
-                        <SelectItem value="bank_transfer">Bank</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {customers.map((customer, index) => {
+                const loan = loans.find((l) => l.customerId === customer.id)!;
+                return (
+                  <TableRow key={customer.id}>
+                    <TableCell className="font-medium">{index + 1}</TableCell>
+                    <TableCell>{customer.name}</TableCell>
+                    <TableCell>
+                      <Input type="number" placeholder="₹0.00" value={loan.carryFwd} onChange={(e) => handleLoanChange(customer.id, 'carryFwd', e.target.value)} />
+                    </TableCell>
+                    <TableCell>
+                      <Input type="number" placeholder="₹0.00" value={loan.newChange} onChange={(e) => handleLoanChange(customer.id, 'newChange', e.target.value)} />
+                    </TableCell>
+                    <TableCell>
+                      <Input type="number" placeholder="₹0.00" value={loan.interest} onChange={(e) => handleLoanChange(customer.id, 'interest', e.target.value)} />
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={loan.paymentMethod}
+                        onValueChange={(value) =>
+                          handleLoanChange(customer.id, 'paymentMethod', value)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Method" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="bank">Bank</SelectItem>
+                          <SelectItem value="split">Split</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {loan.paymentMethod === 'split' ? (
+                          <>
+                            <Input
+                              type="number"
+                              placeholder="Cash"
+                              value={loan.cashAmount}
+                              onChange={(e) =>
+                                handleLoanChange(
+                                  customer.id,
+                                  'cashAmount',
+                                  e.target.value
+                                )
+                              }
+                            />
+                            <Input
+                              type="number"
+                              placeholder="Bank"
+                              value={loan.bankAmount}
+                              onChange={(e) =>
+                                handleLoanChange(
+                                  customer.id,
+                                  'bankAmount',
+                                  e.target.value
+                                )
+                              }
+                            />
+                            <div className="flex items-center rounded-md border border-input bg-background px-3">
+                               <span className="text-sm text-muted-foreground">Split:</span>
+                                <Input
+                                  type="number"
+                                  placeholder="₹0.00"
+                                  value={loan.paymentAmount}
+                                  readOnly
+                                  className="border-none focus-visible:ring-0"
+                                />
+                              </div>
+                          </>
+                        ) : (
+                          <div className="flex items-center rounded-md border border-input bg-background px-3">
+                            <span className="text-sm text-muted-foreground capitalize">{loan.paymentMethod}:</span>
+                            <Input
+                              type="number"
+                              placeholder="₹0.00"
+                              value={loan.paymentAmount}
+                              onChange={(e) =>
+                                handleLoanChange(
+                                  customer.id,
+                                  'paymentAmount',
+                                  e.target.value
+                                )
+                              }
+                              className="border-none focus-visible:ring-0"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
