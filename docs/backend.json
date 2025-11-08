@@ -158,11 +158,16 @@
           "type": "string",
           "description": "The end date of the session.",
           "format": "date-time"
+        },
+        "interestRate": {
+            "type": "number",
+            "description": "The annual interest rate for the session."
         }
       },
       "required": [
         "id",
-        "status"
+        "status",
+        "interestRate"
       ]
     }
   },

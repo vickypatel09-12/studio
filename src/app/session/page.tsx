@@ -28,7 +28,14 @@ import {
   useMemoFirebase,
 } from '@/firebase';
 import { doc, Timestamp } from 'firebase/firestore';
-import { Loader2, Play, StopCircle, Undo2, Calendar as CalendarIcon } from 'lucide-react';
+import {
+  Loader2,
+  Play,
+  StopCircle,
+  Undo2,
+  Calendar as CalendarIcon,
+  Percent,
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -36,24 +43,37 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { AppShell } from '@/components/AppShell';
-
 
 type Session = {
   id: 'status';
   status: 'active' | 'closed';
   startDate?: Timestamp;
   endDate?: Timestamp;
+  interestRate?: number;
 };
 
 function SessionManagement() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isStartSessionDialogOpen, setIsStartSessionDialogOpen] = useState(false);
   const [isEndSessionDialogOpen, setIsEndSessionDialogOpen] = useState(false);
-  const [isRevertSessionDialogOpen, setIsRevertSessionDialogOpen] = useState(false);
+  const [isRevertSessionDialogOpen, setIsRevertSessionDialogOpen] =
+    useState(false);
   const [endDate, setEndDate] = useState<Date | undefined>();
+  const [interestRate, setInterestRate] = useState<number | ''>('');
 
   const sessionDocRef = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -72,18 +92,30 @@ function SessionManagement() {
       });
       return;
     }
+     if (interestRate === '' || interestRate <= 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid Interest Rate',
+        description: 'Please enter a valid annual interest rate.',
+      });
+      return;
+    }
+
     setIsProcessing(true);
     const newSession: Session = {
       id: 'status',
       status: 'active',
       startDate: Timestamp.now(),
+      interestRate: interestRate,
+      endDate: undefined,
     };
-    // Here we use `set` with merge: false to overwrite any existing closed session
     setDocumentNonBlocking(sessionDocRef, newSession, { merge: false });
     toast({
       title: 'Session Started',
-      description: 'A new financial session has been started.',
+      description: `A new financial session has been started with an interest rate of ${interestRate}%.`,
     });
+    setIsStartSessionDialogOpen(false);
+    setInterestRate('');
     setIsProcessing(false);
   };
 
@@ -98,12 +130,12 @@ function SessionManagement() {
       return;
     }
     if (session?.startDate && endDate < session.startDate.toDate()) {
-        toast({
-            variant: 'destructive',
-            title: 'Invalid End Date',
-            description: 'End date cannot be before the start date.',
-        });
-        return;
+      toast({
+        variant: 'destructive',
+        title: 'Invalid End Date',
+        description: 'End date cannot be before the start date.',
+      });
+      return;
     }
 
     setIsProcessing(true);
@@ -123,19 +155,19 @@ function SessionManagement() {
 
   const confirmRevertSession = () => {
     if (!firestore || !sessionDocRef) return;
-     setIsProcessing(true);
-     const revertedSession = {
+    setIsProcessing(true);
+    const revertedSession = {
       status: 'active',
-      endDate: null, // Remove end date on revert
+      endDate: undefined, // Use undefined to remove the field
     };
     setDocumentNonBlocking(sessionDocRef, revertedSession, { merge: true });
-     toast({
+    toast({
       title: 'Session Reverted',
       description: 'The session has been reopened.',
     });
     setIsRevertSessionDialogOpen(false);
     setIsProcessing(false);
-  }
+  };
 
   return (
     <>
@@ -144,8 +176,8 @@ function SessionManagement() {
           <CardHeader>
             <CardTitle>Session Management</CardTitle>
             <CardDescription>
-              Manage the start and end of financial sessions. Monthly entries can
-              only be made during an active session.
+              Manage the start and end of financial sessions. Monthly entries
+              can only be made during an active session.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -154,38 +186,61 @@ function SessionManagement() {
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : (
-              <div className="flex items-center justify-between rounded-lg border p-4">
-                <div>
-                  <h3 className="font-semibold">Current Session Status</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {session?.startDate
-                      ? `Started on ${format(
-                          session.startDate.toDate(),
-                          'PPP'
-                        )}`
-                      : 'No session started yet.'}
-                    {session?.status === 'closed' && session?.endDate
-                      ? ` | Ended on ${format(session.endDate.toDate(), 'PPP')}`
-                      : ''}
-                  </p>
-                </div>
-                <Badge
-                  variant={session?.status === 'active' ? 'default' : 'secondary'}
-                  className={
-                    session?.status === 'active'
-                      ? 'bg-green-500 text-white'
+              <div className="flex flex-col gap-4 rounded-lg border p-4">
+                <div className='flex items-center justify-between'>
+                  <div>
+                    <h3 className="font-semibold">Current Session Status</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {session?.status ? 'Session is ' : 'No session started yet.'}
+                    </p>
+                  </div>
+                  <Badge
+                    variant={
+                      session?.status === 'active' ? 'default' : 'secondary'
+                    }
+                    className={
+                      session?.status === 'active'
+                        ? 'bg-green-500 text-white'
+                        : session?.status === 'closed'
+                        ? 'bg-destructive'
+                        : 'bg-muted'
+                    }
+                  >
+                    {session?.status === 'active'
+                      ? 'Active'
                       : session?.status === 'closed'
-                      ? 'bg-destructive'
-                      : 'bg-muted'
-                  }
-                >
-                  {session?.status === 'active' ? 'Active' : (session?.status === 'closed' ? 'Closed' : 'Not Started')}
-                </Badge>
+                      ? 'Closed'
+                      : 'Not Started'}
+                  </Badge>
+                </div>
+
+                {session && (
+                  <div className='text-sm text-muted-foreground grid grid-cols-2 gap-2 pt-2 border-t'>
+                    {session.startDate && 
+                      <div className='flex items-center gap-2'>
+                        <CalendarIcon className='h-4 w-4' />
+                        <span>Started: {format(session.startDate.toDate(), 'PPP')}</span>
+                      </div>
+                    }
+                    {session.interestRate &&
+                       <div className='flex items-center gap-2'>
+                        <Percent className='h-4 w-4' />
+                        <span>Interest Rate: {session.interestRate}%</span>
+                      </div>
+                    }
+                    {session.status === 'closed' && session.endDate &&
+                      <div className='flex items-center gap-2 col-span-2'>
+                        <CalendarIcon className='h-4 w-4' />
+                        <span>Ended: {format(session.endDate.toDate(), 'PPP')}</span>
+                      </div>
+                    }
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
           <CardFooter className="flex justify-end gap-4">
-           {session?.status === 'closed' && (
+            {session?.status === 'closed' && (
               <Button
                 variant="outline"
                 onClick={() => setIsRevertSessionDialogOpen(true)}
@@ -202,7 +257,7 @@ function SessionManagement() {
               <StopCircle className="mr-2 h-4 w-4" /> End Current Session
             </Button>
             <Button
-              onClick={handleStartSession}
+              onClick={() => setIsStartSessionDialogOpen(true)}
               disabled={isProcessing || session?.status === 'active'}
               className="bg-green-600 hover:bg-green-700"
             >
@@ -211,67 +266,122 @@ function SessionManagement() {
           </CardFooter>
         </Card>
       </div>
+      
+       {/* Start Session Dialog */}
+      <Dialog open={isStartSessionDialogOpen} onOpenChange={setIsStartSessionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Start New Financial Session</DialogTitle>
+            <DialogDescription>
+              To start a new session, please provide the annual interest rate. This cannot be changed later.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="interest-rate" className="text-right">
+                Interest Rate (%)
+              </Label>
+              <Input
+                id="interest-rate"
+                type="number"
+                value={interestRate}
+                onChange={(e) => setInterestRate(Number(e.target.value))}
+                placeholder="e.g., 12"
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsStartSessionDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleStartSession} disabled={isProcessing}>
+              {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Confirm & Start
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       {/* End Session Dialog */}
-      <AlertDialog open={isEndSessionDialogOpen} onOpenChange={setIsEndSessionDialogOpen}>
+      <AlertDialog
+        open={isEndSessionDialogOpen}
+        onOpenChange={setIsEndSessionDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure you want to end the session?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Are you sure you want to end the session?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This action will close the current financial period. You must select an end date.
+              This action will close the current financial period. You must
+              select an end date.
             </AlertDialogDescription>
           </AlertDialogHeader>
-            <div className="grid gap-4 py-4">
-                 <Popover>
-                    <PopoverTrigger asChild>
-                    <Button
-                        variant={'outline'}
-                        className={cn(
-                        'w-full justify-start text-left font-normal',
-                        !endDate && 'text-muted-foreground'
-                        )}
-                    >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {endDate ? (
-                        format(endDate, 'PPP')
-                        ) : (
-                        <span>Pick an end date</span>
-                        )}
-                    </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                        mode="single"
-                        selected={endDate}
-                        onSelect={setEndDate}
-                        initialFocus
-                    />
-                    </PopoverContent>
-                </Popover>
-            </div>
+          <div className="grid gap-4 py-4">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={'outline'}
+                  className={cn(
+                    'w-full justify-start text-left font-normal',
+                    !endDate && 'text-muted-foreground'
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {endDate ? (
+                    format(endDate, 'PPP')
+                  ) : (
+                    <span>Pick an end date</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={endDate}
+                  onSelect={setEndDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmEndSession} disabled={isProcessing || !endDate}>
-              {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            <AlertDialogAction
+              onClick={confirmEndSession}
+              disabled={isProcessing || !endDate}
+            >
+              {isProcessing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
               Confirm End Session
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      
+
       {/* Revert Session Dialog */}
-      <AlertDialog open={isRevertSessionDialogOpen} onOpenChange={setIsRevertSessionDialogOpen}>
+      <AlertDialog
+        open={isRevertSessionDialogOpen}
+        onOpenChange={setIsRevertSessionDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Revert to Active Session?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will reopen the last closed session, allowing you to make changes again. Are you sure?
+              This will reopen the last closed session, allowing you to make
+              changes again. Are you sure?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmRevertSession} disabled={isProcessing}>
-             {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            <AlertDialogAction
+              onClick={confirmRevertSession}
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
               Confirm Revert
             </AlertDialogAction>
           </AlertDialogFooter>
