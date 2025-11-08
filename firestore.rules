@@ -14,13 +14,15 @@ service cloud.firestore {
       allow create, update, delete: if isSignedIn();
     }
     
-    // MONTHLY DEPOSITS & LOANS: Any authenticated user can read, list, and manage entries.
+    // MONTHLY DEPOSITS & LOANS: Publicly readable, but only writable by authenticated users.
     match /monthlyDeposits/{monthId} {
-      allow read, list, create, update, delete: if isSignedIn();
+      allow read, list: if true;
+      allow create, update, delete: if isSignedIn();
     }
 
     match /monthlyLoans/{monthId} {
-       allow read, list, create, update, delete: if isSignedIn();
+       allow read, list: if true;
+       allow create, update, delete: if isSignedIn();
     }
 
     // SETTINGS: Publicly readable, but only writable from the server/admin console.
