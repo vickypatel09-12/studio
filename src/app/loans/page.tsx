@@ -4,10 +4,13 @@ import {
   doc,
   setDoc,
   getDoc,
+  collection,
+  query,
+  orderBy,
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useCollection } from '@/firebase';
 import {
   Card,
   CardHeader,
@@ -46,6 +49,7 @@ import {
   CalendarIcon,
   Info,
   Loader2,
+  History,
 } from 'lucide-react';
 import Link from 'next/link';
 import { customers } from '@/lib/data';
@@ -81,7 +85,8 @@ const ANNUAL_INTEREST_RATE = 0.12;
 const getMonthId = (date: Date) => format(date, 'yyyy-MM');
 
 const calculateClosingBalance = (loan: Loan) => {
-  const changeTotal = (Number(loan.changeCash) || 0) + (Number(loan.changeBank) || 0);
+  const changeTotal =
+    (Number(loan.changeCash) || 0) + (Number(loan.changeBank) || 0);
   let adjustment = 0;
   if (loan.changeType === 'new' || loan.changeType === 'increase') {
     adjustment = changeTotal;
@@ -89,8 +94,7 @@ const calculateClosingBalance = (loan: Loan) => {
     adjustment = -changeTotal;
   }
   return (Number(loan.carryFwd) || 0) + adjustment;
-}
-
+};
 
 export default function LoansPage() {
   const firestore = useFirestore();
@@ -99,6 +103,14 @@ export default function LoansPage() {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  
+  const monthlyLoansQuery = useMemo(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'monthlyLoans'), orderBy('date', 'desc'));
+  }, [firestore]);
+
+  const { data: pastEntries, loading: pastEntriesLoading } = useCollection<MonthlyLoanDoc>(monthlyLoansQuery);
+
 
   const loadDataForMonth = useCallback(
     async (date: Date) => {
@@ -111,18 +123,22 @@ export default function LoansPage() {
 
         if (docSnap.exists()) {
           const data = docSnap.data() as MonthlyLoanDoc;
-           const allCustomerLoans = customers.map(customer => {
-            const savedLoan = data.loans.find(d => d.customerId === customer.id);
-            return savedLoan || { 
-              customerId: customer.id,
-              carryFwd: 0,
-              changeType: 'new' as LoanChangeType,
-              changeCash: 0,
-              changeBank: 0,
-              interestCash: 0,
-              interestBank: 0,
-              interestTotal: 0,
-            };
+          const allCustomerLoans = customers.map((customer) => {
+            const savedLoan = data.loans.find(
+              (d) => d.customerId === customer.id
+            );
+            return (
+              savedLoan || {
+                customerId: customer.id,
+                carryFwd: 0,
+                changeType: 'new' as LoanChangeType,
+                changeCash: 0,
+                changeBank: 0,
+                interestCash: 0,
+                interestBank: 0,
+                interestTotal: 0,
+              }
+            );
           });
           setLoans(allCustomerLoans);
           toast({
@@ -142,27 +158,30 @@ export default function LoansPage() {
           let initialLoans: Loan[] = [];
           if (prevDocSnap.exists()) {
             const prevData = prevDocSnap.data() as MonthlyLoanDoc;
-            initialLoans = customers.map(c => {
-               const prevLoan = prevData.loans.find(l => l.customerId === c.id);
-               const carryFwd = prevLoan ? calculateClosingBalance(prevLoan) : 0;
-               const interestTotal = (carryFwd * ANNUAL_INTEREST_RATE) / 12;
-               return {
-                  customerId: c.id,
-                  carryFwd: carryFwd,
-                  changeType: 'new' as LoanChangeType,
-                  changeCash: 0,
-                  changeBank: 0,
-                  interestCash: interestTotal,
-                  interestBank: 0,
-                  interestTotal: interestTotal,
-               }
+            initialLoans = customers.map((c) => {
+              const prevLoan = prevData.loans.find((l) => l.customerId === c.id);
+              const carryFwd = prevLoan ? calculateClosingBalance(prevLoan) : 0;
+              const interestTotal = (carryFwd * ANNUAL_INTEREST_RATE) / 12;
+              return {
+                customerId: c.id,
+                carryFwd: carryFwd,
+                changeType: 'new' as LoanChangeType,
+                changeCash: 0,
+                changeBank: 0,
+                interestCash: interestTotal,
+                interestBank: 0,
+                interestTotal: interestTotal,
+              };
             });
-             toast({
+            toast({
               title: 'New Month Initialized',
-              description: `Carry forward balances from ${format(prevMonth, 'MMMM yyyy')} have been loaded.`,
+              description: `Carry forward balances from ${format(
+                prevMonth,
+                'MMMM yyyy'
+              )} have been loaded.`,
             });
           } else {
-             initialLoans = customers.map((c) => ({
+            initialLoans = customers.map((c) => ({
               customerId: c.id,
               carryFwd: 0,
               changeType: 'new' as LoanChangeType,
@@ -174,27 +193,29 @@ export default function LoansPage() {
             }));
             toast({
               title: 'New Month',
-              description: `No data found for ${format(date, 'MMMM yyyy')}. Starting fresh.`,
+              description: `No data found for ${format(
+                date,
+                'MMMM yyyy'
+              )}. Starting fresh.`,
             });
           }
-          
+
           setLoans(initialLoans);
         }
       } catch (error) {
-        console.error("Error loading data:", error);
+        console.error('Error loading data:', error);
         toast({
-           variant: 'destructive',
-           title: 'Error Loading Data',
-           description: 'Could not load data from Firestore.',
-         });
-      }
-      finally {
+          variant: 'destructive',
+          title: 'Error Loading Data',
+          description: 'Could not load data from Firestore.',
+        });
+      } finally {
         setIsLoading(false);
       }
     },
     [firestore, toast]
   );
-  
+
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -305,6 +326,10 @@ export default function LoansPage() {
       }
     );
   }, [loans]);
+  
+  const handlePastEntryClick = (date: Date) => {
+    setSelectedDate(date);
+  };
 
   const totalChange = totals.changeCash + totals.changeBank;
 
@@ -313,209 +338,297 @@ export default function LoansPage() {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <CardTitle>Loans &amp; Interest</CardTitle>
-          <CardDescription>
-            Manage customer loans for the selected period. Use the{' '}
-            <Button variant="link" asChild className="h-auto p-0">
-              <Link href="/interest-calculator">Interest Calculator</Link>
-            </Button>{' '}
-            to compute interest.
-          </CardDescription>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant={'outline'}
-                className={cn(
-                  'w-full justify-start text-left font-normal sm:w-[240px]',
-                  !selectedDate && 'text-muted-foreground'
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {selectedDate ? (
-                  format(selectedDate, 'MMMM yyyy')
-                ) : (
-                  <span>Pick a month</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(startOfMonth(date))}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-      </CardHeader>
-      <CardContent>
-         {isLoading ? (
-          <div className='flex items-center justify-center p-8'>
-            <Loader2 className='h-8 w-8 animate-spin text-muted-foreground' />
-          </div>
-        ) : selectedDate ? (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead rowSpan={2} className="w-[50px]">
-                    Sr.
-                  </TableHead>
-                  <TableHead rowSpan={2}>Customer</TableHead>
-                  <TableHead rowSpan={2} className="w-[150px]">
-                    Carry Fwd
-                  </TableHead>
-                  <TableHead colSpan={4} className="text-center">
-                    New Loan / Change
-                  </TableHead>
-                  <TableHead colSpan={3} className="text-center">
-                    Interest
-                  </TableHead>
-                </TableRow>
-                <TableRow>
-                  <TableHead className="w-[150px]">Type</TableHead>
-                  <TableHead className="w-[150px] text-right">Cash</TableHead>
-                  <TableHead className="w-[150px] text-right">Bank</TableHead>
-                  <TableHead className="w-[150px] text-right">Total</TableHead>
-                  <TableHead className="w-[150px] text-right">Cash</TableHead>
-                  <TableHead className="w-[150px] text-right">Bank</TableHead>
-                  <TableHead className="w-[150px] text-right">Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {customers.map((customer, index) => {
-                  const loan = loans.find(
-                    (l) => l.customerId === customer.id
-                  );
-                  if (!loan) return null;
-                  const changeTotal = getChangeTotal(loan);
-
-                  return (
-                    <TableRow key={customer.id}>
-                      <TableCell className="font-medium">{index + 1}</TableCell>
-                      <TableCell>{customer.name}</TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          placeholder="₹0.00"
-                          value={loan.carryFwd || ''}
-                          disabled
-                          className="text-right w-full"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={loan.changeType}
-                          onValueChange={(value: LoanChangeType) =>
-                            handleLoanChange(customer.id, 'changeType', value)
-                          }
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="new">New Loan</SelectItem>
-                            <SelectItem value="increase">Increase</SelectItem>
-                            <SelectItem value="decrease">Decrease</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          placeholder="₹0.00"
-                          value={loan.changeCash || ''}
-                          onChange={(e) =>
-                            handleLoanChange(customer.id, 'changeCash', e.target.value)
-                          }
-                          className="text-right w-full"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          placeholder="₹0.00"
-                          value={loan.changeBank || ''}
-                          onChange={(e) =>
-                            handleLoanChange(customer.id, 'changeBank', e.target.value)
-                          }
-                          className="text-right w-full"
-                        />
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        ₹{changeTotal.toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          placeholder="₹0.00"
-                          value={loan.interestCash || ''}
-                          onChange={(e) =>
-                            handleLoanChange(customer.id, 'interestCash', e.target.value)
-                          }
-                          className="text-right w-full"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          placeholder="₹0.00"
-                          value={loan.interestBank || ''}
-                          onChange={(e) =>
-                            handleLoanChange(customer.id, 'interestBank', e.target.value)
-                          }
-                          className="text-right w-full"
-                        />
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        ₹{loan.interestTotal.toFixed(2)}
-                      </TableCell>
+    <div className="grid gap-6 lg:grid-cols-4">
+      <div className="lg:col-span-3">
+        <Card>
+          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>Loans &amp; Interest</CardTitle>
+              <CardDescription>
+                Manage customer loans for the selected period. Use the{' '}
+                <Button variant="link" asChild className="h-auto p-0">
+                  <Link href="/interest-calculator">Interest Calculator</Link>
+                </Button>{' '}
+                to compute interest.
+              </CardDescription>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={'outline'}
+                    className={cn(
+                      'w-full justify-start text-left font-normal sm:w-[240px]',
+                      !selectedDate && 'text-muted-foreground'
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? (
+                      format(selectedDate, 'MMMM yyyy')
+                    ) : (
+                      <span>Pick a month</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) =>
+                      date && setSelectedDate(startOfMonth(date))
+                    }
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : selectedDate ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead rowSpan={2} className="w-[50px]">
+                        Sr.
+                      </TableHead>
+                      <TableHead rowSpan={2}>Customer</TableHead>
+                      <TableHead rowSpan={2} className="w-[150px]">
+                        Carry Fwd
+                      </TableHead>
+                      <TableHead colSpan={4} className="text-center">
+                        New Loan / Change
+                      </TableHead>
+                      <TableHead colSpan={3} className="text-center">
+                        Interest
+                      </TableHead>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-              <UiTableFooter>
-                <TableRow className="font-bold bg-muted/50 text-right">
-                  <TableCell colSpan={2}>Total</TableCell>
-                  <TableCell>₹{totals.carryFwd.toFixed(2)}</TableCell>
-                  <TableCell></TableCell>
-                  <TableCell>₹{totals.changeCash.toFixed(2)}</TableCell>
-                  <TableCell>₹{totals.changeBank.toFixed(2)}</TableCell>
-                  <TableCell>₹{totalChange.toFixed(2)}</TableCell>
-                  <TableCell>₹{totals.interestCash.toFixed(2)}</TableCell>
-                  <TableCell>₹{totals.interestBank.toFixed(2)}</TableCell>
-                  <TableCell>₹{totals.interestTotal.toFixed(2)}</TableCell>
-                </TableRow>
-              </UiTableFooter>
-            </Table>
-          </div>
-        ) : (
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertTitle>Select a Date</AlertTitle>
-            <AlertDescription>
-              Please pick a month to view and manage loans.
-            </AlertDescription>
-          </Alert>
-        )}
-      </CardContent>
-      {selectedDate && (
-        <CardFooter className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => window.print()} disabled={isLoading}>
-            <Printer className="mr-2 h-4 w-4" /> Print
-          </Button>
-          <Button onClick={handleSubmit} disabled={isLoading}>
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-             Submit
-          </Button>
-        </CardFooter>
-      )}
-    </Card>
+                    <TableRow>
+                      <TableHead className="w-[150px]">Type</TableHead>
+                      <TableHead className="w-[150px] text-right">
+                        Cash
+                      </TableHead>
+                      <TableHead className="w-[150px] text-right">
+                        Bank
+                      </TableHead>
+                      <TableHead className="w-[150px] text-right">
+                        Total
+                      </TableHead>
+                      <TableHead className="w-[150px] text-right">
+                        Cash
+                      </TableHead>
+                      <TableHead className="w-[150px] text-right">
+                        Bank
+                      </TableHead>
+                      <TableHead className="w-[150px] text-right">
+                        Total
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customers.map((customer, index) => {
+                      const loan = loans.find(
+                        (l) => l.customerId === customer.id
+                      );
+                      if (!loan) return null;
+                      const changeTotal = getChangeTotal(loan);
+
+                      return (
+                        <TableRow key={customer.id}>
+                          <TableCell className="font-medium">
+                            {index + 1}
+                          </TableCell>
+                          <TableCell>{customer.name}</TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              placeholder="₹0.00"
+                              value={loan.carryFwd || ''}
+                              disabled
+                              className="w-full text-right"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={loan.changeType}
+                              onValueChange={(value: LoanChangeType) =>
+                                handleLoanChange(
+                                  customer.id,
+                                  'changeType',
+                                  value
+                                )
+                              }
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="new">New Loan</SelectItem>
+                                <SelectItem value="increase">
+                                  Increase
+                                </SelectItem>
+                                <SelectItem value="decrease">
+                                  Decrease
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              placeholder="₹0.00"
+                              value={loan.changeCash || ''}
+                              onChange={(e) =>
+                                handleLoanChange(
+                                  customer.id,
+                                  'changeCash',
+                                  e.target.value
+                                )
+                              }
+                              className="w-full text-right"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              placeholder="₹0.00"
+                              value={loan.changeBank || ''}
+                              onChange={(e) =>
+                                handleLoanChange(
+                                  customer.id,
+                                  'changeBank',
+                                  e.target.value
+                                )
+                              }
+                              className="w-full text-right"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            ₹{changeTotal.toFixed(2)}
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              placeholder="₹0.00"
+                              value={loan.interestCash || ''}
+                              onChange={(e) =>
+                                handleLoanChange(
+                                  customer.id,
+                                  'interestCash',
+                                  e.target.value
+                                )
+                              }
+                              className="w-full text-right"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              placeholder="₹0.00"
+                              value={loan.interestBank || ''}
+                              onChange={(e) =>
+                                handleLoanChange(
+                                  customer.id,
+                                  'interestBank',
+                                  e.target.value
+                                )
+                              }
+                              className="w-full text-right"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            ₹{loan.interestTotal.toFixed(2)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                  <UiTableFooter>
+                    <TableRow className="bg-muted/50 text-right font-bold">
+                      <TableCell colSpan={2}>Total</TableCell>
+                      <TableCell>₹{totals.carryFwd.toFixed(2)}</TableCell>
+                      <TableCell></TableCell>
+                      <TableCell>₹{totals.changeCash.toFixed(2)}</TableCell>
+                      <TableCell>₹{totals.changeBank.toFixed(2)}</TableCell>
+                      <TableCell>₹{totalChange.toFixed(2)}</TableCell>
+                      <TableCell>₹{totals.interestCash.toFixed(2)}</TableCell>
+                      <TableCell>₹{totals.interestBank.toFixed(2)}</TableCell>
+                      <TableCell>₹{totals.interestTotal.toFixed(2)}</TableCell>
+                    </TableRow>
+                  </UiTableFooter>
+                </Table>
+              </div>
+            ) : (
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertTitle>Select a Date</AlertTitle>
+                <AlertDescription>
+                  Please pick a month to view and manage loans, or select one from the submission history.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+          {selectedDate && (
+            <CardFooter className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => window.print()}
+                disabled={isLoading}
+              >
+                <Printer className="mr-2 h-4 w-4" /> Print
+              </Button>
+              <Button onClick={handleSubmit} disabled={isLoading}>
+                {isLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="mr-2 h-4 w-4" />
+                )}
+                Submit
+              </Button>
+            </CardFooter>
+          )}
+        </Card>
+      </div>
+      <div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Submission History
+            </CardTitle>
+            <CardDescription>
+              Click a month to view its submitted data.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {pastEntriesLoading ? (
+              <div className="flex items-center justify-center p-4">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : pastEntries && pastEntries.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                {pastEntries.map((entry) => (
+                  <Button
+                    key={entry.id}
+                    variant={getMonthId(entry.date.toDate()) === (selectedDate && getMonthId(selectedDate)) ? 'default' : 'outline'}
+                    onClick={() => handlePastEntryClick(entry.date.toDate())}
+                  >
+                    {format(entry.date.toDate(), 'MMMM yyyy')}
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No past submissions found.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }

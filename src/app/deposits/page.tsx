@@ -4,10 +4,13 @@ import {
   doc,
   setDoc,
   getDoc,
+  collection,
+  query,
+  orderBy,
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useCollection } from '@/firebase';
 import {
   Card,
   CardHeader,
@@ -33,7 +36,14 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Printer, Send, CalendarIcon, Info, Loader2 } from 'lucide-react';
+import {
+  Printer,
+  Send,
+  CalendarIcon,
+  Info,
+  Loader2,
+  History,
+} from 'lucide-react';
 import { customers } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { format, startOfMonth } from 'date-fns';
@@ -64,6 +74,14 @@ export default function DepositsPage() {
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  const monthlyDepositsQuery = useMemo(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'monthlyDeposits'), orderBy('date', 'desc'));
+  }, [firestore]);
+
+  const { data: pastEntries, loading: pastEntriesLoading } = useCollection<MonthlyDepositDoc>(monthlyDepositsQuery);
+
 
   const loadDataForMonth = useCallback(
     async (date: Date) => {
@@ -202,145 +220,210 @@ export default function DepositsPage() {
         setIsLoading(false);
       });
   };
+  
+  const handlePastEntryClick = (date: Date) => {
+    setSelectedDate(date);
+  };
 
   if (!isClient) {
     return null;
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <CardTitle>Monthly Deposits</CardTitle>
-          <CardDescription>
-            Manage customer deposits for the selected period.
-          </CardDescription>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant={'outline'}
-                className={cn(
-                  'w-full justify-start text-left font-normal sm:w-[240px]',
-                  !selectedDate && 'text-muted-foreground'
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {selectedDate ? (
-                  format(selectedDate, 'MMMM yyyy')
-                ) : (
-                  <span>Pick a month</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(startOfMonth(date))}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className='flex items-center justify-center p-8'>
-            <Loader2 className='h-8 w-8 animate-spin text-muted-foreground' />
-          </div>
-        ) : selectedDate ? (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[50px]">Sr.</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead className="w-[150px] text-right">Cash</TableHead>
-                  <TableHead className="w-[150px] text-right">Bank</TableHead>
-                  <TableHead className="w-[150px] text-right">Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {customers.map((customer, index) => {
-                  const deposit = deposits.find(
-                    (d) => d.customerId === customer.id
-                  ) ?? { customerId: customer.id, cash: 0, bank: 0 };
-                  const depositTotal = getDepositTotal(deposit);
-
-                  return (
-                    <TableRow key={customer.id}>
-                      <TableCell className="font-medium">{index + 1}</TableCell>
-                      <TableCell>{customer.name}</TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          placeholder="₹0.00"
-                          value={deposit.cash || ''}
-                          onChange={(e) =>
-                            handleDepositChange(
-                              customer.id,
-                              'cash',
-                              e.target.value
-                            )
-                          }
-                          className="text-right w-full"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          placeholder="₹0.00"
-                          value={deposit.bank || ''}
-                          onChange={(e) =>
-                            handleDepositChange(
-                              customer.id,
-                              'bank',
-                              e.target.value
-                            )
-                          }
-                          className="text-right w-full"
-                        />
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        ₹{depositTotal.toFixed(2)}
-                      </TableCell>
+    <div className="grid gap-6 lg:grid-cols-4">
+      <div className="lg:col-span-3">
+        <Card>
+          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>Monthly Deposits</CardTitle>
+              <CardDescription>
+                Manage customer deposits for the selected period.
+              </CardDescription>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={'outline'}
+                    className={cn(
+                      'w-full justify-start text-left font-normal sm:w-[240px]',
+                      !selectedDate && 'text-muted-foreground'
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? (
+                      format(selectedDate, 'MMMM yyyy')
+                    ) : (
+                      <span>Pick a month</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) =>
+                      date && setSelectedDate(startOfMonth(date))
+                    }
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : selectedDate ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[50px]">Sr.</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead className="w-[150px] text-right">
+                        Cash
+                      </TableHead>
+                      <TableHead className="w-[150px] text-right">
+                        Bank
+                      </TableHead>
+                      <TableHead className="w-[150px] text-right">
+                        Total
+                      </TableHead>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-              <UiTableFooter>
-                <TableRow className="font-bold bg-muted/50 text-right">
-                  <TableCell colSpan={2}>Total</TableCell>
-                  <TableCell>₹{totals.cash.toFixed(2)}</TableCell>
-                  <TableCell>₹{totals.bank.toFixed(2)}</TableCell>
-                  <TableCell>₹{totals.total.toFixed(2)}</TableCell>
-                </TableRow>
-              </UiTableFooter>
-            </Table>
-          </div>
-        ) : (
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertTitle>Select a Date</AlertTitle>
-            <AlertDescription>
-              Please pick a month to view and manage deposits.
-            </AlertDescription>
-          </Alert>
-        )}
-      </CardContent>
-      {selectedDate && (
-        <CardFooter className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => window.print()} disabled={isLoading}>
-            <Printer className="mr-2 h-4 w-4" /> Print
-          </Button>
-          <Button onClick={handleSubmit} disabled={isLoading}>
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-             Submit
-          </Button>
-        </CardFooter>
-      )}
-    </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {customers.map((customer, index) => {
+                      const deposit =
+                        deposits.find((d) => d.customerId === customer.id) ?? {
+                          customerId: customer.id,
+                          cash: 0,
+                          bank: 0,
+                        };
+                      const depositTotal = getDepositTotal(deposit);
+
+                      return (
+                        <TableRow key={customer.id}>
+                          <TableCell className="font-medium">
+                            {index + 1}
+                          </TableCell>
+                          <TableCell>{customer.name}</TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              placeholder="₹0.00"
+                              value={deposit.cash || ''}
+                              onChange={(e) =>
+                                handleDepositChange(
+                                  customer.id,
+                                  'cash',
+                                  e.target.value
+                                )
+                              }
+                              className="w-full text-right"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              placeholder="₹0.00"
+                              value={deposit.bank || ''}
+                              onChange={(e) =>
+                                handleDepositChange(
+                                  customer.id,
+                                  'bank',
+                                  e.target.value
+                                )
+                              }
+                              className="w-full text-right"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            ₹{depositTotal.toFixed(2)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                  <UiTableFooter>
+                    <TableRow className="bg-muted/50 text-right font-bold">
+                      <TableCell colSpan={2}>Total</TableCell>
+                      <TableCell>₹{totals.cash.toFixed(2)}</TableCell>
+                      <TableCell>₹{totals.bank.toFixed(2)}</TableCell>
+                      <TableCell>₹{totals.total.toFixed(2)}</TableCell>
+                    </TableRow>
+                  </UiTableFooter>
+                </Table>
+              </div>
+            ) : (
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertTitle>Select a Date</AlertTitle>
+                <AlertDescription>
+                  Please pick a month to view and manage deposits, or select one from the submission history.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+          {selectedDate && (
+            <CardFooter className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => window.print()}
+                disabled={isLoading}
+              >
+                <Printer className="mr-2 h-4 w-4" /> Print
+              </Button>
+              <Button onClick={handleSubmit} disabled={isLoading}>
+                {isLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="mr-2 h-4 w-4" />
+                )}
+                Submit
+              </Button>
+            </CardFooter>
+          )}
+        </Card>
+      </div>
+      <div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Submission History
+            </CardTitle>
+            <CardDescription>
+              Click a month to view its submitted data.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {pastEntriesLoading ? (
+              <div className="flex items-center justify-center p-4">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : pastEntries && pastEntries.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                {pastEntries.map((entry) => (
+                  <Button
+                    key={entry.id}
+                    variant={getMonthId(entry.date.toDate()) === (selectedDate && getMonthId(selectedDate)) ? 'default' : 'outline'}
+                    onClick={() => handlePastEntryClick(entry.date.toDate())}
+                  >
+                    {format(entry.date.toDate(), 'MMMM yyyy')}
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No past submissions found.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }
