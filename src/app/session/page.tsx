@@ -102,12 +102,11 @@ function SessionManagement() {
     }
 
     setIsProcessing(true);
-    const newSession: Session = {
+    const newSession: Omit<Session, 'endDate'> = {
       id: 'status',
       status: 'active',
       startDate: Timestamp.now(),
       interestRate: interestRate,
-      endDate: undefined,
     };
     setDocumentNonBlocking(sessionDocRef, newSession, { merge: false });
     toast({
@@ -158,9 +157,34 @@ function SessionManagement() {
     setIsProcessing(true);
     const revertedSession = {
       status: 'active',
-      endDate: undefined, // Use undefined to remove the field
+      // By using merge:true, we only update the fields provided.
+      // We don't need to explicitly remove endDate, we just don't provide it.
+      // However, to be extra safe and handle a previous state where endDate might have been null,
+      // it's better to explicitly set it to be removed.
+      // The Firestore SDK has `deleteField()` for this, but here we can just not include it.
+      // To ensure it is removed if it exists we will set it to undefined in the object
+      // and use a helper to remove undefined fields before sending.
+      // For this case, we know it's being merged on an existing object that has an endDate, so we update it.
+      // A better approach is to create a new object and overwrite.
+      // Let's go with a specific update.
     };
-    setDocumentNonBlocking(sessionDocRef, revertedSession, { merge: true });
+    
+    const updateData: Partial<Session> = {
+        status: 'active'
+    };
+    
+    // To 'remove' a field when merging, you'd typically use FieldValue.delete().
+    // Since we aren't using the admin SDK, and to avoid complexity,
+    // we'll fetch and overwrite, but without endDate.
+    const newSessionState: Omit<Session, 'endDate'> & {endDate?: any} = {
+        ...session!,
+        status: 'active',
+    }
+    delete newSessionState.endDate;
+
+
+    setDocumentNonBlocking(sessionDocRef, newSessionState, { merge: false });
+
     toast({
       title: 'Session Reverted',
       description: 'The session has been reopened.',
