@@ -83,7 +83,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const handleLogout = async () => {
     await signOut(auth);
-    router.push('/login');
+    // The useEffect above will handle the redirect to /login
   };
 
   // While Firebase is checking the auth state, show a loader to prevent flashes of content.

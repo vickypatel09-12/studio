@@ -54,8 +54,9 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    // If the user is authenticated, the AppShell will handle the redirect.
-    // This page just needs to wait until the auth state is confirmed.
+    // This effect now only handles redirecting away from the login page
+    // if the user is already authenticated. The AppShell handles the
+    // redirect TO the login page.
     if (!isUserLoading && user) {
       router.push('/');
     }
