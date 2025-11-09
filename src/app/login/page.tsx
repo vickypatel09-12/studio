@@ -66,7 +66,7 @@ export default function LoginPage() {
     let title = 'An error occurred';
     let description = error.message;
 
-    if (error.code === 'auth/invalid-credential') {
+    if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
         title = 'Login Failed';
         description = 'The email or password you entered is incorrect. Please try again.';
     } else if (error.code === 'auth/email-already-in-use') {
