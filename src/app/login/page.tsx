@@ -20,7 +20,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Landmark } from 'lucide-react';
 import {
-  onAuthStateChanged,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   AuthError,
@@ -60,27 +59,6 @@ export default function LoginPage() {
     }
   }, [user, isUserLoading, router]);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      (user) => {
-        setIsLoading(false);
-        if (user) {
-          router.push('/');
-        }
-      },
-      (error) => {
-        setIsLoading(false);
-        toast({
-          variant: 'destructive',
-          title: 'Authentication Error',
-          description: error.message,
-        });
-      }
-    );
-    return () => unsubscribe();
-  }, [auth, router, toast]);
-
   const handleAuthError = (error: AuthError) => {
     let title = 'An error occurred';
     let description = error.message;
@@ -107,7 +85,7 @@ export default function LoginPage() {
         handleAuthError(error);
       })
       .finally(() => {
-        // onAuthStateChanged will handle success and redirect, so we only need to stop loading here
+        // onAuthStateChanged (via useUser) will handle success and redirect, so we only need to stop loading here
         setIsLoading(false);
       });
   };
@@ -119,7 +97,7 @@ export default function LoginPage() {
         handleAuthError(error);
       })
       .finally(() => {
-        // onAuthStateChanged will handle success and redirect
+        // onAuthStateChanged (via useUser) will handle success and redirect
         setIsLoading(false);
       });
   };
