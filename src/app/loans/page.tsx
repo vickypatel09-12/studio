@@ -77,6 +77,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import type { Customer } from '@/lib/data';
 import { AppShell } from '@/components/AppShell';
+import { BalanceSummary } from '@/components/BalanceSummary';
 
 type LoanChangeType = 'new' | 'increase' | 'decrease';
 
@@ -589,7 +590,8 @@ function Loans() {
   }
 
   return (
-    <>
+    <div className="space-y-6">
+    {selectedDate && <BalanceSummary selectedDate={selectedDate} />}
     <div className="grid gap-6 lg:grid-cols-4">
       <div className="lg:col-span-3">
         <Card>
@@ -965,7 +967,7 @@ function Loans() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 }
 

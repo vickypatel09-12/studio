@@ -26,8 +26,12 @@ export function getSdks(firebaseApp: FirebaseApp) {
     const firestorePort = 8080;
     const authPort = 9099;
     
-    connectFirestoreEmulator(firestore, host, firestorePort);
-    connectAuthEmulator(auth, `http://${host}:${authPort}`);
+    try {
+      connectFirestoreEmulator(firestore, host, firestorePort);
+      connectAuthEmulator(auth, `http://${host}:${authPort}`);
+    } catch (e) {
+        // already connected
+    }
   }
   
   return {
