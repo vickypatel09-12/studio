@@ -170,6 +170,17 @@ function Loans() {
   const { data: pastEntries, isLoading: pastEntriesLoading } =
     useCollection<MonthlyLoanDoc>(monthlyLoansQuery);
 
+  useEffect(() => {
+    setLoans(prevLoans => 
+      prevLoans.map(loan => {
+        if (loan.carryFwd > 0 && loan.changeType === 'new') {
+          return { ...loan, changeType: 'increase' };
+        }
+        return loan;
+      })
+    );
+  }, [loans]);
+
   const initializeNewMonth = useCallback(
     async (date: Date) => {
       if (!firestore || !customers) return;
@@ -194,7 +205,7 @@ function Loans() {
                 return {
                 customerId: c.id,
                 carryFwd: carryFwd,
-                changeType: 'new' as LoanChangeType,
+                changeType: carryFwd > 0 ? 'increase' : 'new' as LoanChangeType,
                 changeCash: 0,
                 changeBank: 0,
                 interestCash: interestTotal,
@@ -595,7 +606,7 @@ function Loans() {
 
   return (
     <div className="space-y-6">
-    <BalanceSummary selectedDate={selectedDate} />
+    {selectedDate && <BalanceSummary selectedDate={selectedDate} />}
     <div className="grid gap-6 lg:grid-cols-4">
       <div className="lg:col-span-3">
         <Card>
@@ -727,7 +738,7 @@ function Loans() {
                                 <SelectValue placeholder="Type" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="new">New Loan</SelectItem>
+                                <SelectItem value="new" disabled={(loan.carryFwd || 0) > 0}>New Loan</SelectItem>
                                 <SelectItem value="increase">
                                   Increase
                                 </SelectItem>
