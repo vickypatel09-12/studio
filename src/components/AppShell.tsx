@@ -8,6 +8,7 @@ import {
   SidebarHeader,
   SidebarContent,
   SidebarFooter,
+  SidebarRail,
 } from '@/components/ui/sidebar';
 import {
   DropdownMenu,
@@ -107,7 +108,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <SidebarProvider>
-      <Sidebar>
+      <Sidebar collapsible="icon">
         <SidebarHeader>
           <div className="flex items-center gap-2 p-2">
             <Button variant="ghost" size="icon" asChild>
@@ -124,6 +125,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <SidebarNav />
         </SidebarContent>
         <SidebarFooter>{/* User menu moved to header */}</SidebarFooter>
+        <SidebarRail />
       </Sidebar>
       <SidebarInset>
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm lg:px-6">
