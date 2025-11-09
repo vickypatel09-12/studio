@@ -110,7 +110,7 @@ function Deposits() {
 
   const customersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'customers'), orderBy('name'));
+    return query(collection(firestore, 'customers'), orderBy('sortOrder'));
   }, [firestore]);
 
   const { data: customers, isLoading: customersLoading } =
@@ -127,6 +127,20 @@ function Deposits() {
   const { data: pastEntries, isLoading: pastEntriesLoading } =
     useCollection<MonthlyDepositDoc>(monthlyDepositsQuery);
 
+  const initializeNewMonth = useCallback(
+    (date: Date) => {
+      if (!customers) return;
+      setDeposits(
+        customers.map((c) => ({
+          customerId: c.id,
+          cash: 0,
+          bank: 0,
+        }))
+      );
+    },
+    [customers]
+  );
+  
   const loadSubmittedDataForMonth = useCallback(
     async (date: Date) => {
       if (!firestore || !customers) return;
@@ -185,20 +199,6 @@ function Deposits() {
       }
     },
     [firestore, toast, customers, isSessionActive, initializeNewMonth]
-  );
-
-  const initializeNewMonth = useCallback(
-    (date: Date) => {
-      if (!customers) return;
-      setDeposits(
-        customers.map((c) => ({
-          customerId: c.id,
-          cash: 0,
-          bank: 0,
-        }))
-      );
-    },
-    [customers]
   );
 
   const handleDateSelect = (date: Date | undefined) => {
@@ -324,13 +324,12 @@ function Deposits() {
     
     const draftData = docSnap.data()?.draft;
 
-    const dataToSubmit = {
+    const dataToSubmit: Partial<MonthlyDepositDoc> = {
       deposits: draftData,
-      draft: null, // This is how we can remove a field
       submittedAt: serverTimestamp(),
     };
 
-    updateDoc(docRef, dataToSubmit)
+    updateDoc(docRef, { ...dataToSubmit, draft: null })
       .then(() => {
         toast({
           title: 'Success',
@@ -368,13 +367,13 @@ function Deposits() {
         throw new Error('No submitted data found to revert.');
       }
       const submittedData = docSnap.data()?.deposits;
-      const dataToRevert = {
+      const dataToRevert: Partial<MonthlyDepositDoc> = {
         draft: submittedData,
-        deposits: null,
-        submittedAt: null,
+        submittedAt: undefined,
+        deposits: undefined,
       };
 
-      await updateDoc(docRef, dataToRevert);
+      await updateDoc(docRef, { ...dataToRevert });
       toast({
         title: 'Reverted to Draft',
         description: `Entry for ${format(selectedDate, 'MMMM yyyy')} is now editable.`,
@@ -446,6 +445,9 @@ function Deposits() {
                     selected={selectedDate}
                     onSelect={handleDateSelect}
                     initialFocus
+                    captionLayout="dropdown-buttons"
+                    fromYear={2020}
+                    toYear={new Date().getFullYear() + 5}
                   />
                 </PopoverContent>
               </Popover>

@@ -138,7 +138,7 @@ function Loans() {
 
   const customersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'customers'), orderBy('name'));
+    return query(collection(firestore, 'customers'), orderBy('sortOrder'));
   }, [firestore]);
   const { data: customers, isLoading: customersLoading } =
     useCollection<Customer>(customersQuery);
@@ -151,6 +151,77 @@ function Loans() {
   const { data: pastEntries, isLoading: pastEntriesLoading } =
     useCollection<MonthlyLoanDoc>(monthlyLoansQuery);
 
+  const initializeNewMonth = useCallback(
+    async (date: Date) => {
+      if (!firestore || !customers) return;
+      setIsLoading(true);
+      const prevMonth = subMonths(date, 1);
+      const prevMonthId = getMonthId(prevMonth);
+      const prevDocRef = doc(firestore, 'monthlyLoans', prevMonthId);
+
+      const sessionInterestRate = session?.interestRate ? session.interestRate / 100 : 0;
+
+      try {
+        const prevDocSnap = await getDoc(prevDocRef);
+        let initialLoans: Loan[] = [];
+        if (prevDocSnap.exists()) {
+          const prevData = prevDocSnap.data() as MonthlyLoanDoc;
+          const prevLoansData = prevData.loans || prevData.draft; // Prefer submitted loans, fallback to draft
+          if (prevLoansData) {
+            initialLoans = customers.map((c) => {
+                const prevLoan = prevLoansData.find((l) => l.customerId === c.id);
+                const carryFwd = prevLoan ? calculateClosingBalance(prevLoan) : 0;
+                const interestTotal = (carryFwd * sessionInterestRate) / 12;
+                return {
+                customerId: c.id,
+                carryFwd: carryFwd,
+                changeType: 'new' as LoanChangeType,
+                changeCash: 0,
+                changeBank: 0,
+                interestCash: interestTotal,
+                interestBank: 0,
+                interestTotal: interestTotal,
+                };
+            });
+            toast({
+                title: 'New Month Initialized',
+                description: `Carry forward balances from ${format(
+                prevMonth,
+                'MMMM yyyy'
+                )} have been loaded.`,
+            });
+          }
+        } else {
+           initialLoans = customers.map((c) => ({
+            customerId: c.id,
+            carryFwd: 0,
+            changeType: 'new' as LoanChangeType,
+            changeCash: 0,
+            changeBank: 0,
+            interestCash: 0,
+            interestBank: 0,
+            interestTotal: 0,
+          }));
+          toast({
+            title: 'New Month',
+            description: `No data for previous month. Starting fresh.`,
+          });
+        }
+        setLoans(initialLoans);
+      } catch (error) {
+        console.error('Error initializing new month:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Initialization Error',
+          description: 'Could not initialize new month data.',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [firestore, toast, customers, session]
+  );
+  
   const loadSubmittedDataForMonth = useCallback(
     async (date: Date) => {
       if (!firestore || !customers) return;
@@ -222,77 +293,6 @@ function Loans() {
       }
     },
     [firestore, toast, customers, initializeNewMonth, isSessionActive]
-  );
-
-  const initializeNewMonth = useCallback(
-    async (date: Date) => {
-      if (!firestore || !customers) return;
-      setIsLoading(true);
-      const prevMonth = subMonths(date, 1);
-      const prevMonthId = getMonthId(prevMonth);
-      const prevDocRef = doc(firestore, 'monthlyLoans', prevMonthId);
-
-      const sessionInterestRate = session?.interestRate ? session.interestRate / 100 : 0;
-
-      try {
-        const prevDocSnap = await getDoc(prevDocRef);
-        let initialLoans: Loan[] = [];
-        if (prevDocSnap.exists()) {
-          const prevData = prevDocSnap.data() as MonthlyLoanDoc;
-          const prevLoansData = prevData.loans || prevData.draft; // Prefer submitted loans, fallback to draft
-          if (prevLoansData) {
-            initialLoans = customers.map((c) => {
-                const prevLoan = prevLoansData.find((l) => l.customerId === c.id);
-                const carryFwd = prevLoan ? calculateClosingBalance(prevLoan) : 0;
-                const interestTotal = (carryFwd * sessionInterestRate) / 12;
-                return {
-                customerId: c.id,
-                carryFwd: carryFwd,
-                changeType: 'new' as LoanChangeType,
-                changeCash: 0,
-                changeBank: 0,
-                interestCash: interestTotal,
-                interestBank: 0,
-                interestTotal: interestTotal,
-                };
-            });
-            toast({
-                title: 'New Month Initialized',
-                description: `Carry forward balances from ${format(
-                prevMonth,
-                'MMMM yyyy'
-                )} have been loaded.`,
-            });
-          }
-        } else {
-           initialLoans = customers.map((c) => ({
-            customerId: c.id,
-            carryFwd: 0,
-            changeType: 'new' as LoanChangeType,
-            changeCash: 0,
-            changeBank: 0,
-            interestCash: 0,
-            interestBank: 0,
-            interestTotal: 0,
-          }));
-          toast({
-            title: 'New Month',
-            description: `No data for previous month. Starting fresh.`,
-          });
-        }
-        setLoans(initialLoans);
-      } catch (error) {
-        console.error('Error initializing new month:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Initialization Error',
-          description: 'Could not initialize new month data.',
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [firestore, toast, customers, session]
   );
 
   useEffect(() => {
@@ -428,13 +428,12 @@ function Loans() {
     
     const draftData = docSnap.data()?.draft;
     
-    const dataToSubmit = {
+    const dataToSubmit: Partial<MonthlyLoanDoc> = {
       loans: draftData,
-      draft: null, // This is how we can remove a field
       submittedAt: serverTimestamp(),
     };
 
-    updateDoc(docRef, dataToSubmit)
+    updateDoc(docRef, { ...dataToSubmit, draft: null })
       .then(() => {
         toast({
           title: 'Success',
@@ -471,13 +470,13 @@ function Loans() {
         throw new Error('No submitted data found to revert.');
       }
       const submittedData = docSnap.data()?.loans;
-      const dataToRevert = {
+      const dataToRevert: Partial<MonthlyLoanDoc> = {
         draft: submittedData,
-        loans: null,
-        submittedAt: null,
+        loans: undefined,
+        submittedAt: undefined,
       };
 
-      await updateDoc(docRef, dataToRevert);
+      await updateDoc(docRef, { ...dataToRevert });
       toast({
         title: 'Reverted to Draft',
         description: `Entry for ${format(selectedDate, 'MMMM yyyy')} is now editable.`,
@@ -576,6 +575,9 @@ function Loans() {
                     selected={selectedDate}
                     onSelect={handleDateSelect}
                     initialFocus
+                    captionLayout="dropdown-buttons"
+                    fromYear={2020}
+                    toYear={new Date().getFullYear() + 5}
                   />
                 </PopoverContent>
               </Popover>
