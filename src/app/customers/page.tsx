@@ -39,7 +39,8 @@ import {
   MoreHorizontal,
   Trash2,
   Pencil,
-  Loader2
+  Loader2,
+  Import,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking, useMemoFirebase } from '@/firebase';
@@ -121,6 +122,13 @@ function Customers() {
       reader.readAsText(file);
     }
   };
+  
+  const handleImportFromSession = () => {
+    toast({
+        title: 'Customers are Global',
+        description: 'Customer data is not tied to sessions and is always available.',
+    });
+  }
 
   const handleDelete = (customerId: string) => {
     if (!firestore) return;
@@ -177,14 +185,18 @@ function Customers() {
               Manage your customer profiles and view their status.
             </CardDescription>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setIsImporting(true)}>
               <FileUp className="mr-2 h-4 w-4" />
-              Import
+              Import CSV
             </Button>
             <Button variant="outline" onClick={handleExport}>
               <FileDown className="mr-2 h-4 w-4" />
-              Export
+              Export CSV
+            </Button>
+             <Button variant="outline" onClick={handleImportFromSession}>
+              <Import className="mr-2 h-4 w-4" />
+              Import from Session
             </Button>
             <Button onClick={openNewCustomerDialog}>
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -246,7 +258,7 @@ function Customers() {
       <Dialog open={isImporting} onOpenChange={setIsImporting}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Import Customers</DialogTitle>
+            <DialogTitle>Import Customers from CSV</DialogTitle>
             <DialogDescription>
               Upload a CSV file to add new customers. The file must contain a 'name' column. Email and phone are optional.
             </DialogDescription>
