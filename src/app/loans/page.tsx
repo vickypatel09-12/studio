@@ -10,7 +10,7 @@ import {
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import {
   Card,
   CardHeader,
@@ -81,7 +81,10 @@ type MonthlyLoanDoc = {
   createdAt: Timestamp;
 };
 
-const ANNUAL_INTEREST_RATE = 0.12;
+type Session = {
+    id: 'status';
+    status: 'active' | 'closed';
+};
 
 const getMonthId = (date: Date) => format(date, 'yyyy-MM');
 
@@ -103,6 +106,14 @@ function Loans() {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  const sessionDocRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'session', 'status');
+  }, [firestore]);
+
+  const { data: session } = useDoc<Session>(sessionDocRef);
+  const isSessionActive = session?.status === 'active';
 
   const customersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -183,6 +194,10 @@ function Loans() {
     const prevMonthId = getMonthId(prevMonth);
     const prevDocRef = doc(firestore, 'monthlyLoans', prevMonthId);
     
+    // Get session interest rate
+    const sessionDoc = await getDoc(doc(firestore, 'session', 'status'));
+    const sessionInterestRate = sessionDoc.exists() ? (sessionDoc.data() as any).interestRate / 100 : 0;
+    
     try {
       const prevDocSnap = await getDoc(prevDocRef);
       let initialLoans: Loan[] = [];
@@ -191,7 +206,7 @@ function Loans() {
         initialLoans = customers.map((c) => {
           const prevLoan = prevData.loans.find((l) => l.customerId === c.id);
           const carryFwd = prevLoan ? calculateClosingBalance(prevLoan) : 0;
-          const interestTotal = (carryFwd * ANNUAL_INTEREST_RATE) / 12;
+          const interestTotal = (carryFwd * sessionInterestRate) / 12;
           return {
             customerId: c.id,
             carryFwd: carryFwd,
@@ -292,6 +307,14 @@ function Loans() {
         variant: 'destructive',
         title: 'Date Not Selected',
         description: 'Please select a date before submitting.',
+      });
+      return;
+    }
+     if (!isSessionActive) {
+      toast({
+        variant: 'destructive',
+        title: 'Session is Not Active',
+        description: 'You cannot submit entries when a session is closed or not started.',
       });
       return;
     }
@@ -479,6 +502,7 @@ function Loans() {
                           <TableCell>
                             <Select
                               value={loan.changeType}
+                              disabled={!isSessionActive}
                               onValueChange={(value: LoanChangeType) =>
                                 handleLoanChange(
                                   customer.id,
@@ -506,6 +530,7 @@ function Loans() {
                               type="number"
                               placeholder="₹0.00"
                               value={loan.changeCash || ''}
+                              disabled={!isSessionActive}
                               onChange={(e) =>
                                 handleLoanChange(
                                   customer.id,
@@ -521,6 +546,7 @@ function Loans() {
                               type="number"
                               placeholder="₹0.00"
                               value={loan.changeBank || ''}
+                              disabled={!isSessionActive}
                               onChange={(e) =>
                                 handleLoanChange(
                                   customer.id,
@@ -539,6 +565,7 @@ function Loans() {
                               type="number"
                               placeholder="₹0.00"
                               value={loan.interestCash || ''}
+                              disabled={!isSessionActive}
                               onChange={(e) =>
                                 handleLoanChange(
                                   customer.id,
@@ -554,6 +581,7 @@ function Loans() {
                               type="number"
                               placeholder="₹0.00"
                               value={loan.interestBank || ''}
+                              disabled={!isSessionActive}
                               onChange={(e) =>
                                 handleLoanChange(
                                   customer.id,
@@ -591,8 +619,9 @@ function Loans() {
                 <Info className="h-4 w-4" />
                 <AlertTitle>Select a Date</AlertTitle>
                 <AlertDescription>
-                  Please pick a month to view and manage loans, or select one
-                  from the submission history.
+                   {isSessionActive
+                        ? 'Please pick a month to manage loans or view the submission history.'
+                        : 'A session is not active. Please start a new session to make entries. You can still view past submissions.'}
                 </AlertDescription>
               </Alert>
             )}
@@ -606,7 +635,7 @@ function Loans() {
               >
                 <Printer className="mr-2 h-4 w-4" /> Print
               </Button>
-              <Button onClick={handleSubmit} disabled={isLoading}>
+              <Button onClick={handleSubmit} disabled={isLoading || !isSessionActive}>
                 {isLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (

@@ -10,7 +10,7 @@ import {
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import {
   Card,
   CardHeader,
@@ -59,6 +59,11 @@ type Deposit = {
   bank: number;
 };
 
+type Session = {
+    id: 'status';
+    status: 'active' | 'closed';
+};
+
 type MonthlyDepositDoc = {
   id: string;
   date: Timestamp;
@@ -74,6 +79,14 @@ function Deposits() {
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  const sessionDocRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'session', 'status');
+  }, [firestore]);
+
+  const { data: session } = useDoc<Session>(sessionDocRef);
+  const isSessionActive = session?.status === 'active';
 
   const customersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -208,6 +221,15 @@ function Deposits() {
       });
       return;
     }
+    if (!isSessionActive) {
+      toast({
+        variant: 'destructive',
+        title: 'Session is Not Active',
+        description: 'You cannot submit entries when a session is closed or not started.',
+      });
+      return;
+    }
+
     setIsLoading(true);
     const monthId = getMonthId(selectedDate);
     const docRef = doc(firestore, 'monthlyDeposits', monthId);
@@ -336,6 +358,7 @@ function Deposits() {
                               type="number"
                               placeholder="₹0.00"
                               value={deposit.cash || ''}
+                              disabled={!isSessionActive}
                               onChange={(e) =>
                                 handleDepositChange(
                                   customer.id,
@@ -351,6 +374,7 @@ function Deposits() {
                               type="number"
                               placeholder="₹0.00"
                               value={deposit.bank || ''}
+                              disabled={!isSessionActive}
                               onChange={(e) =>
                                 handleDepositChange(
                                   customer.id,
@@ -379,14 +403,15 @@ function Deposits() {
                 </Table>
               </div>
             ) : (
-              <Alert>
-                <Info className="h-4 w-4" />
-                <AlertTitle>Select a Date</AlertTitle>
-                <AlertDescription>
-                  Please pick a month to view and manage deposits, or select one
-                  from the submission history.
-                </AlertDescription>
-              </Alert>
+                 <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertTitle>Select a Date</AlertTitle>
+                    <AlertDescription>
+                    {isSessionActive
+                        ? 'Please pick a month to manage deposits or view the submission history.'
+                        : 'A session is not active. Please start a new session to make entries. You can still view past submissions.'}
+                    </AlertDescription>
+                </Alert>
             )}
           </CardContent>
           {selectedDate && (
@@ -398,7 +423,7 @@ function Deposits() {
               >
                 <Printer className="mr-2 h-4 w-4" /> Print
               </Button>
-              <Button onClick={handleSubmit} disabled={isLoading}>
+              <Button onClick={handleSubmit} disabled={isLoading || !isSessionActive}>
                 {isLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (

@@ -22,8 +22,10 @@ import { SidebarNav } from '@/components/SidebarNav';
 import { usePathname, useRouter } from 'next/navigation';
 import { Landmark, LogOut, User, ChevronDown, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
+import { Badge } from '@/components/ui/badge';
+import { doc, Timestamp } from 'firebase/firestore';
 
 function getPageTitle(pathname: string) {
   switch (pathname) {
@@ -47,12 +49,29 @@ function getPageTitle(pathname: string) {
   }
 }
 
+type Session = {
+  id: 'status';
+  status: 'active' | 'closed';
+  startDate?: Timestamp;
+  endDate?: Timestamp;
+  interestRate?: number;
+};
+
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const title = getPageTitle(pathname);
+  const firestore = useFirestore();
+
+  const sessionDocRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'session', 'status');
+  }, [firestore]);
+
+  const { data: session } = useDoc<Session>(sessionDocRef);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -98,6 +117,25 @@ export function AppShell({ children }: { children: ReactNode }) {
           <SidebarTrigger className="md:hidden" />
           <div className="flex-1">
             <h1 className="font-headline text-lg font-semibold">{title}</h1>
+          </div>
+           <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">Session:</span>
+             <Badge
+                variant={session?.status === 'active' ? 'default' : 'secondary'}
+                className={
+                    session?.status === 'active'
+                    ? 'bg-green-500 text-white'
+                    : session?.status === 'closed'
+                    ? 'bg-destructive'
+                    : 'bg-muted'
+                }
+                >
+                {session?.status === 'active'
+                    ? 'Active'
+                    : session?.status === 'closed'
+                    ? 'Closed'
+                    : 'Not Started'}
+                </Badge>
           </div>
           <div className="ml-auto">
             <DropdownMenu>
