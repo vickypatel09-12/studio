@@ -10,6 +10,7 @@ import {
   serverTimestamp,
   Timestamp,
   updateDoc,
+  deleteDoc,
 } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
@@ -57,6 +58,7 @@ import {
   History,
   Save,
   Pencil,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, startOfMonth } from 'date-fns';
@@ -98,6 +100,7 @@ function Deposits() {
   const [isDraftSaved, setIsDraftSaved] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
+  const [deletingEntry, setDeletingEntry] = useState<MonthlyDepositDoc | null>(null);
   const { toast } = useToast();
 
   const sessionDocRef = useMemoFirebase(() => {
@@ -399,6 +402,29 @@ function Deposits() {
     setSelectedDate(date);
     loadSubmittedDataForMonth(date);
   };
+  
+  const confirmDeleteEntry = async () => {
+    if (!deletingEntry || !firestore) return;
+    setIsLoading(true);
+    const docRef = doc(firestore, 'monthlyDeposits', deletingEntry.id);
+    try {
+      await deleteDoc(docRef);
+      toast({
+        title: 'Entry Deleted',
+        description: `Entry for ${format(deletingEntry.date.toDate(), 'MMMM yyyy')} has been deleted.`,
+      });
+      setDeletingEntry(null);
+      // If the deleted entry was the one being viewed, clear the view
+      if (selectedDate && getMonthId(selectedDate) === deletingEntry.id) {
+        setSelectedDate(undefined);
+        setDeposits([]);
+      }
+    } catch (error) {
+       toast({ variant: 'destructive', title: 'Error', description: 'Could not delete entry.'});
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const pageLoading = customersLoading;
 
@@ -610,18 +636,24 @@ function Deposits() {
             ) : pastEntries && pastEntries.length > 0 ? (
               <div className="flex flex-col gap-2">
                 {pastEntries.map((entry) => (
-                  <Button
-                    key={entry.id}
-                    variant={
-                      getMonthId(entry.date.toDate()) ===
-                      (selectedDate && getMonthId(selectedDate))
-                        ? 'default'
-                        : 'outline'
-                    }
-                    onClick={() => handlePastEntryClick(entry.date.toDate())}
-                  >
-                    {format(entry.date.toDate(), 'MMMM yyyy')}
-                  </Button>
+                  <div key={entry.id} className="flex items-center gap-2">
+                    <Button
+                      variant={
+                        getMonthId(entry.date.toDate()) ===
+                        (selectedDate && getMonthId(selectedDate))
+                          ? 'default'
+                          : 'outline'
+                      }
+                      className="flex-grow justify-start"
+                      onClick={() => handlePastEntryClick(entry.date.toDate())}
+                    >
+                      {format(entry.date.toDate(), 'MMMM yyyy')}
+                    </Button>
+                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeletingEntry(entry)}>
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete entry</span>
+                    </Button>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -648,6 +680,25 @@ function Deposits() {
             <AlertDialogAction onClick={confirmRevert} className={buttonVariants({ variant: 'destructive' })}>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Yes, Revert
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+       {/* Delete Entry Confirmation Dialog */}
+      <AlertDialog open={!!deletingEntry} onOpenChange={() => setDeletingEntry(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this entry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the entry for {deletingEntry && format(deletingEntry.date.toDate(), 'MMMM yyyy')}. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteEntry} className={buttonVariants({ variant: 'destructive' })}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Yes, Delete Entry
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
