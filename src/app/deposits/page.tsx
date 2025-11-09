@@ -464,281 +464,277 @@ function Deposits() {
   return (
     <div className="space-y-6">
       <BalanceSummary selectedDate={selectedDate} />
-      <div className="grid gap-6 lg:grid-cols-4">
-        <div className="lg:col-span-3">
-          <Card>
-            <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <CardTitle>Monthly Deposits</CardTitle>
-                <CardDescription>
-                  Manage customer deposits for the selected period.
-                </CardDescription>
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant={'outline'}
-                      className={cn(
-                        'w-full justify-start text-left font-normal sm:w-[240px]',
-                        !selectedDate && 'text-muted-foreground'
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? (
-                        format(selectedDate, 'MMMM yyyy')
-                      ) : (
-                        <span>Pick a month</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={handleDateSelect}
-                      initialFocus
-                      captionLayout="dropdown-buttons"
-                      fromYear={2020}
-                      toYear={new Date().getFullYear() + 5}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="flex items-center justify-center p-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-              ) : selectedDate && customers ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[50px]">Sr.</TableHead>
-                        <TableHead>Customer</TableHead>
-                        <TableHead className="w-[150px] text-right">
-                          Cash
-                        </TableHead>
-                        <TableHead className="w-[150px] text-right">
-                          Bank
-                        </TableHead>
-                        <TableHead className="w-[150px] text-right">
-                          Total
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {customers.map((customer, index) => {
-                        const deposit =
-                          deposits.find((d) => d.customerId === customer.id) ?? {
-                            customerId: customer.id,
-                            cash: 0,
-                            bank: 0,
-                          };
-                        const depositTotal = getDepositTotal(deposit);
-
-                        return (
-                          <TableRow key={customer.id}>
-                            <TableCell className="font-medium">
-                              {index + 1}
-                            </TableCell>
-                            <TableCell>{customer.name}</TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                placeholder="₹0.00"
-                                value={deposit.cash || ''}
-                                disabled={!isSessionActive || isSubmitted}
-                                onChange={(e) =>
-                                  handleDepositChange(
-                                    customer.id,
-                                    'cash',
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full text-right"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                placeholder="₹0.00"
-                                value={deposit.bank || ''}
-                                disabled={!isSessionActive || isSubmitted}
-                                onChange={(e) =>
-                                  handleDepositChange(
-                                    customer.id,
-                                    'bank',
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full text-right"
-                              />
-                            </TableCell>
-                            <TableCell className="text-right font-medium">
-                              ₹{depositTotal.toFixed(2)}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                    <UiTableFooter>
-                      <TableRow className="bg-muted/50 text-right font-bold">
-                        <TableCell colSpan={2}>Total</TableCell>
-                        <TableCell>₹{totals.cash.toFixed(2)}</TableCell>
-                        <TableCell>₹{totals.bank.toFixed(2)}</TableCell>
-                        <TableCell>₹{totals.total.toFixed(2)}</TableCell>
-                      </TableRow>
-                    </UiTableFooter>
-                  </Table>
-                </div>
-              ) : (
-                <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertTitle>Select a Date</AlertTitle>
-                  <AlertDescription>
-                    {isSessionActive
-                      ? 'Please pick a month to manage deposits or view the submission history.'
-                      : 'A session is not active. Please start a new session to make entries. You can still view past submissions.'}
-                  </AlertDescription>
-                </Alert>
-              )}
-            </CardContent>
-            {selectedDate && (
-              <CardFooter className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => window.print()}
-                  disabled={isLoading}
-                >
-                  <Printer className="mr-2 h-4 w-4" /> Print
-                </Button>
-                 {isSubmitted && isSessionActive && (
-                    <Button variant="secondary" onClick={() => setIsReverting(true)} disabled={isLoading}>
-                      <Pencil className="mr-2 h-4 w-4" /> Edit Submitted
-                    </Button>
-                  )}
-                <Button variant="secondary" onClick={handleSaveDraft} disabled={isLoading || !isSessionActive || isSubmitted}>
-                   {isLoading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="mr-2 h-4 w-4" />
-                  )}
-                  Save as Draft
-                </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={isLoading || !isSessionActive || !isDraftSaved || isSubmitted}
-                >
-                  {isLoading && !isDraftSaved ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="mr-2 h-4 w-4" />
-                  )}
-                  Submit
-                </Button>
-              </CardFooter>
-            )}
-          </Card>
-        </div>
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <History className="h-5 w-5" />
-                Submission History
-              </CardTitle>
-              <CardDescription>
-                Click a month to view its submitted data.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {pastEntriesLoading ? (
-                <div className="flex items-center justify-center p-4">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : pastEntries && pastEntries.length > 0 ? (
-                <div className="flex flex-col gap-2">
-                  {pastEntries.map((entry) => (
-                    <div key={entry.id} className="flex items-center gap-2">
-                      <Button
-                        variant={
-                          getMonthId(entry.date.toDate()) ===
-                          (selectedDate && getMonthId(selectedDate))
-                            ? 'default'
-                            : 'outline'
-                        }
-                        className="flex-grow justify-start"
-                        onClick={() => handlePastEntryClick(entry.date.toDate())}
-                      >
-                        {format(entry.date.toDate(), 'MMMM yyyy')}
-                      </Button>
-                       <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeletingEntry(entry)}>
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Delete entry</span>
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No past submissions found.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
       
-        {/* Revert Confirmation Dialog */}
-        <AlertDialog open={isReverting} onOpenChange={setIsReverting}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure you want to edit this entry?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will revert the submitted entry for {selectedDate && format(selectedDate, 'MMMM yyyy')} back to a draft. You will be able to make changes and resubmit.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmRevert} className={buttonVariants({ variant: 'destructive' })}>
-                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Yes, Revert
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+      <Card>
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>Monthly Deposits</CardTitle>
+            <CardDescription>
+              Manage customer deposits for the selected period.
+            </CardDescription>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={'outline'}
+                  className={cn(
+                    'w-full justify-start text-left font-normal sm:w-[240px]',
+                    !selectedDate && 'text-muted-foreground'
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? (
+                    format(selectedDate, 'MMMM yyyy')
+                  ) : (
+                    <span>Pick a month</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={handleDateSelect}
+                  initialFocus
+                  captionLayout="dropdown-buttons"
+                  fromYear={2020}
+                  toYear={new Date().getFullYear() + 5}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : selectedDate && customers ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[50px]">Sr.</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead className="w-[150px] text-right">
+                      Cash
+                    </TableHead>
+                    <TableHead className="w-[150px] text-right">
+                      Bank
+                    </TableHead>
+                    <TableHead className="w-[150px] text-right">
+                      Total
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {customers.map((customer, index) => {
+                    const deposit =
+                      deposits.find((d) => d.customerId === customer.id) ?? {
+                        customerId: customer.id,
+                        cash: 0,
+                        bank: 0,
+                      };
+                    const depositTotal = getDepositTotal(deposit);
 
-         {/* Delete Entry Confirmation Dialog */}
-        <AlertDialog open={!!deletingEntry} onOpenChange={() => setDeletingEntry(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure you want to delete this entry?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently delete the entry for {deletingEntry && format(deletingEntry.date.toDate(), 'MMMM yyyy')}. This action requires password confirmation and cannot be undone.
-              </AlertDialogDescription>
-               <div className="space-y-2 pt-4">
-                  <Label htmlFor="delete-password">Password</Label>
-                  <Input 
-                    id="delete-password" 
-                    type="password"
-                    value={deletePassword}
-                    onChange={(e) => setDeletePassword(e.target.value)}
-                    placeholder="Enter your password to confirm"
-                  />
+                    return (
+                      <TableRow key={customer.id}>
+                        <TableCell className="font-medium">
+                          {index + 1}
+                        </TableCell>
+                        <TableCell>{customer.name}</TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            placeholder="₹0.00"
+                            value={deposit.cash || ''}
+                            disabled={!isSessionActive || isSubmitted}
+                            onChange={(e) =>
+                              handleDepositChange(
+                                customer.id,
+                                'cash',
+                                e.target.value
+                              )
+                            }
+                            className="w-full text-right"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            placeholder="₹0.00"
+                            value={deposit.bank || ''}
+                            disabled={!isSessionActive || isSubmitted}
+                            onChange={(e) =>
+                              handleDepositChange(
+                                customer.id,
+                                'bank',
+                                e.target.value
+                              )
+                            }
+                            className="w-full text-right"
+                          />
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          ₹{depositTotal.toFixed(2)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+                <UiTableFooter>
+                  <TableRow className="bg-muted/50 text-right font-bold">
+                    <TableCell colSpan={2}>Total</TableCell>
+                    <TableCell>₹{totals.cash.toFixed(2)}</TableCell>
+                    <TableCell>₹{totals.bank.toFixed(2)}</TableCell>
+                    <TableCell>₹{totals.total.toFixed(2)}</TableCell>
+                  </TableRow>
+                </UiTableFooter>
+              </Table>
+            </div>
+          ) : (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertTitle>Select a Date</AlertTitle>
+              <AlertDescription>
+                {isSessionActive
+                  ? 'Please pick a month to manage deposits or view the submission history.'
+                  : 'A session is not active. Please start a new session to make entries. You can still view past submissions.'}
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+        {selectedDate && (
+          <CardFooter className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => window.print()}
+              disabled={isLoading}
+            >
+              <Printer className="mr-2 h-4 w-4" /> Print
+            </Button>
+             {isSubmitted && isSessionActive && (
+                <Button variant="secondary" onClick={() => setIsReverting(true)} disabled={isLoading}>
+                  <Pencil className="mr-2 h-4 w-4" /> Edit Submitted
+                </Button>
+              )}
+            <Button variant="secondary" onClick={handleSaveDraft} disabled={isLoading || !isSessionActive || isSubmitted}>
+               {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              Save as Draft
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={isLoading || !isSessionActive || !isDraftSaved || isSubmitted}
+            >
+              {isLoading && !isDraftSaved ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              Submit
+            </Button>
+          </CardFooter>
+        )}
+      </Card>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <History className="h-5 w-5" />
+            Submission History
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Click a month to view its submitted data.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {pastEntriesLoading ? (
+            <div className="flex items-center justify-center p-4">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : pastEntries && pastEntries.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {pastEntries.map((entry) => (
+                <div key={entry.id} className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant={
+                      getMonthId(entry.date.toDate()) ===
+                      (selectedDate && getMonthId(selectedDate))
+                        ? 'default'
+                        : 'outline'
+                    }
+                    className="justify-start"
+                    onClick={() => handlePastEntryClick(entry.date.toDate())}
+                  >
+                    {format(entry.date.toDate(), 'MMM yyyy')}
+                  </Button>
+                   <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeletingEntry(entry)}>
+                      <Trash2 className="h-4 w-4" />
+                      <span className="sr-only">Delete entry</span>
+                  </Button>
                 </div>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setDeletePassword('')}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmDeleteEntry} className={buttonVariants({ variant: 'destructive' })} disabled={isLoading || !deletePassword}>
-                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Confirm & Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No past submissions found.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Dialogs */}
+      <AlertDialog open={isReverting} onOpenChange={setIsReverting}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to edit this entry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will revert the submitted entry for {selectedDate && format(selectedDate, 'MMMM yyyy')} back to a draft. You will be able to make changes and resubmit.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRevert} className={buttonVariants({ variant: 'destructive' })}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Yes, Revert
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deletingEntry} onOpenChange={() => setDeletingEntry(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this entry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the entry for {deletingEntry && format(deletingEntry.date.toDate(), 'MMMM yyyy')}. This action requires password confirmation and cannot be undone.
+            </AlertDialogDescription>
+             <div className="space-y-2 pt-4">
+                <Label htmlFor="delete-password">Password</Label>
+                <Input 
+                  id="delete-password" 
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  placeholder="Enter your password to confirm"
+                />
+              </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeletePassword('')}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteEntry} className={buttonVariants({ variant: 'destructive' })} disabled={isLoading || !deletePassword}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Confirm & Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -750,5 +746,3 @@ export default function DepositsPage() {
     </AppShell>
   );
 }
-
-    
