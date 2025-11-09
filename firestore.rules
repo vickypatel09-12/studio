@@ -24,9 +24,10 @@ service cloud.firestore {
        allow write: if isSignedIn();
     }
 
-    // SESSION: Writable and readable by authenticated users.
+    // SESSION: Publicly readable, but only writable by authenticated users.
     match /session/status {
-      allow read, write: if isSignedIn();
+      allow read: if true;
+      allow write: if isSignedIn();
     }
   }
 }
