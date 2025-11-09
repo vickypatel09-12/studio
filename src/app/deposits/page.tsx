@@ -12,8 +12,12 @@ import {
   updateDoc,
   deleteDoc,
 } from 'firebase/firestore';
+import {
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+} from 'firebase/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser } from '@/firebase';
 import {
   Card,
   CardHeader,
@@ -69,6 +73,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import type { Customer } from '@/lib/data';
 import { AppShell } from '@/components/AppShell';
 import { BalanceSummary } from '@/components/BalanceSummary';
+import { Label } from '@/components/ui/label';
 
 type Deposit = {
   customerId: string;
@@ -94,6 +99,8 @@ const getMonthId = (date: Date) => format(date, 'yyyy-MM');
 
 function Deposits() {
   const firestore = useFirestore();
+  const auth = useAuth();
+  const { user } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
@@ -103,6 +110,7 @@ function Deposits() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
   const [deletingEntry, setDeletingEntry] = useState<MonthlyDepositDoc | null>(null);
+  const [deletePassword, setDeletePassword] = useState('');
   const { toast } = useToast();
 
   const sessionDocRef = useMemoFirebase(() => {
@@ -349,30 +357,18 @@ function Deposits() {
       submittedAt: serverTimestamp(),
     };
 
-    updateDoc(docRef, { ...dataToSubmit, draft: null })
-      .then(() => {
-        toast({
-          title: 'Success',
-          description: `Deposits for ${format(
-            selectedDate,
-            'MMMM yyyy'
-          )} have been submitted.`,
-        });
-        setIsDraftSaved(false);
-        setIsSubmitted(true);
-        router.push(`/loans?month=${monthId}`);
-      })
-      .catch((serverError) => {
-        const permissionError = new FirestorePermissionError({
-          path: docRef.path,
-          operation: 'update',
-          requestResourceData: dataToSubmit,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
+    await updateDoc(docRef, { ...dataToSubmit, draft: null });
+    toast({
+        title: 'Success',
+        description: `Deposits for ${format(
+        selectedDate,
+        'MMMM yyyy'
+        )} have been submitted.`,
+    });
+    setIsDraftSaved(false);
+    setIsSubmitted(true);
+    router.push(`/loans?month=${monthId}`);
+    setIsLoading(false);
   };
 
   const confirmRevert = async () => {
@@ -421,27 +417,39 @@ function Deposits() {
   };
   
   const confirmDeleteEntry = async () => {
-    if (!deletingEntry || !firestore) return;
+    if (!deletingEntry || !firestore || !user?.email || !deletePassword) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Password is required to delete.' });
+        return;
+    }
+    if (!auth || !user) return;
     setIsLoading(true);
-    const docRef = doc(firestore, 'monthlyDeposits', deletingEntry.id);
+
     try {
-      await deleteDoc(docRef);
-      toast({
-        title: 'Entry Deleted',
-        description: `Entry for ${format(deletingEntry.date.toDate(), 'MMMM yyyy')} has been deleted.`,
-      });
-      setDeletingEntry(null);
-      // If the deleted entry was the one being viewed, clear the view
-      if (selectedDate && getMonthId(selectedDate) === deletingEntry.id) {
-        setSelectedDate(undefined);
-        setDeposits([]);
-      }
+        const credential = EmailAuthProvider.credential(user.email, deletePassword);
+        await reauthenticateWithCredential(user, credential);
+        
+        const docRef = doc(firestore, 'monthlyDeposits', deletingEntry.id);
+        await deleteDoc(docRef);
+
+        toast({
+            title: 'Entry Deleted',
+            description: `Entry for ${format(deletingEntry.date.toDate(), 'MMMM yyyy')} has been deleted.`,
+        });
+
+        setDeletingEntry(null);
+        setDeletePassword('');
+        // If the deleted entry was the one being viewed, clear the view
+        if (selectedDate && getMonthId(selectedDate) === deletingEntry.id) {
+            setSelectedDate(undefined);
+            setDeposits([]);
+        }
     } catch (error) {
-       toast({ variant: 'destructive', title: 'Error', description: 'Could not delete entry.'});
+        toast({ variant: 'destructive', title: 'Authentication Failed', description: 'Incorrect password. Deletion cancelled.' });
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
   };
+
 
   const pageLoading = customersLoading;
 
@@ -709,14 +717,24 @@ function Deposits() {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure you want to delete this entry?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will permanently delete the entry for {deletingEntry && format(deletingEntry.date.toDate(), 'MMMM yyyy')}. This action cannot be undone.
+                This will permanently delete the entry for {deletingEntry && format(deletingEntry.date.toDate(), 'MMMM yyyy')}. This action requires password confirmation and cannot be undone.
               </AlertDialogDescription>
+               <div className="space-y-2 pt-4">
+                  <Label htmlFor="delete-password">Password</Label>
+                  <Input 
+                    id="delete-password" 
+                    type="password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    placeholder="Enter your password to confirm"
+                  />
+                </div>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmDeleteEntry} className={buttonVariants({ variant: 'destructive' })}>
+              <AlertDialogCancel onClick={() => setDeletePassword('')}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteEntry} className={buttonVariants({ variant: 'destructive' })} disabled={isLoading || !deletePassword}>
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Yes, Delete Entry
+                Confirm & Delete
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -732,3 +750,5 @@ export default function DepositsPage() {
     </AppShell>
   );
 }
+
+    

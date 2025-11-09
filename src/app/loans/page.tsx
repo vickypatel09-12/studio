@@ -12,7 +12,11 @@ import {
   updateDoc,
   deleteDoc,
 } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import {
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+} from 'firebase/auth';
+import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { useSearchParams } from 'next/navigation';
 import {
   Card,
@@ -78,6 +82,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import type { Customer } from '@/lib/data';
 import { AppShell } from '@/components/AppShell';
 import { BalanceSummary } from '@/components/BalanceSummary';
+import { Label } from '@/components/ui/label';
 
 type LoanChangeType = 'new' | 'increase' | 'decrease';
 
@@ -129,6 +134,7 @@ const calculateClosingBalance = (loan: Loan) => {
 
 function Loans() {
   const firestore = useFirestore();
+  const { user } = useUser();
   const searchParams = useSearchParams();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [loans, setLoans] = useState<Loan[]>([]);
@@ -137,6 +143,7 @@ function Loans() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
   const [deletingEntry, setDeletingEntry] = useState<MonthlyLoanDoc | null>(null);
+  const [deletePassword, setDeletePassword] = useState('');
   const [isDepositSubmitted, setIsDepositSubmitted] = useState(false);
   const { toast } = useToast();
 
@@ -462,29 +469,17 @@ function Loans() {
       submittedAt: serverTimestamp(),
     };
 
-    updateDoc(docRef, { ...dataToSubmit, draft: null })
-      .then(() => {
-        toast({
-          title: 'Success',
-          description: `Loans for ${format(
-            selectedDate,
-            'MMMM yyyy'
-          )} have been submitted.`,
-        });
-        setIsDraftSaved(false);
-        setIsSubmitted(true);
-      })
-      .catch((serverError) => {
-        const permissionError = new FirestorePermissionError({
-          path: docRef.path,
-          operation: 'update',
-          requestResourceData: dataToSubmit,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
+    await updateDoc(docRef, { ...dataToSubmit, draft: null });
+    toast({
+        title: 'Success',
+        description: `Loans for ${format(
+        selectedDate,
+        'MMMM yyyy'
+        )} have been submitted.`,
+    });
+    setIsDraftSaved(false);
+    setIsSubmitted(true);
+    setIsLoading(false);
   };
 
   const confirmRevert = async () => {
@@ -527,23 +522,32 @@ function Loans() {
   };
 
   const confirmDeleteEntry = async () => {
-    if (!deletingEntry || !firestore) return;
+    if (!deletingEntry || !firestore || !user?.email || !deletePassword) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Password is required to delete.' });
+      return;
+    }
+    if (!user) return;
     setIsLoading(true);
-    const docRef = doc(firestore, 'monthlyLoans', deletingEntry.id);
+
     try {
+      const credential = EmailAuthProvider.credential(user.email, deletePassword);
+      await reauthenticateWithCredential(user, credential);
+      
+      const docRef = doc(firestore, 'monthlyLoans', deletingEntry.id);
       await deleteDoc(docRef);
       toast({
         title: 'Entry Deleted',
         description: `Entry for ${format(deletingEntry.date.toDate(), 'MMMM yyyy')} has been deleted.`,
       });
       setDeletingEntry(null);
-      // If the deleted entry was the one being viewed, clear the view
+      setDeletePassword('');
+
       if (selectedDate && getMonthId(selectedDate) === deletingEntry.id) {
         setSelectedDate(undefined);
         setLoans([]);
       }
     } catch (error) {
-       toast({ variant: 'destructive', title: 'Error', description: 'Could not delete entry.'});
+      toast({ variant: 'destructive', title: 'Authentication Failed', description: 'Incorrect password. Deletion cancelled.' });
     } finally {
       setIsLoading(false);
     }
@@ -955,14 +959,24 @@ function Loans() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure you want to delete this entry?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the entry for {deletingEntry && format(deletingEntry.date.toDate(), 'MMMM yyyy')}. This action cannot be undone.
+               This will permanently delete the entry for {deletingEntry && format(deletingEntry.date.toDate(), 'MMMM yyyy')}. This action requires password confirmation and cannot be undone.
             </AlertDialogDescription>
+            <div className="space-y-2 pt-4">
+              <Label htmlFor="delete-password">Password</Label>
+              <Input
+                id="delete-password"
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                placeholder="Enter your password to confirm"
+              />
+            </div>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteEntry} className={buttonVariants({ variant: 'destructive' })}>
+            <AlertDialogCancel onClick={() => setDeletePassword('')}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteEntry} className={buttonVariants({ variant: 'destructive' })} disabled={isLoading || !deletePassword}>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Yes, Delete Entry
+              Confirm & Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -988,3 +1002,5 @@ function LoansPage() {
 }
 
 export default LoansPage;
+
+    
