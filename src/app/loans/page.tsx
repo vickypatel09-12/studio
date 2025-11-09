@@ -170,17 +170,6 @@ function Loans() {
   const { data: pastEntries, isLoading: pastEntriesLoading } =
     useCollection<MonthlyLoanDoc>(monthlyLoansQuery);
 
-  useEffect(() => {
-    setLoans(prevLoans => 
-      prevLoans.map(loan => {
-        if (loan.carryFwd > 0 && loan.changeType === 'new') {
-          return { ...loan, changeType: 'increase' };
-        }
-        return loan;
-      })
-    );
-  }, [loans]);
-
   const initializeNewMonth = useCallback(
     async (date: Date) => {
       if (!firestore || !customers) return;
@@ -285,12 +274,20 @@ function Loans() {
           const dataSource = data.draft ? 'draft' : 'submitted';
           
           if (dataToLoad) {
-            const allCustomerLoans = customers.map((customer) => {
+             const allCustomerLoans = customers.map((customer) => {
               const savedLoan = dataToLoad.find(
                 (d) => d.customerId === customer.id
               );
-              return (
-                savedLoan || {
+              
+              if (savedLoan) {
+                // Enforce the business rule on load
+                if (savedLoan.carryFwd > 0 && savedLoan.changeType === 'new') {
+                    savedLoan.changeType = 'increase';
+                }
+                return savedLoan;
+              }
+
+              return {
                   customerId: customer.id,
                   carryFwd: 0,
                   changeType: 'new' as LoanChangeType,
@@ -299,8 +296,7 @@ function Loans() {
                   interestCash: 0,
                   interestBank: 0,
                   interestTotal: 0,
-                }
-              );
+                };
             });
             setLoans(allCustomerLoans);
             setIsDraftSaved(dataSource === 'draft' && isSessionActive);
@@ -338,7 +334,7 @@ function Loans() {
         setIsLoading(false);
       }
     },
-    [firestore, toast, customers, initializeNewMonth, isSessionActive]
+    [firestore, toast, customers, isSessionActive, initializeNewMonth]
   );
 
   useEffect(() => {
