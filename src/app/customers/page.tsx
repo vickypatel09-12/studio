@@ -223,28 +223,47 @@ function Customers() {
 
   const handleSaveCustomer = () => {
     if (!editingCustomer || !firestore) return;
+    
+    const trimmedName = editingCustomer.name.trim();
+    if (!trimmedName) {
+        toast({ variant: 'destructive', title: 'Validation Error', description: 'Customer name cannot be empty.' });
+        return;
+    }
+
+    const isDuplicate = customers.some(
+        (c) => c.name.toLowerCase() === trimmedName.toLowerCase() && c.id !== editingCustomer.id
+    );
+
+    if (isDuplicate) {
+        toast({
+            variant: 'destructive',
+            title: 'Duplicate Customer',
+            description: `A customer named "${trimmedName}" already exists.`,
+        });
+        return;
+    }
 
     if (isNewCustomer) {
         const customerCollection = collection(firestore, 'customers');
         addDocumentNonBlocking(customerCollection, {
-            name: editingCustomer.name,
+            name: trimmedName,
             email: editingCustomer.email || '',
             phone: editingCustomer.phone || '',
             address: editingCustomer.address || '',
             notes: editingCustomer.notes || '',
             sortOrder: customers?.length || 0,
         });
-        toast({ title: 'Customer Added', description: `${editingCustomer.name} has been added.` });
+        toast({ title: 'Customer Added', description: `${trimmedName} has been added.` });
     } else {
         const docRef = doc(firestore, 'customers', editingCustomer.id);
         updateDocumentNonBlocking(docRef, {
-            name: editingCustomer.name,
+            name: trimmedName,
             email: editingCustomer.email || '',
             phone: editingCustomer.phone || '',
             address: editingCustomer.address || '',
             notes: editingCustomer.notes || '',
         });
-        toast({ title: 'Customer Updated', description: `Details for ${editingCustomer.name} have been saved.` });
+        toast({ title: 'Customer Updated', description: `Details for ${trimmedName} have been saved.` });
     }
     closeDialog();
   }
