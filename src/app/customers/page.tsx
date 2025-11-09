@@ -54,7 +54,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -70,7 +70,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking, useMemoFirebase } from '@/firebase';
-import { collection, query, doc, writeBatch, orderBy } from 'firebase/firestore';
+import { collection, query, doc, writeBatch, orderBy, getDocs } from 'firebase/firestore';
 import type { Customer } from '@/lib/data';
 import { AppShell } from '@/components/AppShell';
 
@@ -131,6 +131,7 @@ function Customers() {
   const [isImporting, setIsImporting] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [isNewCustomer, setIsNewCustomer] = useState(false);
   const { toast } = useToast();
 
@@ -240,6 +241,23 @@ function Customers() {
     deleteDocumentNonBlocking(docRef);
     toast({ title: 'Customer Deleted', description: `Customer ${deletingCustomer.name} has been removed.`});
     setDeletingCustomer(null);
+  };
+  
+  const confirmDeleteAll = async () => {
+    if (!firestore) return;
+    setIsDeletingAll(false); // Close dialog
+    try {
+        const customerCollection = collection(firestore, 'customers');
+        const customerSnapshot = await getDocs(customerCollection);
+        const batch = writeBatch(firestore);
+        customerSnapshot.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+        await batch.commit();
+        toast({ title: 'All Customers Deleted', description: 'All customer data has been removed.' });
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not delete all customers.' });
+    }
   };
 
   const handleSaveCustomer = () => {
@@ -361,6 +379,10 @@ function Customers() {
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Customer
             </Button>
+            <Button variant="destructive" onClick={() => setIsDeletingAll(true)}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete All
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -467,7 +489,24 @@ function Customers() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={confirmDelete} className={buttonVariants({ variant: 'destructive' })}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+       <AlertDialog open={isDeletingAll} onOpenChange={setIsDeletingAll}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete all customers from the database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteAll} className={buttonVariants({ variant: 'destructive' })}>
+              Yes, delete all
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
