@@ -184,6 +184,9 @@ function Customers() {
             throw new Error('CSV must contain a "name" column.');
           }
           
+          const maxSortOrder = customers.reduce((max, c) => Math.max(c.sortOrder ?? 0, max), 0);
+          const startingSortOrder = (customers.length > 0) ? maxSortOrder + 1 : 0;
+
           const newCustomers = lines.slice(1).map((line, index) => {
             const values = line.split(',');
             const customerData: any = {};
@@ -196,7 +199,7 @@ function Customers() {
                 phone: customerData.phone || '',
                 address: customerData.address || '',
                 notes: customerData.notes || '',
-                sortOrder: (customers?.length || 0) + index,
+                sortOrder: startingSortOrder + index,
             };
           });
 
@@ -210,6 +213,8 @@ function Customers() {
 
           toast({ title: 'Success', description: 'Customers imported successfully.' });
           setIsImporting(false);
+          // Reset file input to allow importing the same file again
+          event.target.value = '';
         } catch (error: any) {
           toast({ variant: 'destructive', title: 'Import Failed', description: error.message });
         }
@@ -304,9 +309,9 @@ function Customers() {
   async function handleDragEnd(event: DragEndEvent) {
     const {active, over} = event;
     
-    if (active.id !== over?.id && firestore) {
+    if (active.id !== over?.id && firestore && over) {
       const oldIndex = customers.findIndex((c) => c.id === active.id);
-      const newIndex = customers.findIndex((c) => c.id === over?.id);
+      const newIndex = customers.findIndex((c) => c.id === over.id);
       
       const updatedCustomers = arrayMove(customers, oldIndex, newIndex);
       setCustomers(updatedCustomers);
