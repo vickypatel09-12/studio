@@ -367,13 +367,14 @@ function Deposits() {
         throw new Error('No submitted data found to revert.');
       }
       const submittedData = docSnap.data()?.deposits;
-      const dataToRevert: Partial<MonthlyDepositDoc> = {
+      const dataToRevert: { draft: any; deposits: any, submittedAt: any } = {
         draft: submittedData,
-        submittedAt: undefined,
-        deposits: undefined,
+        deposits: null,
+        submittedAt: null,
       };
 
-      await updateDoc(docRef, { ...dataToRevert });
+      await updateDoc(docRef, dataToRevert);
+
       toast({
         title: 'Reverted to Draft',
         description: `Entry for ${format(selectedDate, 'MMMM yyyy')} is now editable.`,
