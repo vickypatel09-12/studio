@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { format, subMonths } from 'date-fns';
@@ -11,11 +11,21 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableFooter,
+} from '@/components/ui/table';
 import { Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
+type Deposit = { cash: number; bank: number };
 type MonthlyDepositDoc = {
-  deposits?: { cash: number; bank: number }[];
+  deposits?: Deposit[];
 };
 
 type Loan = {
@@ -46,17 +56,18 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value);
 };
 
 export function BalanceSummary({ selectedDate }: { selectedDate: Date }) {
   const firestore = useFirestore();
   const [summary, setSummary] = useState({
-    prevNetBalance: 0,
-    currentDeposits: 0,
-    loanGiven: 0,
-    loanRepaid: 0,
-    liveBalance: 0,
+    prevBalance: { cash: 0, bank: 0 },
+    currentDeposits: { cash: 0, bank: 0 },
+    loanGiven: { cash: 0, bank: 0 },
+    loanRepaid: { cash: 0, bank: 0 },
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -91,29 +102,12 @@ export function BalanceSummary({ selectedDate }: { selectedDate: Date }) {
           getDoc(currentLoanRef),
         ]);
 
-        // Previous Month Calculations
         const prevDepositsData = prevDepositSnap.exists()
           ? (prevDepositSnap.data() as MonthlyDepositDoc)
           : null;
         const prevLoansData = prevLoanSnap.exists()
           ? (prevLoanSnap.data() as MonthlyLoanDoc)
           : null;
-
-        const prevTotalDeposits =
-          prevDepositsData?.deposits?.reduce(
-            (sum, d) => sum + (d.cash || 0) + (d.bank || 0),
-            0
-          ) ?? 0;
-
-        const prevOutstandingLoans =
-          prevLoansData?.loans?.reduce(
-            (sum, l) => sum + calculateClosingBalance(l),
-            0
-          ) ?? 0;
-
-        const prevNetBalance = prevTotalDeposits - prevOutstandingLoans;
-
-        // Current Month Calculations
         const currentDepositsData = currentDepositSnap.exists()
           ? (currentDepositSnap.data() as MonthlyDepositDoc)
           : null;
@@ -121,32 +115,65 @@ export function BalanceSummary({ selectedDate }: { selectedDate: Date }) {
           ? (currentLoanSnap.data() as MonthlyLoanDoc)
           : null;
 
-        const currentDeposits =
-          currentDepositsData?.deposits?.reduce(
-            (sum, d) => sum + (d.cash || 0) + (d.bank || 0),
+        const prevTotalDeposits =
+          prevDepositsData?.deposits?.reduce(
+            (totals, d) => {
+              totals.cash += d.cash || 0;
+              totals.bank += d.bank || 0;
+              return totals;
+            },
+            { cash: 0, bank: 0 }
+          ) ?? { cash: 0, bank: 0 };
+
+        const prevOutstandingLoans =
+          prevLoansData?.loans?.reduce(
+            (sum, l) => sum + calculateClosingBalance(l),
             0
           ) ?? 0;
+        
+        // Assuming previous loan balance affects cash balance
+        const prevBalance = {
+            cash: prevTotalDeposits.cash - prevOutstandingLoans,
+            bank: prevTotalDeposits.bank,
+        };
 
-        let loanGiven = 0;
-        let loanRepaid = 0;
-        currentLoansData?.loans?.forEach((l) => {
-          const changeTotal = (l.changeCash || 0) + (l.changeBank || 0);
-          if (l.changeType === 'new' || l.changeType === 'increase') {
-            loanGiven += changeTotal;
-          } else if (l.changeType === 'decrease') {
-            loanRepaid += changeTotal;
-          }
-        });
+        const currentDeposits =
+          currentDepositsData?.deposits?.reduce(
+            (totals, d) => {
+              totals.cash += d.cash || 0;
+              totals.bank += d.bank || 0;
+              return totals;
+            },
+            { cash: 0, bank: 0 }
+          ) ?? { cash: 0, bank: 0 };
+        
+        const loanChanges =
+          currentLoansData?.loans?.reduce(
+            (totals, l) => {
+              if (l.changeType === 'new' || l.changeType === 'increase') {
+                totals.given.cash += l.changeCash || 0;
+                totals.given.bank += l.changeBank || 0;
+              } else if (l.changeType === 'decrease') {
+                totals.repaid.cash += l.changeCash || 0;
+                totals.repaid.bank += l.changeBank || 0;
+              }
+              return totals;
+            },
+            {
+              given: { cash: 0, bank: 0 },
+              repaid: { cash: 0, bank: 0 },
+            }
+          ) ?? {
+            given: { cash: 0, bank: 0 },
+            repaid: { cash: 0, bank: 0 },
+          };
 
-        const liveBalance =
-          prevNetBalance + currentDeposits - loanGiven + loanRepaid;
 
         setSummary({
-          prevNetBalance,
+          prevBalance,
           currentDeposits,
-          loanGiven,
-          loanRepaid,
-          liveBalance,
+          loanGiven: loanChanges.given,
+          loanRepaid: loanChanges.repaid,
         });
       } catch (error) {
         console.error('Error fetching summary data:', error);
@@ -157,13 +184,18 @@ export function BalanceSummary({ selectedDate }: { selectedDate: Date }) {
 
     fetchSummaryData();
   }, [selectedDate, firestore]);
+  
+  const liveCashBalance = summary.prevBalance.cash + summary.currentDeposits.cash - summary.loanGiven.cash + summary.loanRepaid.cash;
+  const liveBankBalance = summary.prevBalance.bank + summary.currentDeposits.bank - summary.loanGiven.bank + summary.loanRepaid.bank;
+  const liveTotalBalance = liveCashBalance + liveBankBalance;
+
 
   if (isLoading) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Financial Summary</CardTitle>
-           <CardDescription>
+          <CardDescription>
             For {format(selectedDate, 'MMMM yyyy')}
           </CardDescription>
         </CardHeader>
@@ -183,45 +215,47 @@ export function BalanceSummary({ selectedDate }: { selectedDate: Date }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-          <div className="rounded-lg border p-4">
-            <p className="text-sm font-medium text-muted-foreground">
-              Prev. Net Balance
-            </p>
-            <p className="text-lg font-bold">
-              {formatCurrency(summary.prevNetBalance)}
-            </p>
-          </div>
-          <div className="rounded-lg border p-4">
-            <p className="text-sm font-medium text-muted-foreground">
-              Current Deposits
-            </p>
-            <p className="text-lg font-bold">
-              {formatCurrency(summary.currentDeposits)}
-            </p>
-          </div>
-          <div className="rounded-lg border p-4">
-            <p className="text-sm font-medium text-muted-foreground">
-              Loan Given
-            </p>
-            <p className="text-lg font-bold text-red-600">
-              -{formatCurrency(summary.loanGiven)}
-            </p>
-          </div>
-          <div className="rounded-lg border p-4">
-            <p className="text-sm font-medium text-muted-foreground">
-              Loan Repaid
-            </p>
-            <p className="text-lg font-bold text-green-600">
-              +{formatCurrency(summary.loanRepaid)}
-            </p>
-          </div>
-           <div className="col-span-2 rounded-lg border bg-muted/50 p-4 md:col-span-1">
-            <p className="text-sm font-medium">Live Available Balance</p>
-            <p className="text-xl font-bold text-primary">
-              {formatCurrency(summary.liveBalance)}
-            </p>
-          </div>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Particulars</TableHead>
+                <TableHead className="text-right">Opening Balance</TableHead>
+                <TableHead className="text-right">Deposit</TableHead>
+                <TableHead className="text-right text-red-600">Loan Given (-)</TableHead>
+                <TableHead className="text-right text-green-600">Loan Repaid (+)</TableHead>
+                <TableHead className="text-right">Closing Balance</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell className="font-medium">Cash</TableCell>
+                <TableCell className="text-right">{formatCurrency(summary.prevBalance.cash)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(summary.currentDeposits.cash)}</TableCell>
+                <TableCell className="text-right text-red-600">{formatCurrency(summary.loanGiven.cash)}</TableCell>
+                <TableCell className="text-right text-green-600">{formatCurrency(summary.loanRepaid.cash)}</TableCell>
+                <TableCell className="text-right font-semibold">{formatCurrency(liveCashBalance)}</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">Bank</TableCell>
+                <TableCell className="text-right">{formatCurrency(summary.prevBalance.bank)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(summary.currentDeposits.bank)}</TableCell>
+                <TableCell className="text-right text-red-600">{formatCurrency(summary.loanGiven.bank)}</TableCell>
+                <TableCell className="text-right text-green-600">{formatCurrency(summary.loanRepaid.bank)}</TableCell>
+                <TableCell className="text-right font-semibold">{formatCurrency(liveBankBalance)}</TableCell>
+              </TableRow>
+            </TableBody>
+            <TableFooter>
+                <TableRow className="bg-muted/50 font-bold">
+                    <TableCell>Total</TableCell>
+                    <TableCell className="text-right">{formatCurrency(summary.prevBalance.cash + summary.prevBalance.bank)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(summary.currentDeposits.cash + summary.currentDeposits.bank)}</TableCell>
+                    <TableCell className="text-right text-red-600">{formatCurrency(summary.loanGiven.cash + summary.loanGiven.bank)}</TableCell>
+                    <TableCell className="text-right text-green-600">{formatCurrency(summary.loanRepaid.cash + summary.loanRepaid.bank)}</TableCell>
+                    <TableCell className="text-right text-primary text-lg">{formatCurrency(liveTotalBalance)}</TableCell>
+                </TableRow>
+            </TableFooter>
+          </Table>
         </div>
       </CardContent>
     </Card>
