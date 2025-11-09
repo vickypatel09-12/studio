@@ -30,6 +30,10 @@
         "notes": {
           "type": "string",
           "description": "Any notes relevant to the customer."
+        },
+        "sortOrder": {
+            "type": "number",
+            "description": "The sort order of the customer in the list."
         }
       },
       "required": [

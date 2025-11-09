@@ -1,5 +1,20 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   Card,
   CardHeader,
@@ -41,12 +56,65 @@ import {
   Pencil,
   Loader2,
   Import,
+  GripVertical,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking, useMemoFirebase } from '@/firebase';
-import { collection, query, doc } from 'firebase/firestore';
+import { collection, query, doc, writeBatch, orderBy } from 'firebase/firestore';
 import type { Customer } from '@/lib/data';
 import { AppShell } from '@/components/AppShell';
+
+const SortableCustomerRow = ({ customer, index, onEdit, onDelete }: { customer: Customer, index: number, onEdit: (customer: Customer) => void, onDelete: (id: string) => void }) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+    } = useSortable({id: customer.id});
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+
+    return (
+        <TableRow ref={setNodeRef} style={style} {...attributes}>
+            <TableCell>
+                <div className="flex items-center gap-2">
+                 <span {...listeners} className="cursor-grab p-1">
+                    <GripVertical className="h-5 w-5 text-muted-foreground" />
+                  </span>
+                <span>{index + 1}</span>
+                </div>
+            </TableCell>
+            <TableCell className="font-medium">{customer.name}</TableCell>
+            <TableCell>{customer.email}</TableCell>
+            <TableCell>{customer.phone}</TableCell>
+            <TableCell className="text-right">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                    <span className="sr-only">Open menu</span>
+                    <MoreHorizontal className="h-4 w-4" />
+                </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onEdit(customer)}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onDelete(customer.id)} className='text-destructive focus:text-destructive'>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+            </TableCell>
+        </TableRow>
+    );
+};
+
 
 function Customers() {
   const firestore = useFirestore();
@@ -57,10 +125,17 @@ function Customers() {
 
   const customersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'customers'));
+    return query(collection(firestore, 'customers'), orderBy('sortOrder'));
   }, [firestore]);
 
-  const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersQuery);
+  const { data: customersData, isLoading: customersLoading } = useCollection<Customer>(customersQuery);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+
+  useEffect(() => {
+    if (customersData) {
+      setCustomers(customersData);
+    }
+  }, [customersData]);
 
   const handleExport = () => {
     if (!customers || customers.length === 0) {
@@ -85,7 +160,7 @@ function Customers() {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
           const text = e.target?.result as string;
           const lines = text.split('\n').filter(line => line.trim() !== '');
@@ -97,23 +172,32 @@ function Customers() {
           if (!headers.includes('name')) {
             throw new Error('CSV must contain a "name" column.');
           }
-
-          const customerCollection = collection(firestore, 'customers');
-          lines.slice(1).forEach((line) => {
+          
+          const newCustomers = lines.slice(1).map((line, index) => {
             const values = line.split(',');
             const customerData: any = {};
             headers.forEach((header, index) => {
                 customerData[header] = values[index]?.trim() || '';
             });
-             addDocumentNonBlocking(customerCollection, {
+             return {
                 name: customerData.name,
                 email: customerData.email || '',
                 phone: customerData.phone || '',
                 address: customerData.address || '',
                 notes: customerData.notes || '',
-            });
+                sortOrder: (customers?.length || 0) + index,
+            };
           });
-          toast({ title: 'Success', description: 'Customers are being imported.' });
+
+          const customerCollection = collection(firestore, 'customers');
+          const batch = writeBatch(firestore);
+          newCustomers.forEach(customer => {
+              const docRef = doc(customerCollection);
+              batch.set(docRef, customer);
+          });
+          await batch.commit();
+
+          toast({ title: 'Success', description: 'Customers imported successfully.' });
           setIsImporting(false);
         } catch (error: any) {
           toast({ variant: 'destructive', title: 'Import Failed', description: error.message });
@@ -140,21 +224,26 @@ function Customers() {
   const handleSaveCustomer = () => {
     if (!editingCustomer || !firestore) return;
 
-    const customerData = {
-        name: editingCustomer.name,
-        email: editingCustomer.email || '',
-        phone: editingCustomer.phone || '',
-        address: editingCustomer.address || '',
-        notes: editingCustomer.notes || '',
-    };
-    
     if (isNewCustomer) {
         const customerCollection = collection(firestore, 'customers');
-        addDocumentNonBlocking(customerCollection, customerData);
+        addDocumentNonBlocking(customerCollection, {
+            name: editingCustomer.name,
+            email: editingCustomer.email || '',
+            phone: editingCustomer.phone || '',
+            address: editingCustomer.address || '',
+            notes: editingCustomer.notes || '',
+            sortOrder: customers?.length || 0,
+        });
         toast({ title: 'Customer Added', description: `${editingCustomer.name} has been added.` });
     } else {
         const docRef = doc(firestore, 'customers', editingCustomer.id);
-        updateDocumentNonBlocking(docRef, customerData);
+        updateDocumentNonBlocking(docRef, {
+            name: editingCustomer.name,
+            email: editingCustomer.email || '',
+            phone: editingCustomer.phone || '',
+            address: editingCustomer.address || '',
+            notes: editingCustomer.notes || '',
+        });
         toast({ title: 'Customer Updated', description: `Details for ${editingCustomer.name} have been saved.` });
     }
     closeDialog();
@@ -174,6 +263,36 @@ function Customers() {
     setEditingCustomer(null);
     setIsNewCustomer(false);
   }
+  
+  const sensors = useSensors(useSensor(PointerSensor));
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const {active, over} = event;
+    
+    if (active.id !== over?.id && firestore) {
+      const oldIndex = customers.findIndex((c) => c.id === active.id);
+      const newIndex = customers.findIndex((c) => c.id === over?.id);
+      
+      const updatedCustomers = arrayMove(customers, oldIndex, newIndex);
+      setCustomers(updatedCustomers);
+
+      // Update sortOrder in Firestore
+      const batch = writeBatch(firestore);
+      updatedCustomers.forEach((customer, index) => {
+        const docRef = doc(firestore, 'customers', customer.id);
+        batch.update(docRef, { sortOrder: index });
+      });
+      
+      try {
+        await batch.commit();
+        toast({ title: 'Customer order saved.' });
+      } catch (error) {
+        toast({ variant: 'destructive', title: 'Error saving order', description: 'Could not save new customer order.' });
+        // Revert UI change on error
+        setCustomers(customers);
+      }
+    }
+  }
 
   return (
     <>
@@ -182,7 +301,7 @@ function Customers() {
           <div>
             <CardTitle>Customers</CardTitle>
             <CardDescription>
-              Manage your customer profiles and view their status.
+              Manage your customer profiles and view their status. Drag and drop to reorder.
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -210,47 +329,39 @@ function Customers() {
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
          ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[80px]">Sr. No.</TableHead>
-                <TableHead>Customer Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Mobile</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {customers?.map((customer, index) => (
-                <TableRow key={customer.id}>
-                  <TableCell>{index + 1}</TableCell>
-                  <TableCell className="font-medium">{customer.name}</TableCell>
-                  <TableCell>{customer.email}</TableCell>
-                  <TableCell>{customer.phone}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                         <DropdownMenuItem onClick={() => openEditCustomerDialog(customer)}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDelete(customer.id)} className='text-destructive focus:text-destructive'>
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+          <DndContext 
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <Table>
+                <TableHeader>
+                <TableRow>
+                    <TableHead className="w-[80px]">Sr. No.</TableHead>
+                    <TableHead>Customer Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Mobile</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                </TableHeader>
+                <SortableContext 
+                    items={customers.map(c => c.id)}
+                    strategy={verticalListSortingStrategy}
+                >
+                    <TableBody>
+                    {customers?.map((customer, index) => (
+                        <SortableCustomerRow 
+                            key={customer.id} 
+                            customer={customer} 
+                            index={index}
+                            onEdit={openEditCustomerDialog}
+                            onDelete={handleDelete}
+                        />
+                    ))}
+                    </TableBody>
+                </SortableContext>
+            </Table>
+          </DndContext>
          )}
         </CardContent>
       </Card>

@@ -5,6 +5,7 @@ export type Customer = {
   phone?: string;
   address?: string;
   notes?: string;
+  sortOrder?: number;
 };
 
 export type Transaction = {
