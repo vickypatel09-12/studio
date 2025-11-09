@@ -9,6 +9,7 @@ import {
   orderBy,
   serverTimestamp,
   Timestamp,
+  updateDoc,
 } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
@@ -44,6 +45,7 @@ import {
   Info,
   Loader2,
   History,
+  Save,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, startOfMonth } from 'date-fns';
@@ -61,15 +63,17 @@ type Deposit = {
 };
 
 type Session = {
-    id: 'status';
-    status: 'active' | 'closed';
+  id: 'status';
+  status: 'active' | 'closed';
 };
 
 type MonthlyDepositDoc = {
   id: string;
   date: Timestamp;
-  deposits: Deposit[];
+  deposits?: Deposit[];
+  draft?: Deposit[];
   createdAt: Timestamp;
+  submittedAt?: Timestamp;
 };
 
 const getMonthId = (date: Date) => format(date, 'yyyy-MM');
@@ -80,6 +84,7 @@ function Deposits() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDraftSaved, setIsDraftSaved] = useState(false);
   const { toast } = useToast();
 
   const sessionDocRef = useMemoFirebase(() => {
@@ -94,8 +99,9 @@ function Deposits() {
     if (!firestore) return null;
     return query(collection(firestore, 'customers'), orderBy('name'));
   }, [firestore]);
-  
-  const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersQuery);
+
+  const { data: customers, isLoading: customersLoading } =
+    useCollection<Customer>(customersQuery);
 
   const monthlyDepositsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -112,6 +118,7 @@ function Deposits() {
     async (date: Date) => {
       if (!firestore || !customers) return;
       setIsLoading(true);
+      setIsDraftSaved(false);
       const monthId = getMonthId(date);
       const docRef = doc(firestore, 'monthlyDeposits', monthId);
       try {
@@ -119,27 +126,35 @@ function Deposits() {
 
         if (docSnap.exists()) {
           const data = docSnap.data() as MonthlyDepositDoc;
-          const allCustomerDeposits = customers.map((customer) => {
-            const savedDeposit = data.deposits.find(
-              (d) => d.customerId === customer.id
-            );
-            return (
-              savedDeposit || { customerId: customer.id, cash: 0, bank: 0 }
-            );
-          });
-          setDeposits(allCustomerDeposits);
-          toast({
-            title: 'Data Loaded',
-            description: `Showing submitted data for ${format(
-              date,
-              'MMMM yyyy'
-            )}.`,
-          });
+          const dataToLoad = data.draft || data.deposits;
+          const dataSource = data.draft ? 'draft' : 'submitted';
+
+          if (dataToLoad) {
+            const allCustomerDeposits = customers.map((customer) => {
+              const savedDeposit = dataToLoad.find(
+                (d) => d.customerId === customer.id
+              );
+              return (
+                savedDeposit || { customerId: customer.id, cash: 0, bank: 0 }
+              );
+            });
+            setDeposits(allCustomerDeposits);
+            setIsDraftSaved(dataSource === 'draft' && isSessionActive);
+
+            toast({
+              title: `Loaded ${dataSource} data`,
+              description: `Showing ${dataSource} data for ${format(
+                date,
+                'MMMM yyyy'
+              )}.`,
+            });
+          } else {
+             initializeNewMonth(date);
+          }
         } else {
           toast({
-            variant: 'destructive',
-            title: 'Not Found',
-            description: `No submitted data found for ${format(date, 'MMMM yyyy')}. Starting a new entry.`,
+            title: 'New Entry',
+            description: `Starting new entry for ${format(date, 'MMMM yyyy')}.`,
           });
           initializeNewMonth(date);
         }
@@ -154,11 +169,12 @@ function Deposits() {
         setIsLoading(false);
       }
     },
-    [firestore, toast, customers]
+    [firestore, toast, customers, isSessionActive]
   );
-  
-  const initializeNewMonth = useCallback((date: Date) => {
-     if (!customers) return;
+
+  const initializeNewMonth = useCallback(
+    (date: Date) => {
+      if (!customers) return;
       setDeposits(
         customers.map((c) => ({
           customerId: c.id,
@@ -166,24 +182,27 @@ function Deposits() {
           bank: 0,
         }))
       );
-  }, [customers]);
+    },
+    [customers]
+  );
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) {
-        setSelectedDate(undefined);
-        setDeposits([]);
-        return;
+      setSelectedDate(undefined);
+      setDeposits([]);
+      return;
     }
     const newDate = startOfMonth(date);
     setSelectedDate(newDate);
-    initializeNewMonth(newDate);
-  }
+    loadSubmittedDataForMonth(newDate);
+  };
 
   const handleDepositChange = (
     customerId: string,
     field: keyof Omit<Deposit, 'customerId'>,
     value: string
   ) => {
+    setIsDraftSaved(false);
     setDeposits((prev) =>
       prev.map((deposit) => {
         if (deposit.customerId === customerId) {
@@ -214,12 +233,12 @@ function Deposits() {
     );
   }, [deposits]);
 
-  const handleSubmit = async () => {
+  const handleSaveDraft = async () => {
     if (!selectedDate || !firestore) {
       toast({
         variant: 'destructive',
         title: 'Date Not Selected',
-        description: 'Please select a date before submitting.',
+        description: 'Please select a date before saving.',
       });
       return;
     }
@@ -227,7 +246,8 @@ function Deposits() {
       toast({
         variant: 'destructive',
         title: 'Session is Not Active',
-        description: 'You cannot submit entries when a session is closed or not started.',
+        description:
+          'You cannot save entries when a session is closed or not started.',
       });
       return;
     }
@@ -235,14 +255,67 @@ function Deposits() {
     setIsLoading(true);
     const monthId = getMonthId(selectedDate);
     const docRef = doc(firestore, 'monthlyDeposits', monthId);
-    const dataToSubmit = {
+    const dataToSave: Partial<MonthlyDepositDoc> = {
       id: monthId,
       date: Timestamp.fromDate(startOfMonth(selectedDate)),
-      deposits,
+      draft: deposits,
       createdAt: serverTimestamp(),
     };
 
-    setDoc(docRef, dataToSubmit, { merge: true })
+    setDoc(docRef, dataToSave, { merge: true })
+      .then(() => {
+        toast({
+          title: 'Draft Saved',
+          description: `Draft for ${format(
+            selectedDate,
+            'MMMM yyyy'
+          )} has been saved.`,
+        });
+        setIsDraftSaved(true);
+      })
+      .catch((serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'write',
+          requestResourceData: dataToSave,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedDate || !firestore || !isDraftSaved) {
+      toast({
+        variant: 'destructive',
+        title: 'Cannot Submit',
+        description: 'Please save a draft before submitting.',
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    const monthId = getMonthId(selectedDate);
+    const docRef = doc(firestore, 'monthlyDeposits', monthId);
+
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists() || !docSnap.data()?.draft) {
+       toast({ variant: 'destructive', title: 'Error', description: 'No draft found to submit.'});
+       setIsLoading(false);
+       return;
+    }
+    
+    const draftData = docSnap.data()?.draft;
+
+    const dataToSubmit = {
+      deposits: draftData,
+      draft: null, // This is how we can remove a field
+      submittedAt: serverTimestamp(),
+    };
+
+    updateDoc(docRef, dataToSubmit)
       .then(() => {
         toast({
           title: 'Success',
@@ -251,13 +324,13 @@ function Deposits() {
             'MMMM yyyy'
           )} have been submitted.`,
         });
-        // Navigate to the loans page for the same month
+        setIsDraftSaved(false);
         router.push(`/loans?month=${monthId}`);
       })
       .catch((serverError) => {
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
-          operation: 'write',
+          operation: 'update',
           requestResourceData: dataToSubmit,
         });
         errorEmitter.emit('permission-error', permissionError);
@@ -275,7 +348,11 @@ function Deposits() {
   const pageLoading = customersLoading;
 
   if (pageLoading) {
-    return <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
 
   return (
@@ -407,15 +484,15 @@ function Deposits() {
                 </Table>
               </div>
             ) : (
-                 <Alert>
-                    <Info className="h-4 w-4" />
-                    <AlertTitle>Select a Date</AlertTitle>
-                    <AlertDescription>
-                    {isSessionActive
-                        ? 'Please pick a month to manage deposits or view the submission history.'
-                        : 'A session is not active. Please start a new session to make entries. You can still view past submissions.'}
-                    </AlertDescription>
-                </Alert>
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertTitle>Select a Date</AlertTitle>
+                <AlertDescription>
+                  {isSessionActive
+                    ? 'Please pick a month to manage deposits or view the submission history.'
+                    : 'A session is not active. Please start a new session to make entries. You can still view past submissions.'}
+                </AlertDescription>
+              </Alert>
             )}
           </CardContent>
           {selectedDate && (
@@ -427,8 +504,19 @@ function Deposits() {
               >
                 <Printer className="mr-2 h-4 w-4" /> Print
               </Button>
-              <Button onClick={handleSubmit} disabled={isLoading || !isSessionActive}>
-                {isLoading ? (
+              <Button variant="secondary" onClick={handleSaveDraft} disabled={isLoading || !isSessionActive}>
+                 {isLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
+                Save as Draft
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={isLoading || !isSessionActive || !isDraftSaved}
+              >
+                {isLoading && !isDraftSaved ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Send className="mr-2 h-4 w-4" />

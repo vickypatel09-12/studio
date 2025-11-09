@@ -9,6 +9,7 @@ import {
   orderBy,
   serverTimestamp,
   Timestamp,
+  updateDoc,
 } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { useSearchParams } from 'next/navigation';
@@ -51,6 +52,7 @@ import {
   Info,
   Loader2,
   History,
+  Save,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -78,13 +80,16 @@ type Loan = {
 type MonthlyLoanDoc = {
   id: string;
   date: Timestamp;
-  loans: Loan[];
+  loans?: Loan[];
+  draft?: Loan[];
   createdAt: Timestamp;
+  submittedAt?: Timestamp;
 };
 
 type Session = {
-    id: 'status';
-    status: 'active' | 'closed';
+  id: 'status';
+  status: 'active' | 'closed';
+  interestRate?: number;
 };
 
 const getMonthId = (date: Date) => format(date, 'yyyy-MM');
@@ -107,6 +112,7 @@ function Loans() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDraftSaved, setIsDraftSaved] = useState(false);
   const { toast } = useToast();
 
   const sessionDocRef = useMemoFirebase(() => {
@@ -121,7 +127,8 @@ function Loans() {
     if (!firestore) return null;
     return query(collection(firestore, 'customers'), orderBy('name'));
   }, [firestore]);
-  const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersQuery);
+  const { data: customers, isLoading: customersLoading } =
+    useCollection<Customer>(customersQuery);
 
   const monthlyLoansQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -135,6 +142,7 @@ function Loans() {
     async (date: Date) => {
       if (!firestore || !customers) return;
       setIsLoading(true);
+      setIsDraftSaved(false);
       const monthId = getMonthId(date);
       const docRef = doc(firestore, 'monthlyLoans', monthId);
       try {
@@ -142,38 +150,49 @@ function Loans() {
 
         if (docSnap.exists()) {
           const data = docSnap.data() as MonthlyLoanDoc;
-          const allCustomerLoans = customers.map((customer) => {
-            const savedLoan = data.loans.find(
-              (d) => d.customerId === customer.id
-            );
-            return (
-              savedLoan || {
-                customerId: customer.id,
-                carryFwd: 0,
-                changeType: 'new' as LoanChangeType,
-                changeCash: 0,
-                changeBank: 0,
-                interestCash: 0,
-                interestBank: 0,
-                interestTotal: 0,
-              }
-            );
-          });
-          setLoans(allCustomerLoans);
-          toast({
-            title: 'Data Loaded',
-            description: `Showing submitted data for ${format(
-              date,
-              'MMMM yyyy'
-            )}.`,
-          });
+          const dataToLoad = data.draft || data.loans;
+          const dataSource = data.draft ? 'draft' : 'submitted';
+          
+          if (dataToLoad) {
+            const allCustomerLoans = customers.map((customer) => {
+              const savedLoan = dataToLoad.find(
+                (d) => d.customerId === customer.id
+              );
+              return (
+                savedLoan || {
+                  customerId: customer.id,
+                  carryFwd: 0,
+                  changeType: 'new' as LoanChangeType,
+                  changeCash: 0,
+                  changeBank: 0,
+                  interestCash: 0,
+                  interestBank: 0,
+                  interestTotal: 0,
+                }
+              );
+            });
+            setLoans(allCustomerLoans);
+            setIsDraftSaved(dataSource === 'draft' && isSessionActive);
+
+            toast({
+              title: `Loaded ${dataSource} data`,
+              description: `Showing ${dataSource} data for ${format(
+                date,
+                'MMMM yyyy'
+              )}.`,
+            });
+          } else {
+             initializeNewMonth(date);
+          }
         } else {
           toast({
-            variant: 'destructive',
-            title: 'Not Found',
-            description: `No submitted data found for ${format(date, 'MMMM yyyy')}. Starting a new entry.`,
+            title: 'New Entry',
+            description: `No data found for ${format(
+              date,
+              'MMMM yyyy'
+            )}. Starting new entry.`,
           });
-           initializeNewMonth(date);
+          initializeNewMonth(date);
         }
       } catch (error) {
         console.error('Error loading data:', error);
@@ -186,76 +205,79 @@ function Loans() {
         setIsLoading(false);
       }
     },
-    [firestore, toast, customers]
+    [firestore, toast, customers, initializeNewMonth, isSessionActive]
   );
-  
-  const initializeNewMonth = useCallback(async (date: Date) => {
-    if (!firestore || !customers) return;
-    setIsLoading(true);
-    const prevMonth = subMonths(date, 1);
-    const prevMonthId = getMonthId(prevMonth);
-    const prevDocRef = doc(firestore, 'monthlyLoans', prevMonthId);
-    
-    // Get session interest rate
-    const sessionDoc = await getDoc(doc(firestore, 'session', 'status'));
-    const sessionInterestRate = sessionDoc.exists() ? (sessionDoc.data() as any).interestRate / 100 : 0;
-    
-    try {
-      const prevDocSnap = await getDoc(prevDocRef);
-      let initialLoans: Loan[] = [];
-      if (prevDocSnap.exists()) {
-        const prevData = prevDocSnap.data() as MonthlyLoanDoc;
-        initialLoans = customers.map((c) => {
-          const prevLoan = prevData.loans.find((l) => l.customerId === c.id);
-          const carryFwd = prevLoan ? calculateClosingBalance(prevLoan) : 0;
-          const interestTotal = (carryFwd * sessionInterestRate) / 12;
-          return {
+
+  const initializeNewMonth = useCallback(
+    async (date: Date) => {
+      if (!firestore || !customers) return;
+      setIsLoading(true);
+      const prevMonth = subMonths(date, 1);
+      const prevMonthId = getMonthId(prevMonth);
+      const prevDocRef = doc(firestore, 'monthlyLoans', prevMonthId);
+
+      const sessionInterestRate = session?.interestRate ? session.interestRate / 100 : 0;
+
+      try {
+        const prevDocSnap = await getDoc(prevDocRef);
+        let initialLoans: Loan[] = [];
+        if (prevDocSnap.exists()) {
+          const prevData = prevDocSnap.data() as MonthlyLoanDoc;
+          const prevLoansData = prevData.loans || prevData.draft; // Prefer submitted loans, fallback to draft
+          if (prevLoansData) {
+            initialLoans = customers.map((c) => {
+                const prevLoan = prevLoansData.find((l) => l.customerId === c.id);
+                const carryFwd = prevLoan ? calculateClosingBalance(prevLoan) : 0;
+                const interestTotal = (carryFwd * sessionInterestRate) / 12;
+                return {
+                customerId: c.id,
+                carryFwd: carryFwd,
+                changeType: 'new' as LoanChangeType,
+                changeCash: 0,
+                changeBank: 0,
+                interestCash: interestTotal,
+                interestBank: 0,
+                interestTotal: interestTotal,
+                };
+            });
+            toast({
+                title: 'New Month Initialized',
+                description: `Carry forward balances from ${format(
+                prevMonth,
+                'MMMM yyyy'
+                )} have been loaded.`,
+            });
+          }
+        } else {
+           initialLoans = customers.map((c) => ({
             customerId: c.id,
-            carryFwd: carryFwd,
+            carryFwd: 0,
             changeType: 'new' as LoanChangeType,
             changeCash: 0,
             changeBank: 0,
-            interestCash: interestTotal,
+            interestCash: 0,
             interestBank: 0,
-            interestTotal: interestTotal,
-          };
-        });
-        toast({
-          title: 'New Month Initialized',
-          description: `Carry forward balances from ${format(
-            prevMonth,
-            'MMMM yyyy'
-          )} have been loaded.`,
-        });
-      } else {
-        initialLoans = customers.map((c) => ({
-          customerId: c.id,
-          carryFwd: 0,
-          changeType: 'new' as LoanChangeType,
-          changeCash: 0,
-          changeBank: 0,
-          interestCash: 0,
-          interestBank: 0,
-          interestTotal: 0,
-        }));
-        toast({
-          title: 'New Month',
-          description: `No data for previous month. Starting fresh.`,
-        });
-      }
-      setLoans(initialLoans);
-    } catch (error) {
-       console.error('Error initializing new month:', error);
+            interestTotal: 0,
+          }));
+          toast({
+            title: 'New Month',
+            description: `No data for previous month. Starting fresh.`,
+          });
+        }
+        setLoans(initialLoans);
+      } catch (error) {
+        console.error('Error initializing new month:', error);
         toast({
           variant: 'destructive',
           title: 'Initialization Error',
           description: 'Could not initialize new month data.',
         });
-    } finally {
-      setIsLoading(false);
-    }
-
-  }, [firestore, toast, customers]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [firestore, toast, customers, session]
+  );
 
   useEffect(() => {
     const monthParam = searchParams.get('month');
@@ -264,31 +286,32 @@ function Loans() {
         const date = parse(monthParam, 'yyyy-MM', new Date());
         if (!isNaN(date.getTime())) {
           setSelectedDate(date);
-          initializeNewMonth(date);
+          // Check if data for this month already exists (draft or submitted)
+          loadSubmittedDataForMonth(date);
         }
       } catch (e) {
         console.error('Invalid date format in URL', e);
       }
     }
-  }, [searchParams, initializeNewMonth]);
-
+  }, [searchParams, loadSubmittedDataForMonth]);
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) {
-        setSelectedDate(undefined);
-        setLoans([]);
-        return;
+      setSelectedDate(undefined);
+      setLoans([]);
+      return;
     }
     const newDate = startOfMonth(date);
     setSelectedDate(newDate);
-    initializeNewMonth(newDate);
-  }
+    loadSubmittedDataForMonth(newDate);
+  };
 
   const handleLoanChange = (
     customerId: string,
     field: keyof Omit<Loan, 'customerId' | 'interestTotal'>,
     value: string | number
   ) => {
+    setIsDraftSaved(false);
     setLoans((prev) =>
       prev.map((loan) => {
         if (loan.customerId === customerId) {
@@ -319,34 +342,83 @@ function Loans() {
     return (Number(loan.changeCash) || 0) + (Number(loan.changeBank) || 0);
   };
 
-  const handleSubmit = async () => {
+  const handleSaveDraft = async () => {
     if (!selectedDate || !firestore) {
       toast({
         variant: 'destructive',
         title: 'Date Not Selected',
-        description: 'Please select a date before submitting.',
+        description: 'Please select a date before saving.',
       });
       return;
     }
-     if (!isSessionActive) {
+    if (!isSessionActive) {
       toast({
         variant: 'destructive',
         title: 'Session is Not Active',
-        description: 'You cannot submit entries when a session is closed or not started.',
+        description: 'You cannot save entries when a session is closed or not started.',
       });
       return;
     }
     setIsLoading(true);
     const monthId = getMonthId(selectedDate);
     const docRef = doc(firestore, 'monthlyLoans', monthId);
-    const dataToSubmit = {
+    const dataToSave: Partial<MonthlyLoanDoc> = {
       id: monthId,
       date: Timestamp.fromDate(startOfMonth(selectedDate)),
-      loans,
+      draft: loans,
       createdAt: serverTimestamp(),
     };
 
-    setDoc(docRef, dataToSubmit, { merge: true })
+    setDoc(docRef, dataToSave, { merge: true })
+      .then(() => {
+        toast({
+          title: 'Draft Saved',
+          description: `Draft for ${format(selectedDate, 'MMMM yyyy')} has been saved.`,
+        });
+        setIsDraftSaved(true);
+      })
+      .catch((serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'write',
+          requestResourceData: dataToSave,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedDate || !firestore || !isDraftSaved) {
+      toast({
+        variant: 'destructive',
+        title: 'Cannot Submit',
+        description: 'Please save a draft before submitting.',
+      });
+      return;
+    }
+    setIsLoading(true);
+    const monthId = getMonthId(selectedDate);
+    const docRef = doc(firestore, 'monthlyLoans', monthId);
+    
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists() || !docSnap.data()?.draft) {
+       toast({ variant: 'destructive', title: 'Error', description: 'No draft found to submit.'});
+       setIsLoading(false);
+       return;
+    }
+    
+    const draftData = docSnap.data()?.draft;
+    
+    const dataToSubmit = {
+      loans: draftData,
+      draft: null, // This is how we can remove a field
+      submittedAt: serverTimestamp(),
+    };
+
+    updateDoc(docRef, dataToSubmit)
       .then(() => {
         toast({
           title: 'Success',
@@ -355,11 +427,12 @@ function Loans() {
             'MMMM yyyy'
           )} have been submitted.`,
         });
+        setIsDraftSaved(false);
       })
       .catch((serverError) => {
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
-          operation: 'write',
+          operation: 'update',
           requestResourceData: dataToSubmit,
         });
         errorEmitter.emit('permission-error', permissionError);
@@ -401,7 +474,11 @@ function Loans() {
   const pageLoading = customersLoading;
 
   if (pageLoading) {
-    return <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
 
   return (
@@ -637,9 +714,9 @@ function Loans() {
                 <Info className="h-4 w-4" />
                 <AlertTitle>Select a Date</AlertTitle>
                 <AlertDescription>
-                   {isSessionActive
-                        ? 'Please pick a month to manage loans or view the submission history.'
-                        : 'A session is not active. Please start a new session to make entries. You can still view past submissions.'}
+                  {isSessionActive
+                    ? 'Please pick a month to manage loans or view the submission history.'
+                    : 'A session is not active. Please start a new session to make entries. You can still view past submissions.'}
                 </AlertDescription>
               </Alert>
             )}
@@ -653,8 +730,19 @@ function Loans() {
               >
                 <Printer className="mr-2 h-4 w-4" /> Print
               </Button>
-              <Button onClick={handleSubmit} disabled={isLoading || !isSessionActive}>
-                {isLoading ? (
+               <Button variant="secondary" onClick={handleSaveDraft} disabled={isLoading || !isSessionActive}>
+                 {isLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
+                Save as Draft
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={isLoading || !isSessionActive || !isDraftSaved}
+              >
+                {isLoading && !isDraftSaved ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Send className="mr-2 h-4 w-4" />
@@ -710,11 +798,16 @@ function Loans() {
   );
 }
 
-
 function LoansPage() {
   return (
     <AppShell>
-      <Suspense fallback={<div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <Suspense
+        fallback={
+          <div className="flex items-center justify-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        }
+      >
         <Loans />
       </Suspense>
     </AppShell>
