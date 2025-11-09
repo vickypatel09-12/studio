@@ -12,7 +12,7 @@ import {
   updateDoc,
   deleteDoc,
 } from 'firebase/firestore';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import {
   Card,
@@ -61,7 +61,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, startOfMonth } from 'date-fns';
+import { format, startOfMonth, parse } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -94,6 +94,7 @@ const getMonthId = (date: Date) => format(date, 'yyyy-MM');
 function Deposits() {
   const firestore = useFirestore();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -203,6 +204,21 @@ function Deposits() {
     },
     [firestore, toast, customers, isSessionActive, initializeNewMonth]
   );
+
+  useEffect(() => {
+    const monthParam = searchParams.get('month');
+    if (monthParam) {
+      try {
+        const date = parse(monthParam, 'yyyy-MM', new Date());
+        if (!isNaN(date.getTime())) {
+          setSelectedDate(date);
+          loadSubmittedDataForMonth(date);
+        }
+      } catch (e) {
+        console.error('Invalid date format in URL', e);
+      }
+    }
+  }, [searchParams, loadSubmittedDataForMonth]);
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) {

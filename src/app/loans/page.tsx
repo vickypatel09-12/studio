@@ -66,6 +66,7 @@ import {
   Save,
   Pencil,
   Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -99,6 +100,12 @@ type MonthlyLoanDoc = {
   submittedAt?: Timestamp;
 };
 
+type MonthlyDepositDoc = {
+    id: string;
+    submittedAt?: Timestamp;
+    deposits?: any[];
+}
+
 type Session = {
   id: 'status';
   status: 'active' | 'closed';
@@ -129,6 +136,7 @@ function Loans() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
   const [deletingEntry, setDeletingEntry] = useState<MonthlyLoanDoc | null>(null);
+  const [isDepositSubmitted, setIsDepositSubmitted] = useState(false);
   const { toast } = useToast();
 
   const sessionDocRef = useMemoFirebase(() => {
@@ -231,7 +239,23 @@ function Loans() {
       setIsLoading(true);
       setIsDraftSaved(false);
       setIsSubmitted(false);
+      setIsDepositSubmitted(false);
+      setLoans([]);
+
       const monthId = getMonthId(date);
+      
+      // Step 1: Check if the deposit for this month has been submitted
+      const depositDocRef = doc(firestore, 'monthlyDeposits', monthId);
+      const depositDocSnap = await getDoc(depositDocRef);
+
+      if (depositDocSnap.exists() && (depositDocSnap.data() as MonthlyDepositDoc).submittedAt) {
+        setIsDepositSubmitted(true);
+      } else {
+        setIsLoading(false);
+        return; // Stop execution if deposit is not submitted
+      }
+
+      // Step 2: Load the loan data if deposit is submitted
       const docRef = doc(firestore, 'monthlyLoans', monthId);
       try {
         const docSnap = await getDoc(docRef);
@@ -272,7 +296,7 @@ function Loans() {
               )}.`,
             });
           } else {
-             initializeNewMonth(date);
+             await initializeNewMonth(date);
           }
         } else {
           toast({
@@ -282,7 +306,7 @@ function Loans() {
               'MMMM yyyy'
             )}. Starting new entry.`,
           });
-          initializeNewMonth(date);
+          await initializeNewMonth(date);
         }
       } catch (error) {
         console.error('Error loading data:', error);
@@ -318,6 +342,7 @@ function Loans() {
     if (!date) {
       setSelectedDate(undefined);
       setLoans([]);
+      setIsDepositSubmitted(false);
       return;
     }
     const newDate = startOfMonth(date);
@@ -616,7 +641,7 @@ function Loans() {
               <div className="flex items-center justify-center p-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : selectedDate && customers ? (
+            ) : selectedDate && customers && isDepositSubmitted ? (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -795,6 +820,17 @@ function Loans() {
                   </UiTableFooter>
                 </Table>
               </div>
+            ) : selectedDate && !isDepositSubmitted ? (
+                 <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Deposit Entry Not Submitted</AlertTitle>
+                    <AlertDescription>
+                        You must submit the deposit entry for {format(selectedDate, 'MMMM yyyy')} before you can manage loans.
+                        <Button asChild variant="link" className="p-1 h-auto">
+                            <Link href={`/deposits?month=${getMonthId(selectedDate)}`}>Go to Deposits</Link>
+                        </Button>
+                    </AlertDescription>
+                </Alert>
             ) : (
               <Alert>
                 <Info className="h-4 w-4" />
@@ -807,7 +843,7 @@ function Loans() {
               </Alert>
             )}
           </CardContent>
-          {selectedDate && (
+          {selectedDate && isDepositSubmitted && (
             <CardFooter className="flex justify-end gap-2">
               <Button
                 variant="outline"
