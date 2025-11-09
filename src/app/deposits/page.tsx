@@ -30,7 +30,17 @@ import {
   TableRow,
   TableFooter as UiTableFooter,
 } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   Popover,
@@ -46,6 +56,7 @@ import {
   Loader2,
   History,
   Save,
+  Pencil,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, startOfMonth } from 'date-fns';
@@ -70,8 +81,8 @@ type Session = {
 type MonthlyDepositDoc = {
   id: string;
   date: Timestamp;
-  deposits?: Deposit[];
-  draft?: Deposit[];
+  deposits?: Deposit[] | null;
+  draft?: Deposit[] | null;
   createdAt: Timestamp;
   submittedAt?: Timestamp;
 };
@@ -85,6 +96,8 @@ function Deposits() {
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDraftSaved, setIsDraftSaved] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isReverting, setIsReverting] = useState(false);
   const { toast } = useToast();
 
   const sessionDocRef = useMemoFirebase(() => {
@@ -119,6 +132,7 @@ function Deposits() {
       if (!firestore || !customers) return;
       setIsLoading(true);
       setIsDraftSaved(false);
+      setIsSubmitted(false);
       const monthId = getMonthId(date);
       const docRef = doc(firestore, 'monthlyDeposits', monthId);
       try {
@@ -140,6 +154,7 @@ function Deposits() {
             });
             setDeposits(allCustomerDeposits);
             setIsDraftSaved(dataSource === 'draft' && isSessionActive);
+            setIsSubmitted(dataSource === 'submitted');
 
             toast({
               title: `Loaded ${dataSource} data`,
@@ -169,7 +184,7 @@ function Deposits() {
         setIsLoading(false);
       }
     },
-    [firestore, toast, customers, isSessionActive]
+    [firestore, toast, customers, isSessionActive, initializeNewMonth]
   );
 
   const initializeNewMonth = useCallback(
@@ -325,6 +340,7 @@ function Deposits() {
           )} have been submitted.`,
         });
         setIsDraftSaved(false);
+        setIsSubmitted(true);
         router.push(`/loans?month=${monthId}`);
       })
       .catch((serverError) => {
@@ -339,6 +355,45 @@ function Deposits() {
         setIsLoading(false);
       });
   };
+
+  const confirmRevert = async () => {
+    if (!selectedDate || !firestore) return;
+    setIsLoading(true);
+    const monthId = getMonthId(selectedDate);
+    const docRef = doc(firestore, 'monthlyDeposits', monthId);
+
+    try {
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists() || !docSnap.data()?.deposits) {
+        throw new Error('No submitted data found to revert.');
+      }
+      const submittedData = docSnap.data()?.deposits;
+      const dataToRevert = {
+        draft: submittedData,
+        deposits: null,
+        submittedAt: null,
+      };
+
+      await updateDoc(docRef, dataToRevert);
+      toast({
+        title: 'Reverted to Draft',
+        description: `Entry for ${format(selectedDate, 'MMMM yyyy')} is now editable.`,
+      });
+      setIsSubmitted(false);
+      setIsDraftSaved(true); // It's now a draft
+      setIsReverting(false);
+    } catch (error: any) {
+       const permissionError = new FirestorePermissionError({
+        path: docRef.path,
+        operation: 'update',
+        requestResourceData: { draft: '...data', deposits: null },
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
   const handlePastEntryClick = (date: Date) => {
     setSelectedDate(date);
@@ -356,6 +411,7 @@ function Deposits() {
   }
 
   return (
+    <>
     <div className="grid gap-6 lg:grid-cols-4">
       <div className="lg:col-span-3">
         <Card>
@@ -439,7 +495,7 @@ function Deposits() {
                               type="number"
                               placeholder="₹0.00"
                               value={deposit.cash || ''}
-                              disabled={!isSessionActive}
+                              disabled={!isSessionActive || isSubmitted}
                               onChange={(e) =>
                                 handleDepositChange(
                                   customer.id,
@@ -455,7 +511,7 @@ function Deposits() {
                               type="number"
                               placeholder="₹0.00"
                               value={deposit.bank || ''}
-                              disabled={!isSessionActive}
+                              disabled={!isSessionActive || isSubmitted}
                               onChange={(e) =>
                                 handleDepositChange(
                                   customer.id,
@@ -504,7 +560,12 @@ function Deposits() {
               >
                 <Printer className="mr-2 h-4 w-4" /> Print
               </Button>
-              <Button variant="secondary" onClick={handleSaveDraft} disabled={isLoading || !isSessionActive}>
+               {isSubmitted && isSessionActive && (
+                  <Button variant="secondary" onClick={() => setIsReverting(true)} disabled={isLoading}>
+                    <Pencil className="mr-2 h-4 w-4" /> Edit Submitted
+                  </Button>
+                )}
+              <Button variant="secondary" onClick={handleSaveDraft} disabled={isLoading || !isSessionActive || isSubmitted}>
                  {isLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
@@ -514,7 +575,7 @@ function Deposits() {
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={isLoading || !isSessionActive || !isDraftSaved}
+                disabled={isLoading || !isSessionActive || !isDraftSaved || isSubmitted}
               >
                 {isLoading && !isDraftSaved ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -569,6 +630,26 @@ function Deposits() {
         </Card>
       </div>
     </div>
+    
+      {/* Revert Confirmation Dialog */}
+      <AlertDialog open={isReverting} onOpenChange={setIsReverting}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to edit this entry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will revert the submitted entry for {selectedDate && format(selectedDate, 'MMMM yyyy')} back to a draft. You will be able to make changes and resubmit.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRevert} className={buttonVariants({ variant: 'destructive' })}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Yes, Revert
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
