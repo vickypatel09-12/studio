@@ -74,6 +74,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { data: session } = useDoc<Session>(sessionDocRef);
 
   useEffect(() => {
+    // This is the single source of truth for auth redirection.
+    // It waits until Firebase has confirmed the auth state.
     if (!isUserLoading && !user) {
       router.push('/login');
     }
@@ -84,6 +86,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     router.push('/login');
   };
 
+  // While Firebase is checking the auth state, show a loader to prevent flashes of content.
   if (isUserLoading || !user) {
     return (
       <div className="flex h-screen items-center justify-center">

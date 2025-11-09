@@ -54,6 +54,8 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
+    // If the user is authenticated, the AppShell will handle the redirect.
+    // This page just needs to wait until the auth state is confirmed.
     if (!isUserLoading && user) {
       router.push('/');
     }
@@ -85,7 +87,6 @@ export default function LoginPage() {
         handleAuthError(error);
       })
       .finally(() => {
-        // onAuthStateChanged (via useUser) will handle success and redirect, so we only need to stop loading here
         setIsLoading(false);
       });
   };
@@ -97,7 +98,6 @@ export default function LoginPage() {
         handleAuthError(error);
       })
       .finally(() => {
-        // onAuthStateChanged (via useUser) will handle success and redirect
         setIsLoading(false);
       });
   };
