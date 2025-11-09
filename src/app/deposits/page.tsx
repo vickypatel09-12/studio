@@ -10,6 +10,7 @@ import {
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import {
   Card,
@@ -75,6 +76,7 @@ const getMonthId = (date: Date) => format(date, 'yyyy-MM');
 
 function Deposits() {
   const firestore = useFirestore();
+  const router = useRouter();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -249,6 +251,8 @@ function Deposits() {
             'MMMM yyyy'
           )} have been submitted.`,
         });
+        // Navigate to the loans page for the same month
+        router.push(`/loans?month=${monthId}`);
       })
       .catch((serverError) => {
         const permissionError = new FirestorePermissionError({

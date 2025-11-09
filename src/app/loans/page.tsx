@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, Suspense } from 'react';
 import {
   doc,
   setDoc,
@@ -11,6 +11,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { useSearchParams } from 'next/navigation';
 import {
   Card,
   CardHeader,
@@ -53,7 +54,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { format, startOfMonth, subMonths } from 'date-fns';
+import { format, startOfMonth, subMonths, parse } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -102,6 +103,7 @@ const calculateClosingBalance = (loan: Loan) => {
 
 function Loans() {
   const firestore = useFirestore();
+  const searchParams = useSearchParams();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -254,6 +256,22 @@ function Loans() {
     }
 
   }, [firestore, toast, customers]);
+
+  useEffect(() => {
+    const monthParam = searchParams.get('month');
+    if (monthParam) {
+      try {
+        const date = parse(monthParam, 'yyyy-MM', new Date());
+        if (!isNaN(date.getTime())) {
+          setSelectedDate(date);
+          initializeNewMonth(date);
+        }
+      } catch (e) {
+        console.error('Invalid date format in URL', e);
+      }
+    }
+  }, [searchParams, initializeNewMonth]);
+
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) {
@@ -693,10 +711,14 @@ function Loans() {
 }
 
 
-export default function LoansPage() {
+function LoansPage() {
   return (
     <AppShell>
-      <Loans />
+      <Suspense fallback={<div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+        <Loans />
+      </Suspense>
     </AppShell>
   );
 }
+
+export default LoansPage;
