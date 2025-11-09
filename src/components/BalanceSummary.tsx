@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
-import { format, subMonths } from 'date-fns';
+import { format, subMonths, startOfMonth } from 'date-fns';
 import {
   Card,
   CardContent,
@@ -61,8 +61,9 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export function BalanceSummary({ selectedDate }: { selectedDate: Date }) {
+export function BalanceSummary({ selectedDate: dateProp }: { selectedDate?: Date }) {
   const firestore = useFirestore();
+  const [date, setDate] = useState(() => startOfMonth(dateProp || new Date()));
   const [summary, setSummary] = useState({
     prevBalance: { cash: 0, bank: 0 },
     currentDeposits: { cash: 0, bank: 0 },
@@ -72,13 +73,17 @@ export function BalanceSummary({ selectedDate }: { selectedDate: Date }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    setDate(startOfMonth(dateProp || new Date()));
+  }, [dateProp]);
+
+  useEffect(() => {
     const fetchSummaryData = async () => {
-      if (!firestore || !selectedDate) return;
+      if (!firestore) return;
       setIsLoading(true);
 
-      const prevMonth = subMonths(selectedDate, 1);
+      const prevMonth = subMonths(date, 1);
       const prevMonthId = getMonthId(prevMonth);
-      const currentMonthId = getMonthId(selectedDate);
+      const currentMonthId = getMonthId(date);
 
       const prevDepositRef = doc(firestore, 'monthlyDeposits', prevMonthId);
       const prevLoanRef = doc(firestore, 'monthlyLoans', prevMonthId);
@@ -183,7 +188,7 @@ export function BalanceSummary({ selectedDate }: { selectedDate: Date }) {
     };
 
     fetchSummaryData();
-  }, [selectedDate, firestore]);
+  }, [date, firestore]);
   
   const liveCashBalance = summary.prevBalance.cash + summary.currentDeposits.cash - summary.loanGiven.cash + summary.loanRepaid.cash;
   const liveBankBalance = summary.prevBalance.bank + summary.currentDeposits.bank - summary.loanGiven.bank + summary.loanRepaid.bank;
@@ -196,7 +201,7 @@ export function BalanceSummary({ selectedDate }: { selectedDate: Date }) {
         <CardHeader>
           <CardTitle>Financial Summary</CardTitle>
           <CardDescription>
-            For {format(selectedDate, 'MMMM yyyy')}
+            For {format(date, 'MMMM yyyy')}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex items-center justify-center p-8">
@@ -211,7 +216,7 @@ export function BalanceSummary({ selectedDate }: { selectedDate: Date }) {
       <CardHeader>
         <CardTitle>Financial Summary</CardTitle>
         <CardDescription>
-          Live balance for {format(selectedDate, 'MMMM yyyy')}
+          Live balance for {format(date, 'MMMM yyyy')}
         </CardDescription>
       </CardHeader>
       <CardContent>

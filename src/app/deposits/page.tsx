@@ -463,7 +463,7 @@ function Deposits() {
 
   return (
     <div className="space-y-6">
-      {selectedDate && <BalanceSummary selectedDate={selectedDate} />}
+      <BalanceSummary selectedDate={selectedDate} />
       <div className="grid gap-6 lg:grid-cols-4">
         <div className="lg:col-span-3">
           <Card>
