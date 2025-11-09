@@ -37,6 +37,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -64,7 +74,7 @@ import { collection, query, doc, writeBatch, orderBy } from 'firebase/firestore'
 import type { Customer } from '@/lib/data';
 import { AppShell } from '@/components/AppShell';
 
-const SortableCustomerRow = ({ customer, index, onEdit, onDelete }: { customer: Customer, index: number, onEdit: (customer: Customer) => void, onDelete: (id: string) => void }) => {
+const SortableCustomerRow = ({ customer, index, onEdit, onDelete }: { customer: Customer, index: number, onEdit: (customer: Customer) => void, onDelete: (customer: Customer) => void }) => {
     const {
         attributes,
         listeners,
@@ -104,7 +114,7 @@ const SortableCustomerRow = ({ customer, index, onEdit, onDelete }: { customer: 
                     <Pencil className="mr-2 h-4 w-4" />
                     Edit
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onDelete(customer.id)} className='text-destructive focus:text-destructive'>
+                    <DropdownMenuItem onClick={() => onDelete(customer)} className='text-destructive focus:text-destructive'>
                     <Trash2 className="mr-2 h-4 w-4" />
                     Delete
                     </DropdownMenuItem>
@@ -120,6 +130,7 @@ function Customers() {
   const firestore = useFirestore();
   const [isImporting, setIsImporting] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
   const [isNewCustomer, setIsNewCustomer] = useState(false);
   const { toast } = useToast();
 
@@ -214,11 +225,16 @@ function Customers() {
     });
   }
 
-  const handleDelete = (customerId: string) => {
-    if (!firestore) return;
-    const docRef = doc(firestore, 'customers', customerId);
+  const openDeleteDialog = (customer: Customer) => {
+      setDeletingCustomer(customer);
+  }
+
+  const confirmDelete = () => {
+    if (!firestore || !deletingCustomer) return;
+    const docRef = doc(firestore, 'customers', deletingCustomer.id);
     deleteDocumentNonBlocking(docRef);
-    toast({ title: 'Customer Deleted', description: `Customer ${customerId} has been removed.`});
+    toast({ title: 'Customer Deleted', description: `Customer ${deletingCustomer.name} has been removed.`});
+    setDeletingCustomer(null);
   };
 
   const handleSaveCustomer = () => {
@@ -374,7 +390,7 @@ function Customers() {
                             customer={customer} 
                             index={index}
                             onEdit={openEditCustomerDialog}
-                            onDelete={handleDelete}
+                            onDelete={openDeleteDialog}
                         />
                     ))}
                     </TableBody>
@@ -435,6 +451,21 @@ function Customers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      <AlertDialog open={!!deletingCustomer} onOpenChange={(isOpen) => !isOpen && setDeletingCustomer(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this customer?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the customer "{deletingCustomer?.name}". This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
