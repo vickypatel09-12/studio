@@ -87,8 +87,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   // While Firebase is checking the auth state, show a loader to prevent flashes of content.
-  if (isUserLoading || !user) {
+  if (isUserLoading) {
     return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin" />
+      </div>
+    );
+  }
+
+  // After loading, if there's no user, children (the page) will be unmounted
+  // by the redirect, so we can return null or a loader to avoid rendering the shell.
+  if (!user) {
+     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin" />
       </div>

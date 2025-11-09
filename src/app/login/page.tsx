@@ -102,6 +102,7 @@ export default function LoginPage() {
       });
   };
 
+  // While checking for user or if user exists (and redirect is pending), show a loader.
   if (isUserLoading || user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -110,6 +111,7 @@ export default function LoginPage() {
     );
   }
 
+  // Only show the form if loading is complete and there is no user.
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
       <div className="mb-8 flex items-center gap-2">
