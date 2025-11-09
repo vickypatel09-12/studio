@@ -16,12 +16,12 @@ service cloud.firestore {
     // MONTHLY DEPOSITS & LOANS: Allow reads and writes only by authenticated users.
     match /monthlyDeposits/{monthId} {
       allow read, list: if isSignedIn();
-      allow write: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
     }
 
     match /monthlyLoans/{monthId} {
        allow read, list: if isSignedIn();
-       allow write: if isSignedIn();
+       allow create, update, delete: if isSignedIn();
     }
 
     // SESSION: Publicly readable, but only writable by authenticated users.
