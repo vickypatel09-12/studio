@@ -114,7 +114,14 @@ function Reports() {
         return reportRows.reduce((acc, item) => {
             acc.totalDeposit += (item.depositCash + item.depositBank);
             acc.totalCarryFwdLoan += item.carryFwdLoan;
-            acc.totalNewIncDec += (item.loanChangeCash + item.loanChangeBank);
+            
+            const loanChangeTotal = item.loanChangeCash + item.loanChangeBank;
+            if (item.loanChangeType === 'new' || item.loanChangeType === 'increase') {
+                acc.totalNewIncDec += loanChangeTotal;
+            } else if (item.loanChangeType === 'decrease') {
+                acc.totalNewIncDec -= loanChangeTotal;
+            }
+
             acc.totalOutstandingLoan += item.closingLoan;
             acc.totalInterest += (item.interestCash + item.interestBank);
             return acc;
@@ -217,13 +224,21 @@ function Reports() {
     setIsLoading(false);
   };
   
-  const totals = generatedReport?.reduce(
+    const totals = generatedReport?.reduce(
       (acc, item) => {
         acc.depositCash += item.depositCash;
         acc.depositBank += item.depositBank;
         acc.carryFwdLoan += item.carryFwdLoan;
-        acc.loanChangeCash += item.loanChangeCash;
-        acc.loanChangeBank += item.loanChangeBank;
+
+        const loanChange = item.loanChangeCash + item.loanChangeBank;
+        if (item.loanChangeType === 'new' || item.loanChangeType === 'increase') {
+             acc.loanChangeCash += item.loanChangeCash;
+             acc.loanChangeBank += item.loanChangeBank;
+        } else if (item.loanChangeType === 'decrease') {
+             acc.loanChangeCash -= item.loanChangeCash;
+             acc.loanChangeBank -= item.loanChangeBank;
+        }
+        
         acc.closingLoan += item.closingLoan;
         acc.interestCash += item.interestCash;
         acc.interestBank += item.interestBank;
@@ -238,12 +253,15 @@ function Reports() {
         loanChangeBank: 0, closingLoan: 0, interestCash: 0, interestBank: 0 
       };
 
-    const formatAmount = (value: number) => value === 0 ? '-' : `₹${value.toFixed(2)}`;
+    const formatAmount = (value: number) => `₹${Math.abs(value).toFixed(2)}`;
 
-     const renderBreakdown = (items: {label: string, value: number, isCurrency?: boolean}[]) => {
+    const renderBreakdown = (items: {label: string, value: number, isCurrency?: boolean}[]) => {
         const parts = items
           .filter(i => (i.isCurrency === false && i.label !== 'N/A') || (i.isCurrency !== false && i.value !== 0))
-          .map(i => i.isCurrency === false ? i.label : `${i.label}: ${formatAmount(i.value)}`);
+          .map(i => {
+              if (i.isCurrency === false) return i.label;
+              return `${i.label}: ${formatAmount(i.value)}`;
+          });
         
         if (parts.length === 0) return null;
         
@@ -254,7 +272,7 @@ function Reports() {
         return {
             totalDeposit: (current?.totalDeposit || 0) + (prev?.totalDeposit || 0),
             totalCarryFwdLoan: (prev?.totalOutstandingLoan || 0),
-            totalNewIncDec: (current?.totalNewIncDec || 0) + (prev?.totalNewIncDec || 0),
+            totalNewIncDec: current?.totalNewIncDec || 0,
             totalOutstandingLoan: current?.totalOutstandingLoan || 0,
             totalInterest: (current?.totalInterest || 0) + (prev?.totalInterest || 0),
         }
@@ -262,7 +280,7 @@ function Reports() {
     
   return (
     <div className="printable">
-       <div className="print-only p-4 text-center">
+       <div className="print-only text-center my-4">
          {generatedReport && (
           <h2 className="text-lg font-semibold mb-2">
             Report for {format(selectedDate, 'MMMM yyyy')}
@@ -362,39 +380,47 @@ function Reports() {
                        const loanChangeTotal = item.loanChangeCash + item.loanChangeBank;
                        const interestTotal = item.interestCash + item.interestBank;
 
-                       return (
-                          <TableRow key={item.customerId}>
-                            <TableCell className="py-1">{index + 1}</TableCell>
-                            <TableCell className="font-medium whitespace-nowrap py-1">{item.customerName}</TableCell>
-                            <TableCell className="text-right py-1">
-                                {depositTotal === 0 ? formatAmount(0) : (
-                                    <div className="flex flex-col items-end">
-                                        <div>{formatAmount(depositTotal)}</div>
-                                        {renderBreakdown([{label: 'c', value: item.depositCash}, {label: 'b', value: item.depositBank}])}
-                                    </div>
-                                )}
-                            </TableCell>
-                            <TableCell className="text-right py-1">{formatAmount(item.carryFwdLoan)}</TableCell>
-                             <TableCell className="text-right py-1">
-                               {loanChangeTotal === 0 ? formatAmount(0) : (
-                                  <div className="flex flex-col items-end">
-                                    <div>{formatAmount(loanChangeTotal)}</div>
+                       const renderTwoLevel = (total: number, breakdown: {label: string, value: number}[]) => {
+                           if (total === 0) return <span>-</span>;
+                           return (
+                            <div className="flex flex-col items-end">
+                                <div>{formatAmount(total)}</div>
+                                {renderBreakdown(breakdown)}
+                            </div>
+                           );
+                       };
+
+                       const renderLoanChange = () => {
+                           if (loanChangeTotal === 0) return <span>-</span>;
+                           
+                           const sign = item.loanChangeType === 'new' || item.loanChangeType === 'increase' ? '+' : '-';
+
+                           return (
+                               <div className="flex flex-col items-end">
+                                    <div>{sign}{formatAmount(loanChangeTotal)}</div>
                                     {renderBreakdown([
                                         {label: item.loanChangeType, value: 0, isCurrency: false},
                                         {label: 'c', value: item.loanChangeCash},
                                         {label: 'b', value: item.loanChangeBank}
                                     ])}
-                                  </div>
-                               )}
-                            </TableCell>
-                            <TableCell className="text-right font-medium py-1">{formatAmount(item.closingLoan)}</TableCell>
-                             <TableCell className="text-right py-1">
-                              {interestTotal === 0 ? formatAmount(0) : (
-                                <div className="flex flex-col items-end">
-                                  <div>{formatAmount(interestTotal)}</div>
-                                  {renderBreakdown([{label: 'c', value: item.interestCash}, {label: 'b', value: item.interestBank}])}
                                 </div>
-                              )}
+                           )
+                       }
+
+                       return (
+                          <TableRow key={item.customerId}>
+                            <TableCell className="py-1">{index + 1}</TableCell>
+                            <TableCell className="font-medium whitespace-nowrap py-1">{item.customerName}</TableCell>
+                            <TableCell className="text-right py-1">
+                                {renderTwoLevel(depositTotal, [{label: 'c', value: item.depositCash}, {label: 'b', value: item.depositBank}])}
+                            </TableCell>
+                            <TableCell className="text-right py-1">{item.carryFwdLoan === 0 ? '-' : formatAmount(item.carryFwdLoan)}</TableCell>
+                             <TableCell className="text-right py-1">
+                               {renderLoanChange()}
+                            </TableCell>
+                            <TableCell className="text-right font-medium py-1">{item.closingLoan === 0 ? '-' : formatAmount(item.closingLoan)}</TableCell>
+                             <TableCell className="text-right py-1">
+                              {renderTwoLevel(interestTotal, [{label: 'c', value: item.interestCash}, {label: 'b', value: item.interestBank}])}
                             </TableCell>
                           </TableRow>
                         )
@@ -402,19 +428,19 @@ function Reports() {
                      <TableRow className="font-bold bg-muted/50 text-right">
                         <TableCell colSpan={2} className="text-left py-1">Total</TableCell>
                         <TableCell className="py-1">
-                           <div className="flex flex-col items-end">
-                            <div>{formatAmount(totals.depositCash + totals.depositBank)}</div>
-                            {renderBreakdown([{label: 'c', value: totals.depositCash}, {label: 'b', value: totals.depositBank}])}
-                          </div>
+                            <div className="flex flex-col items-end">
+                                <div>{formatAmount(totals.depositCash + totals.depositBank)}</div>
+                                {renderBreakdown([{label: 'c', value: totals.depositCash}, {label: 'b', value: totals.depositBank}])}
+                            </div>
                         </TableCell>
-                        <TableCell className="py-1">{formatAmount(totals.carryFwdLoan)}</TableCell>
+                        <TableCell className="py-1">{totals.carryFwdLoan === 0 ? '-' : formatAmount(totals.carryFwdLoan)}</TableCell>
                         <TableCell className="text-right py-1">
                              <div className="flex flex-col items-end">
-                                <div>{formatAmount(totals.loanChangeCash + totals.loanChangeBank)}</div>
+                                <div>{`${totals.loanChangeCash + totals.loanChangeBank >= 0 ? '+' : '-'}${formatAmount(totals.loanChangeCash + totals.loanChangeBank)}`}</div>
                                 {renderBreakdown([{label: 'c', value: totals.loanChangeCash}, {label: 'b', value: totals.loanChangeBank}])}
                             </div>
                         </TableCell>
-                        <TableCell className="py-1">{formatAmount(totals.closingLoan)}</TableCell>
+                        <TableCell className="py-1">{totals.closingLoan === 0 ? '-' : formatAmount(totals.closingLoan)}</TableCell>
                         <TableCell className="py-1">
                            <div className="flex flex-col items-end">
                               <div>{formatAmount(totals.interestCash + totals.interestBank)}</div>
@@ -445,7 +471,7 @@ function Reports() {
                                 <TableBody>
                                     <TableRow><TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalDeposit)}</TableCell></TableRow>
                                     <TableRow><TableCell className="py-1 px-2 font-medium">Total Carry Fwd Loan</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalCarryFwdLoan)}</TableCell></TableRow>
-                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total New/Inc/Dec</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalNewIncDec)}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total New/Inc/Dec</TableCell><TableCell className="py-1 px-2 text-right">{`${section.summary.totalNewIncDec >= 0 ? '+' : '-'}${formatAmount(section.summary.totalNewIncDec)}`}</TableCell></TableRow>
                                     <TableRow><TableCell className="py-1 px-2 font-medium">Total Outstanding Loan</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalOutstandingLoan)}</TableCell></TableRow>
                                     <TableRow><TableCell className="py-1 px-2 font-medium">Total Interest</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalInterest)}</TableCell></TableRow>
                                 </TableBody>
