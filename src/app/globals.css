@@ -98,6 +98,9 @@
     display: block !important;
     visibility: visible !important;
   }
+  tfoot {
+    display: table-row-group;
+  }
 }
 
 .print-only {
