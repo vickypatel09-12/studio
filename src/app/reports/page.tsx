@@ -15,7 +15,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableFooter as UiTableFooter,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import {
@@ -332,8 +331,6 @@ function Reports() {
                         </TableCell>
                       </TableRow>
                     ))}
-                  </TableBody>
-                  <UiTableFooter>
                     <TableRow className="font-bold bg-muted/50 text-right">
                       <TableCell colSpan={2}>Total</TableCell>
                       <TableCell>
@@ -348,7 +345,7 @@ function Reports() {
                           {renderCompositeAmount(totals.interestCash, totals.interestBank)}
                       </TableCell>
                     </TableRow>
-                  </UiTableFooter>
+                  </TableBody>
                 </Table>
               </div>
             </CardContent>
