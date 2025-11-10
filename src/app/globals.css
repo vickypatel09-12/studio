@@ -92,10 +92,16 @@
     background: transparent !important;
     box-shadow: none !important;
     border: none !important;
-    min-width: 0 !important;
   }
   .printable {
     padding: 0;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  .printable .table, .printable .table * {
+    min-width: 0 !important;
   }
   .printable td, .printable th {
     padding: 4px !important;
