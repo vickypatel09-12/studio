@@ -322,7 +322,7 @@ function Reports() {
                         </TableCell>
                         <TableCell className="text-right py-1">{formatAmount(item.carryFwdLoan)}</TableCell>
                         <TableCell className="text-right py-1">
-                          <div className='capitalize'>{item.loanChangeType !== 'N/A' && item.loanChangeType}</div>
+                          <div className='capitalize'>{(item.loanChangeCash + item.loanChangeBank) > 0 && item.loanChangeType !== 'N/A' && item.loanChangeType}</div>
                           {renderCompositeAmount(item.loanChangeCash, item.loanChangeBank)}
                         </TableCell>
                         <TableCell className="text-right font-medium py-1">{formatAmount(item.closingLoan)}</TableCell>
