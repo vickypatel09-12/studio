@@ -93,6 +93,7 @@ function Reports() {
   const [currentDateTime, setCurrentDateTime] = useState('');
 
   useEffect(() => {
+    // This effect needs to run only on the client
     const updateDateTime = () => {
       setCurrentDateTime(format(new Date(), 'dd/MM/yyyy, HH:mm'));
     };
@@ -322,14 +323,14 @@ function Reports() {
                         </TableCell>
                         <TableCell className="text-right py-1">{formatAmount(item.carryFwdLoan)}</TableCell>
                         <TableCell className="text-right py-1">
-                          <div>
-                            {formatAmount(item.loanChangeCash + item.loanChangeBank)}
+                           <div className="flex flex-col">
+                            <div>{formatAmount(item.loanChangeCash + item.loanChangeBank)}</div>
                             {(item.loanChangeCash + item.loanChangeBank) > 0 && (
-                              <span className="ml-1 text-xs text-muted-foreground">
+                              <div className="text-xs text-muted-foreground">
                                 ({item.loanChangeType !== 'N/A' && <span className="capitalize">{item.loanChangeType} </span>}
                                 {item.loanChangeCash > 0 && <span>c: {formatAmount(item.loanChangeCash)} </span>}
                                 {item.loanChangeBank > 0 && <span>b: {formatAmount(item.loanChangeBank)}</span>})
-                              </span>
+                              </div>
                             )}
                           </div>
                         </TableCell>
@@ -346,13 +347,13 @@ function Reports() {
                       </TableCell>
                       <TableCell className="py-1">{formatAmount(totals.carryFwdLoan)}</TableCell>
                       <TableCell className="text-right py-1">
-                          <div>
-                              {formatAmount(totals.loanChangeCash + totals.loanChangeBank)}
+                           <div className="flex flex-col">
+                              <div>{formatAmount(totals.loanChangeCash + totals.loanChangeBank)}</div>
                               {(totals.loanChangeCash + totals.loanChangeBank) > 0 && (
-                                <span className="ml-1 text-xs text-muted-foreground">
+                                <div className="text-xs text-muted-foreground">
                                   ({totals.loanChangeCash > 0 && <span>c: {formatAmount(totals.loanChangeCash)} </span>}
                                   {totals.loanChangeBank > 0 && <span>b: {formatAmount(totals.loanChangeBank)}</span>})
-                                </span>
+                                </div>
                               )}
                           </div>
                       </TableCell>
