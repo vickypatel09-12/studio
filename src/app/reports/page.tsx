@@ -209,10 +209,6 @@ function Reports() {
   return (
     <div className="printable">
        <div className="print-only p-4">
-        <div className="flex justify-between items-center mb-4">
-            <h1 className="text-xl font-semibold">Bachat Bank ERP</h1>
-            <div className="text-sm">{currentDateTime}</div>
-        </div>
          {generatedReport && (
           <h2 className="text-center text-lg font-semibold mb-2">
             Report for {format(selectedDate, 'MMMM yyyy')}
@@ -313,11 +309,9 @@ function Reports() {
                        const interestTotal = item.interestCash + item.interestBank;
                        
                        const loanChangeBreakdown = [];
-                       if (loanChangeTotal > 0) {
-                           if (item.loanChangeType !== 'N/A') loanChangeBreakdown.push(item.loanChangeType);
-                           if (item.loanChangeCash > 0) loanChangeBreakdown.push(`c: ${formatAmount(item.loanChangeCash)}`);
-                           if (item.loanChangeBank > 0) loanChangeBreakdown.push(`b: ${formatAmount(item.loanChangeBank)}`);
-                       }
+                       if (loanChangeTotal > 0 && item.loanChangeType !== 'N/A') loanChangeBreakdown.push(item.loanChangeType);
+                       if (item.loanChangeCash > 0) loanChangeBreakdown.push(`c: ${formatAmount(item.loanChangeCash)}`);
+                       if (item.loanChangeBank > 0) loanChangeBreakdown.push(`b: ${formatAmount(item.loanChangeBank)}`);
                        
                        const depositBreakdown = [];
                        if (item.depositCash > 0) depositBreakdown.push(`c: ${formatAmount(item.depositCash)}`);
