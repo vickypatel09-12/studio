@@ -322,8 +322,14 @@ function Reports() {
                         </TableCell>
                         <TableCell className="text-right py-1">{formatAmount(item.carryFwdLoan)}</TableCell>
                         <TableCell className="text-right py-1">
-                          <div className='capitalize'>{(item.loanChangeCash + item.loanChangeBank) > 0 && item.loanChangeType !== 'N/A' && item.loanChangeType}</div>
-                          {renderCompositeAmount(item.loanChangeCash, item.loanChangeBank)}
+                          <div>
+                            <div className="text-xs text-muted-foreground">
+                              {(item.loanChangeCash + item.loanChangeBank) > 0 && item.loanChangeType !== 'N/A' && <span className="capitalize">{item.loanChangeType} </span>}
+                              {item.loanChangeCash > 0 && <span>c: {formatAmount(item.loanChangeCash)}</span>}
+                              {item.loanChangeBank > 0 && <span className="ml-1">b: {formatAmount(item.loanChangeBank)}</span>}
+                            </div>
+                            <div>{formatAmount(item.loanChangeCash + item.loanChangeBank)}</div>
+                          </div>
                         </TableCell>
                         <TableCell className="text-right font-medium py-1">{formatAmount(item.closingLoan)}</TableCell>
                         <TableCell className="text-right py-1">
@@ -337,9 +343,15 @@ function Reports() {
                           {renderCompositeAmount(totals.depositCash, totals.depositBank)}
                       </TableCell>
                       <TableCell className="py-1">{formatAmount(totals.carryFwdLoan)}</TableCell>
-                      <TableCell className="py-1">
-                          {renderCompositeAmount(totals.loanChangeCash, totals.loanChangeBank)}
-                      </TableCell>
+                       <TableCell className="text-right py-1">
+                          <div>
+                            <div className="text-xs text-muted-foreground">
+                              {totals.loanChangeCash > 0 && <span>c: {formatAmount(totals.loanChangeCash)}</span>}
+                              {totals.loanChangeBank > 0 && <span className="ml-1">b: {formatAmount(totals.loanChangeBank)}</span>}
+                            </div>
+                            <div>{formatAmount(totals.loanChangeCash + totals.loanChangeBank)}</div>
+                          </div>
+                        </TableCell>
                       <TableCell className="py-1">{formatAmount(totals.closingLoan)}</TableCell>
                       <TableCell className="py-1">
                           {renderCompositeAmount(totals.interestCash, totals.interestBank)}
