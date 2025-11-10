@@ -225,6 +225,11 @@ function Reports() {
             <h1 className="text-xl font-semibold">Bachat Bank ERP</h1>
             <div className="text-sm">{currentDateTime}</div>
         </div>
+         {generatedReport && (
+          <h2 className="text-center text-lg font-semibold mb-2">
+            Report for {format(selectedDate, 'MMMM yyyy')}
+          </h2>
+        )}
       </div>
       <Card>
         <div className="no-print">
@@ -323,10 +328,10 @@ function Reports() {
                         </TableCell>
                         <TableCell className="text-right py-1">{formatAmount(item.carryFwdLoan)}</TableCell>
                         <TableCell className="text-right py-1">
-                           <div className="flex flex-col">
+                          <div className="flex flex-col">
                             <div>{formatAmount(item.loanChangeCash + item.loanChangeBank)}</div>
                             {(item.loanChangeCash + item.loanChangeBank) > 0 && (
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-xs text-muted-foreground whitespace-nowrap">
                                 ({item.loanChangeType !== 'N/A' && <span className="capitalize">{item.loanChangeType} </span>}
                                 {item.loanChangeCash > 0 && <span>c: {formatAmount(item.loanChangeCash)} </span>}
                                 {item.loanChangeBank > 0 && <span>b: {formatAmount(item.loanChangeBank)}</span>})
@@ -350,7 +355,7 @@ function Reports() {
                            <div className="flex flex-col">
                               <div>{formatAmount(totals.loanChangeCash + totals.loanChangeBank)}</div>
                               {(totals.loanChangeCash + totals.loanChangeBank) > 0 && (
-                                <div className="text-xs text-muted-foreground">
+                                <div className="text-xs text-muted-foreground whitespace-nowrap">
                                   ({totals.loanChangeCash > 0 && <span>c: {formatAmount(totals.loanChangeCash)} </span>}
                                   {totals.loanChangeBank > 0 && <span>b: {formatAmount(totals.loanChangeBank)}</span>})
                                 </div>
