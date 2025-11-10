@@ -718,14 +718,15 @@ function Loans() {
                           {index + 1}
                         </TableCell>
                         <TableCell>{customer.name}</TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
                           <Input
                             type="number"
                             placeholder="₹0.00"
                             value={loan.carryFwd || ''}
                             disabled
-                            className="w-full text-right"
+                            className="w-full text-right no-print"
                           />
+                          <span className="print-only">₹{(loan.carryFwd || 0).toFixed(2)}</span>
                         </TableCell>
                         <TableCell>
                           <Select
@@ -739,7 +740,7 @@ function Loans() {
                               )
                             }
                           >
-                            <SelectTrigger className="w-full">
+                            <SelectTrigger className="w-full no-print">
                               <SelectValue placeholder="Type" />
                             </SelectTrigger>
                             <SelectContent>
@@ -752,8 +753,9 @@ function Loans() {
                               </SelectItem>
                             </SelectContent>
                           </Select>
+                          <span className="print-only">{loan.changeType}</span>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
                           <Input
                             type="number"
                             placeholder="₹0.00"
@@ -766,10 +768,11 @@ function Loans() {
                                 e.target.value
                               )
                             }
-                            className="w-full text-right"
+                            className="w-full text-right no-print"
                           />
+                           <span className="print-only">₹{(loan.changeCash || 0).toFixed(2)}</span>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
                           <Input
                             type="number"
                             placeholder="₹0.00"
@@ -782,13 +785,14 @@ function Loans() {
                                 e.target.value
                               )
                             }
-                            className="w-full text-right"
+                            className="w-full text-right no-print"
                           />
+                          <span className="print-only">₹{(loan.changeBank || 0).toFixed(2)}</span>
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           ₹{changeTotal.toFixed(2)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
                           <Input
                             type="number"
                             placeholder="₹0.00"
@@ -801,10 +805,11 @@ function Loans() {
                                 e.target.value
                               )
                             }
-                            className="w-full text-right"
+                            className="w-full text-right no-print"
                           />
+                          <span className="print-only">₹{(loan.interestCash || 0).toFixed(2)}</span>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
                           <Input
                             type="number"
                             placeholder="₹0.00"
@@ -817,8 +822,9 @@ function Loans() {
                                 e.target.value
                               )
                             }
-                            className="w-full text-right"
+                            className="w-full text-right no-print"
                           />
+                          <span className="print-only">₹{(loan.interestBank || 0).toFixed(2)}</span>
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           ₹{loan.interestTotal.toFixed(2)}
