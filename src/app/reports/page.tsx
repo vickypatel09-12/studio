@@ -285,19 +285,19 @@ function Reports() {
                     <TableCell>{index + 1}</TableCell>
                     <TableCell className="font-medium">{item.customerName}</TableCell>
                     <TableCell className="text-right">
-                      <div>c: {formatAmount(item.depositCash)}</div>
-                      <div>b: {formatAmount(item.depositBank)}</div>
+                      {item.depositCash > 0 && <div>c: {formatAmount(item.depositCash)}</div>}
+                      {item.depositBank > 0 && <div>b: {formatAmount(item.depositBank)}</div>}
                     </TableCell>
                     <TableCell className="text-right">{formatAmount(item.carryFwdLoan)}</TableCell>
                     <TableCell className="text-right">
                        <div><span className='capitalize'>{item.loanChangeType}</span></div>
-                       <div>c: {formatAmount(item.loanChangeCash)}</div>
-                       <div>b: {formatAmount(item.loanChangeBank)}</div>
+                       {item.loanChangeCash > 0 && <div>c: {formatAmount(item.loanChangeCash)}</div>}
+                       {item.loanChangeBank > 0 && <div>b: {formatAmount(item.loanChangeBank)}</div>}
                     </TableCell>
                     <TableCell className="text-right font-medium">{formatAmount(item.closingLoan)}</TableCell>
                     <TableCell className="text-right">
-                      <div>c: {formatAmount(item.interestCash)}</div>
-                      <div>b: {formatAmount(item.interestBank)}</div>
+                      {item.interestCash > 0 && <div>c: {formatAmount(item.interestCash)}</div>}
+                      {item.interestBank > 0 && <div>b: {formatAmount(item.interestBank)}</div>}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -306,18 +306,18 @@ function Reports() {
                 <TableRow className="font-bold bg-muted/50 text-right">
                   <TableCell colSpan={2}>Total</TableCell>
                   <TableCell>
-                      <div>c: {formatAmount(totals.depositCash)}</div>
-                      <div>b: {formatAmount(totals.depositBank)}</div>
+                      {totals.depositCash > 0 && <div>c: {formatAmount(totals.depositCash)}</div>}
+                      {totals.depositBank > 0 && <div>b: {formatAmount(totals.depositBank)}</div>}
                   </TableCell>
                   <TableCell>{formatAmount(totals.carryFwdLoan)}</TableCell>
                   <TableCell>
-                      <div>c: {formatAmount(totals.loanChangeCash)}</div>
-                      <div>b: {formatAmount(totals.loanChangeBank)}</div>
+                      {totals.loanChangeCash > 0 && <div>c: {formatAmount(totals.loanChangeCash)}</div>}
+                      {totals.loanChangeBank > 0 && <div>b: {formatAmount(totals.loanChangeBank)}</div>}
                   </TableCell>
                   <TableCell>{formatAmount(totals.closingLoan)}</TableCell>
                   <TableCell>
-                      <div>c: {formatAmount(totals.interestCash)}</div>
-                      <div>b: {formatAmount(totals.interestBank)}</div>
+                      {totals.interestCash > 0 && <div>c: {formatAmount(totals.interestCash)}</div>}
+                      {totals.interestBank > 0 && <div>b: {formatAmount(totals.interestBank)}</div>}
                   </TableCell>
                 </TableRow>
               </UiTableFooter>
