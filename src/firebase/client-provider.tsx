@@ -5,7 +5,7 @@ import { FirebaseProvider } from '@/firebase/provider';
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
-import { getFirebaseConfig } from '@/firebase/firebase-config';
+import { firebaseConfig } from '@/firebase/config'; // Direct import
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -22,46 +22,36 @@ interface FirebaseServices {
 export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
   const [services, setServices] = useState<FirebaseServices | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isTimedOut, setIsTimedOut] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!services && !error) {
-        setIsTimedOut(true);
-      }
-    }, 5000); // 5-second timeout
-
     try {
-      const config = getFirebaseConfig();
-      if (config && config.apiKey) {
-        const app = getApps().length > 0 ? getApp() : initializeApp(config);
+      // Directly check the imported config
+      if (firebaseConfig && firebaseConfig.apiKey && !firebaseConfig.apiKey.includes("PASTE_YOUR")) {
+        const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const firestore = getFirestore(app);
         setServices({ firebaseApp: app, auth, firestore });
       } else {
-        console.error('Firebase configuration is missing or incomplete.');
         setError(
-          'Firebase configuration is missing. Please ensure your environment variables (NEXT_PUBLIC_FIREBASE_*) are set correctly in your Vercel project.'
+          'Your Firebase configuration is missing or incomplete. Please paste your credentials into src/firebase/config.ts.'
         );
       }
     } catch (e: any) {
       console.error('Error initializing Firebase:', e);
       setError(`An unexpected error occurred during Firebase initialization: ${e.message}`);
     }
+  }, []);
 
-    return () => clearTimeout(timer);
-  }, [services, error]);
-
-  if (error || isTimedOut) {
+  if (error) {
     return (
       <div className="flex h-screen items-center justify-center bg-background p-4">
         <Alert variant="destructive" className="max-w-lg">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Connection Error</AlertTitle>
+          <AlertTitle>Configuration Error</AlertTitle>
           <AlertDescription>
-            {error || 'Could not connect to Firebase services. The application may be misconfigured or the service may be unavailable.'}
+            {error}
             <div className="mt-4 text-xs text-muted-foreground">
-              Please check the browser console for more details and verify your project setup and environment variables.
+              This is a one-time setup step. This file is excluded from git commits for security.
             </div>
           </AlertDescription>
         </Alert>
