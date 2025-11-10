@@ -146,7 +146,7 @@ function Reports() {
 
         return {
             ...summary,
-            closingBalance: summary.totalDeposit - summary.totalOutstandingLoan,
+            closingBalance: summary.totalDeposit - summary.totalOutstandingLoan + summary.totalInterest,
         };
     };
 
@@ -174,13 +174,13 @@ function Reports() {
             const depositData = depositDocSnap.exists() ? (depositDocSnap.data() as MonthlyDepositDoc).deposits || (depositDocSnap.data() as MonthlyDepositDoc).draft : [];
             const loanData = loanDocSnap.exists() ? (loanDocSnap.data() as MonthlyLoanDoc).loans || (loanDocSnap.data() as MonthlyLoanDoc).draft : [];
 
-            if (!depositData || depositData.length === 0 || !loanData || loanData.length === 0) {
+            if ((!depositData || depositData.length === 0) && (!loanData || loanData.length === 0)) {
                 return null;
             }
 
             return customers.map(customer => {
-                const dep = depositData.find(d => d.customerId === customer.id);
-                const loan = loanData.find(l => l.customerId === customer.id);
+                const dep = depositData?.find(d => d.customerId === customer.id);
+                const loan = loanData?.find(l => l.customerId === customer.id);
                 const changeTotal = (loan?.changeCash || 0) + (loan?.changeBank || 0);
                 let adjustment = 0;
                 if (loan?.changeType === 'new' || loan?.changeType === 'increase') {
@@ -292,7 +292,7 @@ function Reports() {
         };
         return {
             ...summary,
-            closingBalance: summary.totalDeposit - summary.totalOutstandingLoan
+            closingBalance: summary.totalDeposit - summary.totalOutstandingLoan + summary.totalInterest
         }
     }
     
@@ -478,38 +478,52 @@ function Reports() {
               </CardFooter>
               
               <div className="print-only px-6 pt-4">
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className={`grid ${previousMonthSummary ? 'grid-cols-3' : 'grid-cols-2'} gap-4`}>
                       
-                      {[
-                        { title: 'Previous Month', data: previousMonthSummary },
-                        { title: 'Current Month', data: currentMonthSummary },
-                        { title: 'Grand Total', data: grandTotalSummary(currentMonthSummary, previousMonthSummary) }
-                      ].map(section => (
-                         <div key={section.title} className="border p-2 rounded-lg">
-                              <h3 className="font-bold text-center mb-2">{section.title}</h3>
+                      {previousMonthSummary && (
+                         <div className="border p-2 rounded-lg">
+                              <h3 className="font-bold text-center mb-2">Previous Month</h3>
                                <Table>
                                   <TableBody>
-                                      {section.title === 'Grand Total' ? (
-                                        <>
-                                            <TableRow><TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data?.totalDeposit || 0)}</TableCell></TableRow>
-                                            <TableRow><TableCell className="py-1 px-2 font-medium">Total Outstanding Loan</TableCell><TableCell className="py-1 px-2 text-right">-{formatAmount(section.data?.totalOutstandingLoan || 0)}</TableCell></TableRow>
-                                            <TableRow><TableCell className="py-1 px-2 font-medium">Total Interest</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data?.totalInterest || 0)}</TableCell></TableRow>
-                                            <TableRow><TableCell className="py-1 px-2 font-medium">Net Balance</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data?.closingBalance || 0)}</TableCell></TableRow>
-                                        </>
-                                      ): (
-                                        <>
-                                            <TableRow><TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data?.totalDeposit || 0)}</TableCell></TableRow>
-                                            <TableRow><TableCell className="py-1 px-2 font-medium">Total Carry Fwd Loan</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data?.totalCarryFwdLoan || 0)}</TableCell></TableRow>
-                                            <TableRow><TableCell className="py-1 px-2 font-medium">Total New/Inc/Dec</TableCell><TableCell className="py-1 px-2 text-right">{`${(section.data?.totalNewIncDec || 0) >= 0 ? '+' : '-'}${formatAmount(section.data?.totalNewIncDec || 0)}`}</TableCell></TableRow>
-                                            <TableRow><TableCell className="py-1 px-2 font-medium">Total Outstanding Loan</TableCell><TableCell className="py-1 px-2 text-right">-{formatAmount(section.data?.totalOutstandingLoan || 0)}</TableCell></TableRow>
-                                            <TableRow><TableCell className="py-1 px-2 font-medium">Total Interest</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data?.totalInterest || 0)}</TableCell></TableRow>
-                                            <TableRow><TableCell className="py-1 px-2 font-medium">Closing Balance</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data?.closingBalance || 0)}</TableCell></TableRow>
-                                        </>
-                                      )}
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(previousMonthSummary?.totalDeposit || 0)}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Carry Fwd Loan</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(previousMonthSummary?.totalCarryFwdLoan || 0)}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total New/Inc/Dec</TableCell><TableCell className="py-1 px-2 text-right">{`${(previousMonthSummary?.totalNewIncDec || 0) >= 0 ? '+' : '-'}${formatAmount(previousMonthSummary?.totalNewIncDec || 0)}`}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Outstanding Loan</TableCell><TableCell className="py-1 px-2 text-right">-{formatAmount(previousMonthSummary?.totalOutstandingLoan || 0)}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Interest</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(previousMonthSummary?.totalInterest || 0)}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Closing Balance</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(previousMonthSummary?.closingBalance || 0)}</TableCell></TableRow>
                                   </TableBody>
                               </Table>
                          </div>
-                      ))}
+                      )}
+                      
+                       <div className="border p-2 rounded-lg">
+                            <h3 className="font-bold text-center mb-2">Current Month</h3>
+                             <Table>
+                                <TableBody>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(currentMonthSummary?.totalDeposit || 0)}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Carry Fwd Loan</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(currentMonthSummary?.totalCarryFwdLoan || 0)}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total New/Inc/Dec</TableCell><TableCell className="py-1 px-2 text-right">{`${(currentMonthSummary?.totalNewIncDec || 0) >= 0 ? '+' : '-'}${formatAmount(currentMonthSummary?.totalNewIncDec || 0)}`}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Outstanding Loan</TableCell><TableCell className="py-1 px-2 text-right">-{formatAmount(currentMonthSummary?.totalOutstandingLoan || 0)}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Interest</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(currentMonthSummary?.totalInterest || 0)}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Closing Balance</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(currentMonthSummary?.closingBalance || 0)}</TableCell></TableRow>
+                                </TableBody>
+                            </Table>
+                       </div>
+
+                        <div className="border p-2 rounded-lg">
+                            <h3 className="font-bold text-center mb-2">Grand Total</h3>
+                            <Table>
+                                <TableBody>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(grandTotalSummary(currentMonthSummary, previousMonthSummary).totalDeposit)}</TableCell></TableRow>
+                                     {grandTotalSummary(currentMonthSummary, previousMonthSummary).totalNewIncDec !== 0 && (
+                                        <TableRow><TableCell className="py-1 px-2 font-medium">Total Loan</TableCell><TableCell className="py-1 px-2 text-right">{`${(grandTotalSummary(currentMonthSummary, previousMonthSummary).totalNewIncDec || 0) >= 0 ? '+' : '-'}${formatAmount(grandTotalSummary(currentMonthSummary, previousMonthSummary).totalNewIncDec)}`}</TableCell></TableRow>
+                                    )}
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Outstanding Loan</TableCell><TableCell className="py-1 px-2 text-right">-{formatAmount(grandTotalSummary(currentMonthSummary, previousMonthSummary).totalOutstandingLoan)}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Interest</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(grandTotalSummary(currentMonthSummary, previousMonthSummary).totalInterest)}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Net Balance</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(grandTotalSummary(currentMonthSummary, previousMonthSummary).closingBalance)}</TableCell></TableRow>
+                                </TableBody>
+                            </Table>
+                        </div>
                   </div>
               </div>
 
