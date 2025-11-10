@@ -279,222 +279,224 @@ function Reports() {
     }
     
   return (
-    <div className="printable">
-       <div className="print-only text-center my-4">
-         {generatedReport && (
-          <h2 className="text-lg font-semibold mb-2">
-            Report for {format(selectedDate, 'MMMM yyyy')}
-          </h2>
-        )}
-      </div>
-      <Card className="card">
-        <div className="no-print">
-          <CardHeader>
-            <CardTitle>Generate Reports</CardTitle>
-            <CardDescription>
-              Select a report type and date range to generate financial reports.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-              <div className="grid gap-2">
-                <label>Report Type</label>
-                <Select
-                  value={reportType}
-                  onValueChange={(value: ReportType) => setReportType(value)}
-                >
-                  <SelectTrigger className="w-full sm:w-[240px]">
-                    <SelectValue placeholder="Select a report type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">Monthly Report</SelectItem>
-                    <SelectItem value="all-time" disabled>All-Time Report</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {reportType === 'monthly' && (
-                <div className="grid gap-2">
-                  <label>Month</label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={'outline'}
-                        className={cn(
-                          'w-full justify-start text-left font-normal sm:w-[240px]',
-                          !selectedDate && 'text-muted-foreground'
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {selectedDate ? (
-                          format(selectedDate, 'MMMM yyyy')
-                        ) : (
-                          <span>Pick a month</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={(date) => date && setSelectedDate(startOfMonth(date))}
-                        initialFocus
-                        captionLayout="dropdown-buttons"
-                        fromYear={2020}
-                        toYear={new Date().getFullYear() + 5}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              )}
-              <Button onClick={handleGenerateReport} disabled={isLoading || customersLoading}>
-                {isLoading || customersLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                Generate Report
-              </Button>
-            </div>
-          </CardContent>
+    <>
+      <div className="printable">
+         <div className="print-only text-center my-4">
+           {generatedReport && (
+            <h2 className="text-lg font-semibold mb-2">
+              Report for {format(selectedDate, 'MMMM yyyy')}
+            </h2>
+          )}
         </div>
-
-        {isLoading ? (
-            <div className="flex justify-center p-8 no-print">
-                <Loader2 className="h-8 w-8 animate-spin"/>
-            </div>
-        ) : generatedReport ? (
-          <>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                        <TableHead className='w-[50px] py-1'>Sr.</TableHead>
-                        <TableHead className='py-1'>Customer</TableHead>
-                        <TableHead className="text-right py-1">Deposit</TableHead>
-                        <TableHead className="text-right py-1">Carry Fwd Loan</TableHead>
-                        <TableHead className="text-right py-1">New / Changed Loan</TableHead>
-                        <TableHead className="text-right py-1">Closing Loan</TableHead>
-                        <TableHead className="text-right py-1">Interest</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {generatedReport.map((item, index) => {
-                       const depositTotal = item.depositCash + item.depositBank;
-                       const loanChangeTotal = item.loanChangeCash + item.loanChangeBank;
-                       const interestTotal = item.interestCash + item.interestBank;
-
-                       const renderTwoLevel = (total: number, breakdown: {label: string, value: number}[]) => {
-                           if (total === 0) return <span>-</span>;
-                           return (
-                            <div className="flex flex-col items-end">
-                                <div>{formatAmount(total)}</div>
-                                {renderBreakdown(breakdown)}
-                            </div>
-                           );
-                       };
-
-                       const renderLoanChange = () => {
-                           if (loanChangeTotal === 0) return <span>-</span>;
-                           
-                           const sign = item.loanChangeType === 'new' || item.loanChangeType === 'increase' ? '+' : '-';
-
-                           return (
-                               <div className="flex flex-col items-end">
-                                    <div>{sign}{formatAmount(loanChangeTotal)}</div>
-                                    {renderBreakdown([
-                                        {label: item.loanChangeType, value: 0, isCurrency: false},
-                                        {label: 'c', value: item.loanChangeCash},
-                                        {label: 'b', value: item.loanChangeBank}
-                                    ])}
-                                </div>
-                           )
-                       }
-
-                       return (
-                          <TableRow key={item.customerId}>
-                            <TableCell className="py-1">{index + 1}</TableCell>
-                            <TableCell className="font-medium whitespace-nowrap py-1">{item.customerName}</TableCell>
-                            <TableCell className="text-right py-1">
-                                {renderTwoLevel(depositTotal, [{label: 'c', value: item.depositCash}, {label: 'b', value: item.depositBank}])}
-                            </TableCell>
-                            <TableCell className="text-right py-1">{item.carryFwdLoan === 0 ? '-' : formatAmount(item.carryFwdLoan)}</TableCell>
-                             <TableCell className="text-right py-1">
-                               {renderLoanChange()}
-                            </TableCell>
-                            <TableCell className="text-right font-medium py-1">{item.closingLoan === 0 ? '-' : formatAmount(item.closingLoan)}</TableCell>
-                             <TableCell className="text-right py-1">
-                              {renderTwoLevel(interestTotal, [{label: 'c', value: item.interestCash}, {label: 'b', value: item.interestBank}])}
-                            </TableCell>
-                          </TableRow>
-                        )
-                    })}
-                     <TableRow className="font-bold bg-muted/50 text-right">
-                        <TableCell colSpan={2} className="text-left py-1">Total</TableCell>
-                        <TableCell className="py-1">
-                            <div className="flex flex-col items-end">
-                                <div>{formatAmount(totals.depositCash + totals.depositBank)}</div>
-                                {renderBreakdown([{label: 'c', value: totals.depositCash}, {label: 'b', value: totals.depositBank}])}
-                            </div>
-                        </TableCell>
-                        <TableCell className="py-1">{totals.carryFwdLoan === 0 ? '-' : formatAmount(totals.carryFwdLoan)}</TableCell>
-                        <TableCell className="text-right py-1">
-                             <div className="flex flex-col items-end">
-                                <div>{`${totals.loanChangeCash + totals.loanChangeBank >= 0 ? '+' : '-'}${formatAmount(totals.loanChangeCash + totals.loanChangeBank)}`}</div>
-                                {renderBreakdown([{label: 'c', value: totals.loanChangeCash}, {label: 'b', value: totals.loanChangeBank}])}
-                            </div>
-                        </TableCell>
-                        <TableCell className="py-1">{totals.closingLoan === 0 ? '-' : formatAmount(totals.closingLoan)}</TableCell>
-                        <TableCell className="py-1">
-                           <div className="flex flex-col items-end">
-                              <div>{formatAmount(totals.interestCash + totals.interestBank)}</div>
-                              {renderBreakdown([{label: 'c', value: totals.interestCash}, {label: 'b', value: totals.interestBank}])}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                  </TableBody>
-                </Table>
+        <Card className="card">
+          <div className="no-print">
+            <CardHeader>
+              <CardTitle>Generate Reports</CardTitle>
+              <CardDescription>
+                Select a report type and date range to generate financial reports.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+                <div className="grid gap-2">
+                  <label>Report Type</label>
+                  <Select
+                    value={reportType}
+                    onValueChange={(value: ReportType) => setReportType(value)}
+                  >
+                    <SelectTrigger className="w-full sm:w-[240px]">
+                      <SelectValue placeholder="Select a report type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly">Monthly Report</SelectItem>
+                      <SelectItem value="all-time" disabled>All-Time Report</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {reportType === 'monthly' && (
+                  <div className="grid gap-2">
+                    <label>Month</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={'outline'}
+                          className={cn(
+                            'w-full justify-start text-left font-normal sm:w-[240px]',
+                            !selectedDate && 'text-muted-foreground'
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {selectedDate ? (
+                            format(selectedDate, 'MMMM yyyy')
+                          ) : (
+                            <span>Pick a month</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={(date) => date && setSelectedDate(startOfMonth(date))}
+                          initialFocus
+                          captionLayout="dropdown-buttons"
+                          fromYear={2020}
+                          toYear={new Date().getFullYear() + 5}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+                <Button onClick={handleGenerateReport} disabled={isLoading || customersLoading}>
+                  {isLoading || customersLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                  Generate Report
+                </Button>
               </div>
             </CardContent>
-            <CardFooter className="flex justify-end gap-2 no-print">
-              <Button variant="outline" onClick={() => window.print()}>
-                <Printer className="mr-2 h-4 w-4" /> Print
-              </Button>
-            </CardFooter>
-            
-            <div className="print-only px-6 pt-4">
-                <div className="grid grid-cols-3 gap-4">
-                    {(previousMonthSummary || currentMonthSummary) && [
-                        {title: 'Previous Month', summary: previousMonthSummary},
-                        {title: 'Current Month', summary: currentMonthSummary},
-                        {title: 'Grand Total', summary: grandTotalSummary(currentMonthSummary, previousMonthSummary)},
-                    ].map((section, index) => section.summary && (
-                       <div key={index} className="border p-2 rounded-lg">
-                            <h3 className="font-bold text-center mb-2">{section.title}</h3>
-                             <Table>
-                                <TableBody>
-                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalDeposit)}</TableCell></TableRow>
-                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Carry Fwd Loan</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalCarryFwdLoan)}</TableCell></TableRow>
-                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total New/Inc/Dec</TableCell><TableCell className="py-1 px-2 text-right">{`${section.summary.totalNewIncDec >= 0 ? '+' : '-'}${formatAmount(section.summary.totalNewIncDec)}`}</TableCell></TableRow>
-                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Outstanding Loan</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalOutstandingLoan)}</TableCell></TableRow>
-                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Interest</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalInterest)}</TableCell></TableRow>
-                                </TableBody>
-                            </Table>
-                       </div>
-                    ))}
-                </div>
-            </div>
+          </div>
 
-          </>
-        ) : (
-            <CardContent className="no-print">
-              <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>No Report Generated</AlertTitle>
-                  <AlertDescription>
-                    Select a month and click "Generate Report" to view data.
-                  </AlertDescription>
-              </Alert>
-            </CardContent>
-        )}
-      </Card>
-    </div>
+          {isLoading ? (
+              <div className="flex justify-center p-8 no-print">
+                  <Loader2 className="h-8 w-8 animate-spin"/>
+              </div>
+          ) : generatedReport ? (
+            <>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                          <TableHead className='w-[50px] py-1'>Sr.</TableHead>
+                          <TableHead className='py-1'>Customer</TableHead>
+                          <TableHead className="text-right py-1">Deposit</TableHead>
+                          <TableHead className="text-right py-1">Carry Fwd Loan</TableHead>
+                          <TableHead className="text-right py-1">New / Changed Loan</TableHead>
+                          <TableHead className="text-right py-1">Closing Loan</TableHead>
+                          <TableHead className="text-right py-1">Interest</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {generatedReport.map((item, index) => {
+                         const depositTotal = item.depositCash + item.depositBank;
+                         const loanChangeTotal = item.loanChangeCash + item.loanChangeBank;
+                         const interestTotal = item.interestCash + item.interestBank;
+
+                         const renderTwoLevel = (total: number, breakdown: {label: string, value: number}[]) => {
+                             if (total === 0) return <span>-</span>;
+                             return (
+                              <div className="flex flex-col items-end">
+                                  <div>{formatAmount(total)}</div>
+                                  {renderBreakdown(breakdown)}
+                              </div>
+                             );
+                         };
+
+                         const renderLoanChange = () => {
+                             if (loanChangeTotal === 0) return <span>-</span>;
+                             
+                             const sign = item.loanChangeType === 'new' || item.loanChangeType === 'increase' ? '+' : '-';
+
+                             return (
+                                 <div className="flex flex-col items-end">
+                                      <div>{sign}{formatAmount(loanChangeTotal)}</div>
+                                      {renderBreakdown([
+                                          {label: item.loanChangeType, value: 0, isCurrency: false},
+                                          {label: 'c', value: item.loanChangeCash},
+                                          {label: 'b', value: item.loanChangeBank}
+                                      ])}
+                                  </div>
+                             )
+                         }
+
+                         return (
+                            <TableRow key={item.customerId}>
+                              <TableCell className="py-1">{index + 1}</TableCell>
+                              <TableCell className="font-medium whitespace-nowrap py-1">{item.customerName}</TableCell>
+                              <TableCell className="text-right py-1">
+                                  {renderTwoLevel(depositTotal, [{label: 'c', value: item.depositCash}, {label: 'b', value: item.depositBank}])}
+                              </TableCell>
+                              <TableCell className="text-right py-1">{item.carryFwdLoan === 0 ? '-' : formatAmount(item.carryFwdLoan)}</TableCell>
+                               <TableCell className="text-right py-1">
+                                 {renderLoanChange()}
+                              </TableCell>
+                              <TableCell className="text-right font-medium py-1">{item.closingLoan === 0 ? '-' : formatAmount(item.closingLoan)}</TableCell>
+                               <TableCell className="text-right py-1">
+                                {renderTwoLevel(interestTotal, [{label: 'c', value: item.interestCash}, {label: 'b', value: item.interestBank}])}
+                              </TableCell>
+                            </TableRow>
+                          )
+                      })}
+                       <TableRow className="font-bold bg-muted/50 text-right">
+                          <TableCell colSpan={2} className="text-left py-1">Total</TableCell>
+                          <TableCell className="py-1">
+                              <div className="flex flex-col items-end">
+                                  <div>{formatAmount(totals.depositCash + totals.depositBank)}</div>
+                                  {renderBreakdown([{label: 'c', value: totals.depositCash}, {label: 'b', value: totals.depositBank}])}
+                              </div>
+                          </TableCell>
+                          <TableCell className="py-1">{totals.carryFwdLoan === 0 ? '-' : formatAmount(totals.carryFwdLoan)}</TableCell>
+                          <TableCell className="text-right py-1">
+                               <div className="flex flex-col items-end">
+                                  <div>{`${totals.loanChangeCash + totals.loanChangeBank >= 0 ? '+' : '-'}${formatAmount(totals.loanChangeCash + totals.loanChangeBank)}`}</div>
+                                  {renderBreakdown([{label: 'c', value: totals.loanChangeCash}, {label: 'b', value: totals.loanChangeBank}])}
+                              </div>
+                          </TableCell>
+                          <TableCell className="py-1">{totals.closingLoan === 0 ? '-' : formatAmount(totals.closingLoan)}</TableCell>
+                          <TableCell className="py-1">
+                             <div className="flex flex-col items-end">
+                                <div>{formatAmount(totals.interestCash + totals.interestBank)}</div>
+                                {renderBreakdown([{label: 'c', value: totals.interestCash}, {label: 'b', value: totals.interestBank}])}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-end gap-2 no-print">
+                <Button variant="outline" onClick={() => window.print()}>
+                  <Printer className="mr-2 h-4 w-4" /> Print
+                </Button>
+              </CardFooter>
+              
+              <div className="print-only px-6 pt-4">
+                  <div className="grid grid-cols-3 gap-4">
+                      {(previousMonthSummary || currentMonthSummary) && [
+                          {title: 'Previous Month', summary: previousMonthSummary},
+                          {title: 'Current Month', summary: currentMonthSummary},
+                          {title: 'Grand Total', summary: grandTotalSummary(currentMonthSummary, previousMonthSummary)},
+                      ].map((section, index) => section.summary && (
+                         <div key={index} className="border p-2 rounded-lg">
+                              <h3 className="font-bold text-center mb-2">{section.title}</h3>
+                               <Table>
+                                  <TableBody>
+                                      <TableRow><TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalDeposit)}</TableCell></TableRow>
+                                      {section.title !== 'Grand Total' && <TableRow><TableCell className="py-1 px-2 font-medium">Total Carry Fwd Loan</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalCarryFwdLoan)}</TableCell></TableRow>}
+                                      <TableRow><TableCell className="py-1 px-2 font-medium">Total New/Inc/Dec</TableCell><TableCell className="py-1 px-2 text-right">{`${section.summary.totalNewIncDec >= 0 ? '+' : '-'}${formatAmount(section.summary.totalNewIncDec)}`}</TableCell></TableRow>
+                                      <TableRow><TableCell className="py-1 px-2 font-medium">Total Interest</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalInterest)}</TableCell></TableRow>
+                                      <TableRow><TableCell className="py-1 px-2 font-medium">Closing Balance</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalOutstandingLoan)}</TableCell></TableRow>
+                                  </TableBody>
+                              </Table>
+                         </div>
+                      ))}
+                  </div>
+              </div>
+
+            </>
+          ) : (
+              <CardContent className="no-print">
+                <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>No Report Generated</AlertTitle>
+                    <AlertDescription>
+                      Select a month and click "Generate Report" to view data.
+                    </AlertDescription>
+                </Alert>
+              </CardContent>
+          )}
+        </Card>
+      </div>
+    </>
   );
 }
 
