@@ -68,6 +68,9 @@
 }
 
 @media print {
+  @page {
+    size: landscape;
+  }
   body * {
     visibility: hidden;
   }
