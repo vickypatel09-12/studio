@@ -139,10 +139,11 @@ export function BalanceSummary({ selectedDate: dateProp }: { selectedDate?: Date
             0
           ) ?? 0;
         
-        // Assuming previous loan balance affects cash balance
+        const prevTotalBalance = (prevTotalDeposits.cash + prevTotalDeposits.bank) - prevOutstandingLoans;
+
         const openingBalance = {
-            cash: prevTotalDeposits.cash - prevOutstandingLoans,
-            bank: prevTotalDeposits.bank,
+            cash: prevTotalBalance,
+            bank: 0,
         };
 
         const currentMonthDeposits =
