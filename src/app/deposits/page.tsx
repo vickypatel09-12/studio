@@ -462,11 +462,21 @@ function Deposits() {
   }
 
   return (
-    <div className="space-y-6">
-      <BalanceSummary selectedDate={selectedDate} />
+    <div className="space-y-6 printable">
+      <div className="print-only text-center my-4">
+        {selectedDate && (
+          <h2 className="text-lg font-semibold mb-2">
+            Monthly Deposits for {format(selectedDate, 'MMMM yyyy')}
+          </h2>
+        )}
+      </div>
+
+      <div className='no-print'>
+        <BalanceSummary selectedDate={selectedDate} />
+      </div>
       
       <Card>
-        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between no-print">
           <div>
             <CardTitle>Monthly Deposits</CardTitle>
             <CardDescription>
@@ -594,7 +604,7 @@ function Deposits() {
               </Table>
             </div>
           ) : (
-            <Alert>
+            <Alert className='no-print'>
               <Info className="h-4 w-4" />
               <AlertTitle>Select a Date</AlertTitle>
               <AlertDescription>
@@ -606,7 +616,7 @@ function Deposits() {
           )}
         </CardContent>
         {selectedDate && (
-          <CardFooter className="flex justify-end gap-2">
+          <CardFooter className="flex justify-end gap-2 no-print">
             <Button
               variant="outline"
               onClick={() => window.print()}
@@ -642,7 +652,7 @@ function Deposits() {
         )}
       </Card>
       
-      <Card>
+      <Card className='no-print'>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <History className="h-5 w-5" />

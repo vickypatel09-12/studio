@@ -601,10 +601,21 @@ function Loans() {
   }
 
   return (
-    <div className="space-y-6">
-      {selectedDate && <BalanceSummary selectedDate={selectedDate} />}
+    <div className="space-y-6 printable">
+       <div className="print-only text-center my-4">
+        {selectedDate && (
+          <h2 className="text-lg font-semibold mb-2">
+            Loans & Interest for {format(selectedDate, 'MMMM yyyy')}
+          </h2>
+        )}
+      </div>
+
+      <div className='no-print'>
+        {selectedDate && <BalanceSummary selectedDate={selectedDate} />}
+      </div>
+
       <Card>
-        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between no-print">
           <div>
             <CardTitle>Loans &amp; Interest</CardTitle>
             <CardDescription>
@@ -832,7 +843,7 @@ function Loans() {
               </Table>
             </div>
           ) : selectedDate && !isDepositSubmitted ? (
-               <Alert variant="destructive">
+               <Alert variant="destructive" className="no-print">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Deposit Entry Not Submitted</AlertTitle>
                   <AlertDescription>
@@ -843,7 +854,7 @@ function Loans() {
                   </AlertDescription>
               </Alert>
           ) : (
-            <Alert>
+            <Alert className="no-print">
               <Info className="h-4 w-4" />
               <AlertTitle>Select a Date</AlertTitle>
               <AlertDescription>
@@ -855,7 +866,7 @@ function Loans() {
           )}
         </CardContent>
         {selectedDate && isDepositSubmitted && (
-          <CardFooter className="flex justify-end gap-2">
+          <CardFooter className="flex justify-end gap-2 no-print">
             <Button
               variant="outline"
               onClick={() => window.print()}
@@ -891,7 +902,7 @@ function Loans() {
         )}
       </Card>
       
-      <Card>
+      <Card className="no-print">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <History className="h-5 w-5" />
