@@ -4,7 +4,6 @@
 /node_modules
 /.pnp
 .pnp.js
-.yarn/install-state.gz
 
 # testing
 /coverage
@@ -24,9 +23,25 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.vercel
 
 # local env files
 .env*.local
 .env
-src/firebase/config.ts
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# studio
+.firebase/
+!/.firebase/schema.json
+!/.firebase/clients.json
+!/.firebase/metadata.json
+!/.firebase/views.json
+!/.firebase/functions.json
+
+# Ignore Firebase config
+public/firebase-config.json
