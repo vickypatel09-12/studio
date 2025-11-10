@@ -87,6 +87,7 @@ type ReportSummary = {
     totalNewIncDec: number;
     totalOutstandingLoan: number;
     totalInterest: number;
+    closingBalance: number;
 }
 
 const getMonthId = (date: Date) => format(date, 'yyyy-MM');
@@ -111,7 +112,7 @@ function Reports() {
   const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersQuery);
 
     const calculateSummary = (reportRows: MonthlyReportRow[]): ReportSummary => {
-        return reportRows.reduce((acc, item) => {
+        const summary = reportRows.reduce((acc, item) => {
             acc.totalDeposit += (item.depositCash + item.depositBank);
             acc.totalCarryFwdLoan += item.carryFwdLoan;
             
@@ -132,6 +133,11 @@ function Reports() {
             totalOutstandingLoan: 0,
             totalInterest: 0,
         });
+
+        return {
+            ...summary,
+            closingBalance: summary.totalDeposit - summary.totalOutstandingLoan
+        };
     };
 
   const handleGenerateReport = async () => {
@@ -269,12 +275,16 @@ function Reports() {
     };
     
     const grandTotalSummary = (current: ReportSummary | null, prev: ReportSummary | null): ReportSummary => {
-        return {
+        const summary = {
             totalDeposit: (current?.totalDeposit || 0) + (prev?.totalDeposit || 0),
             totalCarryFwdLoan: (prev?.totalOutstandingLoan || 0),
             totalNewIncDec: current?.totalNewIncDec || 0,
             totalOutstandingLoan: current?.totalOutstandingLoan || 0,
             totalInterest: (current?.totalInterest || 0) + (prev?.totalInterest || 0),
+        };
+        return {
+            ...summary,
+            closingBalance: summary.totalDeposit - summary.totalOutstandingLoan
         }
     }
     
@@ -473,8 +483,9 @@ function Reports() {
                                       <TableRow><TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalDeposit)}</TableCell></TableRow>
                                       {section.title !== 'Grand Total' && <TableRow><TableCell className="py-1 px-2 font-medium">Total Carry Fwd Loan</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalCarryFwdLoan)}</TableCell></TableRow>}
                                       <TableRow><TableCell className="py-1 px-2 font-medium">Total New/Inc/Dec</TableCell><TableCell className="py-1 px-2 text-right">{`${section.summary.totalNewIncDec >= 0 ? '+' : '-'}${formatAmount(section.summary.totalNewIncDec)}`}</TableCell></TableRow>
+                                      <TableRow><TableCell className="py-1 px-2 font-medium">Total Outstanding Loan</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalOutstandingLoan)}</TableCell></TableRow>
                                       <TableRow><TableCell className="py-1 px-2 font-medium">Total Interest</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalInterest)}</TableCell></TableRow>
-                                      <TableRow><TableCell className="py-1 px-2 font-medium">Closing Balance</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalOutstandingLoan)}</TableCell></TableRow>
+                                      <TableRow><TableCell className="py-1 px-2 font-medium">Closing Balance</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.closingBalance)}</TableCell></TableRow>
                                   </TableBody>
                               </Table>
                          </div>
