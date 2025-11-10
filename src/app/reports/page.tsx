@@ -111,8 +111,16 @@ function Reports() {
 
   const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersQuery);
 
-    const calculateSummary = (reportRows: MonthlyReportRow[] | null): ReportSummary | null => {
-        if (!reportRows) return null;
+    const calculateSummary = (reportRows: MonthlyReportRow[] | null): ReportSummary => {
+        if (!reportRows) return {
+            totalDeposit: 0,
+            totalCarryFwdLoan: 0,
+            totalNewIncDec: 0,
+            totalOutstandingLoan: 0,
+            totalInterest: 0,
+            closingBalance: 0,
+        };
+
         const summary = reportRows.reduce((acc, item) => {
             acc.totalDeposit += (item.depositCash + item.depositBank);
             acc.totalCarryFwdLoan += item.carryFwdLoan;
@@ -138,7 +146,7 @@ function Reports() {
 
         return {
             ...summary,
-            closingBalance: summary.totalDeposit - summary.totalOutstandingLoan
+            closingBalance: summary.totalDeposit - summary.totalOutstandingLoan,
         };
     };
 
@@ -199,6 +207,8 @@ function Reports() {
       
       try {
         const currentMonthData = await fetchMonthData(selectedDate);
+        const prevMonthDate = subMonths(selectedDate, 1);
+        const previousMonthData = await fetchMonthData(prevMonthDate);
 
         if (!currentMonthData) {
             toast({
@@ -206,16 +216,14 @@ function Reports() {
                 title: 'No Data Found',
                 description: `No submitted or draft data found for ${format(selectedDate, 'MMMM yyyy')}.`
             });
-            setIsLoading(false);
-            return;
+             setGeneratedReport([]);
+        } else {
+            setGeneratedReport(currentMonthData);
         }
 
-        const prevMonthDate = subMonths(selectedDate, 1);
-        const previousMonthData = await fetchMonthData(prevMonthDate);
-
-        setGeneratedReport(currentMonthData);
         setCurrentMonthSummary(calculateSummary(currentMonthData));
         setPreviousMonthSummary(calculateSummary(previousMonthData));
+
 
       } catch (error) {
         toast({ variant: 'destructive', title: 'Error Generating Report', description: 'Could not fetch report data.' });
@@ -484,7 +492,6 @@ function Reports() {
                                       {section.title === 'Grand Total' ? (
                                         <>
                                             <TableRow><TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data?.totalDeposit || 0)}</TableCell></TableRow>
-                                            <TableRow><TableCell className="py-1 px-2 font-medium">Total Loan</TableCell><TableCell className="py-1 px-2 text-right">{`${(section.data?.totalNewIncDec || 0) >= 0 ? '+' : '-'}${formatAmount(section.data?.totalNewIncDec || 0)}`}</TableCell></TableRow>
                                             <TableRow><TableCell className="py-1 px-2 font-medium">Total Outstanding Loan</TableCell><TableCell className="py-1 px-2 text-right">-{formatAmount(section.data?.totalOutstandingLoan || 0)}</TableCell></TableRow>
                                             <TableRow><TableCell className="py-1 px-2 font-medium">Total Interest</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data?.totalInterest || 0)}</TableCell></TableRow>
                                             <TableRow><TableCell className="py-1 px-2 font-medium">Net Balance</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data?.closingBalance || 0)}</TableCell></TableRow>
