@@ -764,39 +764,19 @@ export default function DepositsPage() {
           @page {
             margin: 0.5in;
           }
-          .printable {
-            display: block !important;
-          }
           .printable .overflow-x-auto {
             overflow-x: visible !important;
           }
           #deposits-table {
-            table-layout: fixed !important;
+            table-layout: auto !important;
             width: 100% !important;
           }
           #deposits-table th,
           #deposits-table td {
             font-size: 10px !important;
             padding: 4px 6px !important;
-            white-space: nowrap;
-          }
-          #deposits-table th:nth-child(1),
-          #deposits-table td:nth-child(1) {
-            width: 5%;
-          }
-          #deposits-table th:nth-child(2),
-          #deposits-table td:nth-child(2) {
-            width: 45%;
-            white-space: normal;
+            white-space: normal !important; 
             word-break: break-word;
-          }
-          #deposits-table th:nth-child(3),
-          #deposits-table td:nth-child(3),
-          #deposits-table th:nth-child(4),
-          #deposits-table td:nth-child(4),
-          #deposits-table th:nth-child(5),
-          #deposits-table td:nth-child(5) {
-            width: 16.66%;
           }
         }
       `}</style>
