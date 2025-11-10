@@ -271,7 +271,7 @@ function Reports() {
         </div>
 
         {isLoading ? (
-            <div className="flex justify-center p-8">
+            <div className="flex justify-center p-8 no-print">
                 <Loader2 className="h-8 w-8 animate-spin"/>
             </div>
         ) : generatedReport ? (
@@ -294,7 +294,7 @@ function Reports() {
                     {generatedReport.map((item, index) => (
                       <TableRow key={item.customerId}>
                         <TableCell>{index + 1}</TableCell>
-                        <TableCell className="font-medium">{item.customerName}</TableCell>
+                        <TableCell className="font-medium whitespace-nowrap">{item.customerName}</TableCell>
                         <TableCell className="text-right">
                           {item.depositCash > 0 && <div>c: {formatAmount(item.depositCash)}</div>}
                           {item.depositBank > 0 && <div>b: {formatAmount(item.depositBank)}</div>}
