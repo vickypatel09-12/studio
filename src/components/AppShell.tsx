@@ -116,7 +116,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Landmark className="size-6 text-primary" />
               </Link>
             </Button>
-            <span className="font-headline text-lg font-semibold">
+            <span className="font-headline text-lg font-semibold group-data-[collapsible=icon]:hidden">
               Bachat Bank
             </span>
           </div>
