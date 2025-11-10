@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+/*
 import {
   calculateInterest,
   type CalculateInterestOutput,
 } from '@/ai/flows/interest-calculation-tool';
+*/
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
@@ -29,6 +31,11 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { AppShell } from '@/components/AppShell';
+
+// Re-defining the output type here to avoid the import
+type CalculateInterestOutput = {
+    interestOwed: number;
+};
 
 const formSchema = z.object({
   carryFwdLoan: z.coerce.number().min(0, 'Loan must be a positive number.'),
@@ -64,6 +71,14 @@ function InterestCalculator() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     setResult(null);
+    toast({
+        variant: 'destructive',
+        title: 'Functionality Disabled',
+        description:
+          'The AI interest calculation is temporarily disabled to allow for deployment.',
+      });
+    setIsLoading(false);
+    /*
     try {
       const res = await calculateInterest({
         ...values,
@@ -81,6 +96,7 @@ function InterestCalculator() {
     } finally {
       setIsLoading(false);
     }
+    */
   }
 
   return (
