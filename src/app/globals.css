@@ -77,6 +77,9 @@
   }
   .printable, .printable * {
     visibility: visible;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
   }
   .printable {
     position: absolute;
@@ -85,15 +88,6 @@
     width: 100%;
     height: 100%;
     padding: 0;
-  }
-  .printable.card {
-    border: none !important;
-    box-shadow: none !important;
-  }
-  .printable .card {
-    border: none !important;
-    box-shadow: none !important;
-    background: transparent !important;
   }
   .printable td, .printable th {
     padding-top: 4px !important;
