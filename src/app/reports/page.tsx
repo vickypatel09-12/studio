@@ -194,6 +194,7 @@ function Reports() {
         loanChangeBank: 0, closingLoan: 0, interestCash: 0, interestBank: 0 
       };
 
+    const formatAmount = (value: number) => `₹${value.toFixed(2)}`;
 
   return (
     <Card>
@@ -269,53 +270,55 @@ function Reports() {
             <Table>
               <TableHeader>
                 <TableRow>
-                    <TableHead rowSpan={2} className='w-[50px]'>Sr.</TableHead>
-                    <TableHead rowSpan={2}>Customer</TableHead>
-                    <TableHead colSpan={2} className="text-center">Deposit</TableHead>
-                    <TableHead rowSpan={2} className="text-right">Carry Fwd Loan</TableHead>
-                    <TableHead colSpan={3} className="text-center">New / Changed Loan</TableHead>
-                    <TableHead rowSpan={2} className="text-right">Closing Loan</TableHead>
-                    <TableHead colSpan={2} className="text-center">Interest</TableHead>
-                </TableRow>
-                 <TableRow>
-                    <TableHead className="text-right">Cash</TableHead>
-                    <TableHead className="text-right">Bank</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="text-right">Cash</TableHead>
-                    <TableHead className="text-right">Bank</TableHead>
-                    <TableHead className="text-right">Cash</TableHead>
-                    <TableHead className="text-right">Bank</TableHead>
+                    <TableHead className='w-[50px]'>Sr.</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead className="text-right">Deposit</TableHead>
+                    <TableHead className="text-right">Carry Fwd Loan</TableHead>
+                    <TableHead className="text-right">New / Changed Loan</TableHead>
+                    <TableHead className="text-right">Closing Loan</TableHead>
+                    <TableHead className="text-right">Interest</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {generatedReport.map((item, index) => (
                   <TableRow key={item.customerId}>
                     <TableCell>{index + 1}</TableCell>
-                    <TableCell>{item.customerName}</TableCell>
-                    <TableCell className="text-right">{item.depositCash.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">{item.depositBank.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">{item.carryFwdLoan.toFixed(2)}</TableCell>
-                    <TableCell>{item.loanChangeType}</TableCell>
-                    <TableCell className="text-right">{item.loanChangeCash.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">{item.loanChangeBank.toFixed(2)}</TableCell>
-                    <TableCell className="text-right font-medium">{item.closingLoan.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">{item.interestCash.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">{item.interestBank.toFixed(2)}</TableCell>
+                    <TableCell className="font-medium">{item.customerName}</TableCell>
+                    <TableCell className="text-right">
+                      <div>c: {formatAmount(item.depositCash)}</div>
+                      <div>b: {formatAmount(item.depositBank)}</div>
+                    </TableCell>
+                    <TableCell className="text-right">{formatAmount(item.carryFwdLoan)}</TableCell>
+                    <TableCell className="text-right">
+                       <div><span className='capitalize'>{item.loanChangeType}</span></div>
+                       <div>c: {formatAmount(item.loanChangeCash)}</div>
+                       <div>b: {formatAmount(item.loanChangeBank)}</div>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">{formatAmount(item.closingLoan)}</TableCell>
+                    <TableCell className="text-right">
+                      <div>c: {formatAmount(item.interestCash)}</div>
+                      <div>b: {formatAmount(item.interestBank)}</div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
               <UiTableFooter>
                 <TableRow className="font-bold bg-muted/50 text-right">
                   <TableCell colSpan={2}>Total</TableCell>
-                  <TableCell>₹{totals.depositCash.toFixed(2)}</TableCell>
-                  <TableCell>₹{totals.depositBank.toFixed(2)}</TableCell>
-                  <TableCell>₹{totals.carryFwdLoan.toFixed(2)}</TableCell>
-                  <TableCell></TableCell>
-                  <TableCell>₹{totals.loanChangeCash.toFixed(2)}</TableCell>
-                  <TableCell>₹{totals.loanChangeBank.toFixed(2)}</TableCell>
-                  <TableCell>₹{totals.closingLoan.toFixed(2)}</TableCell>
-                  <TableCell>₹{totals.interestCash.toFixed(2)}</TableCell>
-                  <TableCell>₹{totals.interestBank.toFixed(2)}</TableCell>
+                  <TableCell>
+                      <div>c: {formatAmount(totals.depositCash)}</div>
+                      <div>b: {formatAmount(totals.depositBank)}</div>
+                  </TableCell>
+                  <TableCell>{formatAmount(totals.carryFwdLoan)}</TableCell>
+                  <TableCell>
+                      <div>c: {formatAmount(totals.loanChangeCash)}</div>
+                      <div>b: {formatAmount(totals.loanChangeBank)}</div>
+                  </TableCell>
+                  <TableCell>{formatAmount(totals.closingLoan)}</TableCell>
+                  <TableCell>
+                      <div>c: {formatAmount(totals.interestCash)}</div>
+                      <div>b: {formatAmount(totals.interestBank)}</div>
+                  </TableCell>
                 </TableRow>
               </UiTableFooter>
             </Table>
