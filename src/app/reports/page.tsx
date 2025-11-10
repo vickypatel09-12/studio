@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardHeader,
@@ -91,6 +91,16 @@ function Reports() {
   const [generatedReport, setGeneratedReport] = useState<MonthlyReportRow[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const [currentDateTime, setCurrentDateTime] = useState('');
+
+  useEffect(() => {
+    const updateDateTime = () => {
+      setCurrentDateTime(format(new Date(), 'dd/MM/yyyy, HH:mm'));
+    };
+    updateDateTime();
+    const interval = setInterval(updateDateTime, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
 
   const customersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -199,9 +209,10 @@ function Reports() {
   return (
     <div className="printable">
       <div className="print-only p-4">
-        <h1 className="text-2xl font-bold text-center">
-          Report for {format(selectedDate, 'MMMM yyyy')}
-        </h1>
+        <div className="flex justify-between items-center mb-4">
+            <h1 className="text-xl font-semibold">Bachat Bank ERP</h1>
+            <div className="text-sm">{currentDateTime}</div>
+        </div>
       </div>
       <Card>
         <div className="no-print">
@@ -301,7 +312,7 @@ function Reports() {
                         </TableCell>
                         <TableCell className="text-right">{formatAmount(item.carryFwdLoan)}</TableCell>
                         <TableCell className="text-right">
-                          <div><span className='capitalize'>{item.loanChangeType}</span></div>
+                          <div className='capitalize'>{item.loanChangeType}</div>
                           {item.loanChangeCash > 0 && <div>c: {formatAmount(item.loanChangeCash)}</div>}
                           {item.loanChangeBank > 0 && <div>b: {formatAmount(item.loanChangeBank)}</div>}
                         </TableCell>
