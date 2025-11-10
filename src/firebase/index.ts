@@ -13,6 +13,3 @@ export * from './non-blocking-updates';
 export * from './non-blocking-login';
 export * from './errors';
 export * from './error-emitter';
-
-// We no longer need to export initializeFirebase or getSdks from here,
-// as the client-provider handles the initialization internally.

@@ -5,7 +5,7 @@ import { FirebaseProvider } from '@/firebase/provider';
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
-import { firebaseConfig } from '@/firebase/config'; // Direct import
+import { firebaseConfig } from './config'; // Direct import from the new config file
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -19,15 +19,21 @@ interface FirebaseServices {
   firestore: Firestore;
 }
 
-export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
+export function FirebaseClientProvider({
+  children,
+}: FirebaseClientProviderProps) {
   const [services, setServices] = useState<FirebaseServices | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     try {
-      // Directly check the imported config
-      if (firebaseConfig && firebaseConfig.apiKey && !firebaseConfig.apiKey.includes("PASTE_YOUR")) {
-        const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+      if (
+        firebaseConfig &&
+        firebaseConfig.apiKey &&
+        !firebaseConfig.apiKey.includes('PASTE_YOUR')
+      ) {
+        const app =
+          getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const firestore = getFirestore(app);
         setServices({ firebaseApp: app, auth, firestore });
@@ -38,7 +44,9 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
       }
     } catch (e: any) {
       console.error('Error initializing Firebase:', e);
-      setError(`An unexpected error occurred during Firebase initialization: ${e.message}`);
+      setError(
+        `An unexpected error occurred during Firebase initialization: ${e.message}`
+      );
     }
   }, []);
 
@@ -51,7 +59,8 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
           <AlertDescription>
             {error}
             <div className="mt-4 text-xs text-muted-foreground">
-              This is a one-time setup step. This file is excluded from git commits for security.
+              This is a one-time setup step. This file is excluded from git
+              commits for security. Please fill it out and then redeploy on Vercel.
             </div>
           </AlertDescription>
         </Alert>
