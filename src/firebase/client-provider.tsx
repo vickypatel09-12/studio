@@ -5,7 +5,6 @@ import { FirebaseProvider } from '@/firebase/provider';
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
-import { getFirebaseConfig } from './config';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -18,6 +17,28 @@ interface FirebaseServices {
   auth: Auth;
   firestore: Firestore;
 }
+
+// This function is now self-contained within the provider.
+function getFirebaseConfig() {
+  const firebaseConfig = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+  };
+
+  // Check if all required keys are present
+  if (Object.values(firebaseConfig).some(value => !value)) {
+    console.error('Firebase configuration is missing or incomplete. Make sure all NEXT_PUBLIC_FIREBASE_* environment variables are set.');
+    return null;
+  }
+  
+  return firebaseConfig;
+}
+
 
 export function FirebaseClientProvider({
   children,
