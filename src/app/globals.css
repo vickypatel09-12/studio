@@ -86,6 +86,10 @@
     height: 100%;
     padding: 0;
   }
+  .printable.card {
+    border: none !important;
+    box-shadow: none !important;
+  }
   .printable .card {
     border: none !important;
     box-shadow: none !important;
