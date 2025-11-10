@@ -116,12 +116,8 @@ function Dashboard() {
     }, 0) ?? 0;
   }, [monthlyLoans]);
 
-  const netBalance = totalDeposits + totalInterest;
-  const availableBalance = totalDeposits - outstandingLoans;
-
-  const depositToLoanRatio = outstandingLoans > 0 ? (totalDeposits / outstandingLoans) : 0;
-  const financialHealth = depositToLoanRatio >= 1.2 ? 'Good' : (depositToLoanRatio > 0.8 ? 'Fair' : 'Poor');
-
+  const availableBalance = totalDeposits + totalInterest - outstandingLoans;
+  
   if (isLoading) {
     return <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
   }
@@ -175,7 +171,7 @@ function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold text-green-600">₹{availableBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">
-              Total Deposits - Outstanding Loans
+              Deposits + Interest - Loans
             </p>
           </CardContent>
         </Card>
