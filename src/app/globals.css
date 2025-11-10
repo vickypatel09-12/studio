@@ -113,16 +113,6 @@
   }
 }
 
-@media print and (orientation: landscape) {
-  /* Add any landscape-specific styles here. For example: */
-  /*
-  body {
-    font-size: 10pt;
-  }
-  */
-}
-
-
 .print-only {
   display: none;
 }
