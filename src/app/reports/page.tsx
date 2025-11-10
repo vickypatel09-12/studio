@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Card,
   CardHeader,
@@ -31,52 +31,168 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Printer, CalendarIcon, FileDown } from 'lucide-react';
+import { Printer, CalendarIcon, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, startOfMonth } from 'date-fns';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query } from 'firebase/firestore';
+import { collection, query, doc, getDoc } from 'firebase/firestore';
 import type { Customer } from '@/lib/data';
 import { AppShell } from '@/components/AppShell';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
 
 type ReportType = 'monthly' | 'all-time';
 
-// This is placeholder data. In a real application, you would fetch this based on the report type and date.
-const reportData = (customers: Customer[] = []) => customers.map((c) => ({
-  customerId: c.id,
-  customerName: c.name,
-  deposit: Math.random() * 5000,
-  loan: Math.random() * 20000,
-  interest: Math.random() * 200,
-}));
+type MonthlyDepositData = {
+  customerId: string;
+  cash: number;
+  bank: number;
+};
+type MonthlyLoanData = {
+  customerId: string;
+  carryFwd: number;
+  changeType: 'new' | 'increase' | 'decrease';
+  changeCash: number;
+  changeBank: number;
+  interestCash: number;
+  interestBank: number;
+  interestTotal: number;
+};
+
+type MonthlyDepositDoc = {
+    deposits?: MonthlyDepositData[];
+    draft?: MonthlyDepositData[];
+}
+type MonthlyLoanDoc = {
+    loans?: MonthlyLoanData[];
+    draft?: MonthlyLoanData[];
+}
+
+type MonthlyReportRow = {
+  customerId: string;
+  customerName: string;
+  depositCash: number;
+  depositBank: number;
+  carryFwdLoan: number;
+  loanChangeType: string;
+  loanChangeCash: number;
+  loanChangeBank: number;
+  closingLoan: number;
+  interestCash: number;
+  interestBank: number;
+};
+
+const getMonthId = (date: Date) => format(date, 'yyyy-MM');
 
 function Reports() {
   const firestore = useFirestore();
   const [reportType, setReportType] = useState<ReportType>('monthly');
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [generatedReport, setGeneratedReport] = useState<ReturnType<typeof reportData> | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(startOfMonth(new Date()));
+  const [generatedReport, setGeneratedReport] = useState<MonthlyReportRow[] | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const customersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'customers'));
   }, [firestore]);
 
-  const { data: customers } = useCollection<Customer>(customersQuery);
+  const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersQuery);
 
-  const handleGenerateReport = () => {
-    // In a real app, you'd fetch data here based on reportType and selectedDate
-    setGeneratedReport(reportData(customers || []));
+  const handleGenerateReport = async () => {
+    if (!firestore || !customers) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Customer data not loaded yet.' });
+      return;
+    }
+    setIsLoading(true);
+    setGeneratedReport(null);
+
+    if (reportType === 'monthly') {
+      const monthId = getMonthId(selectedDate);
+      const depositDocRef = doc(firestore, 'monthlyDeposits', monthId);
+      const loanDocRef = doc(firestore, 'monthlyLoans', monthId);
+
+      try {
+        const [depositDocSnap, loanDocSnap] = await Promise.all([
+          getDoc(depositDocRef),
+          getDoc(loanDocRef),
+        ]);
+
+        const depositData = depositDocSnap.exists() ? (depositDocSnap.data() as MonthlyDepositDoc).deposits || (depositDocSnap.data() as MonthlyDepositDoc).draft : [];
+        const loanData = loanDocSnap.exists() ? (loanDocSnap.data() as MonthlyLoanDoc).loans || (loanDocSnap.data() as MonthlyLoanDoc).draft : [];
+
+        if (!depositData || depositData.length === 0 || !loanData || loanData.length === 0) {
+           toast({
+            variant: 'destructive',
+            title: 'No Data Found',
+            description: `No submitted or draft data found for ${format(selectedDate, 'MMMM yyyy')}.`
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        const reportRows: MonthlyReportRow[] = customers.map(customer => {
+          const dep = depositData.find(d => d.customerId === customer.id);
+          const loan = loanData.find(l => l.customerId === customer.id);
+
+          const changeTotal = (loan?.changeCash || 0) + (loan?.changeBank || 0);
+          let adjustment = 0;
+          if (loan?.changeType === 'new' || loan?.changeType === 'increase') {
+            adjustment = changeTotal;
+          } else if (loan?.changeType === 'decrease') {
+            adjustment = -changeTotal;
+          }
+          const closingLoan = (loan?.carryFwd || 0) + adjustment;
+
+          return {
+            customerId: customer.id,
+            customerName: customer.name,
+            depositCash: dep?.cash || 0,
+            depositBank: dep?.bank || 0,
+            carryFwdLoan: loan?.carryFwd || 0,
+            loanChangeType: loan?.changeType || 'N/A',
+            loanChangeCash: loan?.changeCash || 0,
+            loanChangeBank: loan?.changeBank || 0,
+            closingLoan: closingLoan,
+            interestCash: loan?.interestCash || 0,
+            interestBank: loan?.interestBank || 0,
+          };
+        });
+
+        setGeneratedReport(reportRows);
+
+      } catch (error) {
+        toast({ variant: 'destructive', title: 'Error Generating Report', description: 'Could not fetch report data.' });
+        console.error("Error generating report:", error);
+      }
+    } else {
+        // All-time report logic would go here
+        toast({ title: 'Not Implemented', description: 'All-time reports are not yet available.' });
+    }
+    
+    setIsLoading(false);
   };
   
   const totals = generatedReport?.reduce(
       (acc, item) => {
-        acc.deposit += item.deposit;
-        acc.loan += item.loan;
-        acc.interest += item.interest;
+        acc.depositCash += item.depositCash;
+        acc.depositBank += item.depositBank;
+        acc.carryFwdLoan += item.carryFwdLoan;
+        acc.loanChangeCash += item.loanChangeCash;
+        acc.loanChangeBank += item.loanChangeBank;
+        acc.closingLoan += item.closingLoan;
+        acc.interestCash += item.interestCash;
+        acc.interestBank += item.interestBank;
         return acc;
       },
-      { deposit: 0, loan: 0, interest: 0 }
-    ) || { deposit: 0, loan: 0, interest: 0 };
+      { 
+        depositCash: 0, depositBank: 0, carryFwdLoan: 0, loanChangeCash: 0, 
+        loanChangeBank: 0, closingLoan: 0, interestCash: 0, interestBank: 0 
+      }
+    ) || { 
+        depositCash: 0, depositBank: 0, carryFwdLoan: 0, loanChangeCash: 0, 
+        loanChangeBank: 0, closingLoan: 0, interestCash: 0, interestBank: 0 
+      };
 
 
   return (
@@ -100,7 +216,7 @@ function Reports() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="monthly">Monthly Report</SelectItem>
-                <SelectItem value="all-time">All-Time Report</SelectItem>
+                <SelectItem value="all-time" disabled>All-Time Report</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -128,26 +244,47 @@ function Reports() {
                   <Calendar
                     mode="single"
                     selected={selectedDate}
-                    onSelect={(date) => date && setSelectedDate(date)}
+                    onSelect={(date) => date && setSelectedDate(startOfMonth(date))}
                     initialFocus
+                    captionLayout="dropdown-buttons"
+                    fromYear={2020}
+                    toYear={new Date().getFullYear() + 5}
                   />
                 </PopoverContent>
               </Popover>
             </div>
           )}
-          <Button onClick={handleGenerateReport}>Generate Report</Button>
+          <Button onClick={handleGenerateReport} disabled={isLoading || customersLoading}>
+            {isLoading || customersLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+            Generate Report
+          </Button>
         </div>
 
-        {generatedReport && (
+        {isLoading ? (
+            <div className="flex justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin"/>
+            </div>
+        ) : generatedReport ? (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className='w-[50px]'>Sr.</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead className="text-right">Total Deposits</TableHead>
-                  <TableHead className="text-right">Total Loans</TableHead>
-                  <TableHead className="text-right">Total Interest</TableHead>
+                    <TableHead rowSpan={2} className='w-[50px]'>Sr.</TableHead>
+                    <TableHead rowSpan={2}>Customer</TableHead>
+                    <TableHead colSpan={2} className="text-center">Deposit</TableHead>
+                    <TableHead rowSpan={2} className="text-right">Carry Fwd Loan</TableHead>
+                    <TableHead colSpan={3} className="text-center">New / Changed Loan</TableHead>
+                    <TableHead rowSpan={2} className="text-right">Closing Loan</TableHead>
+                    <TableHead colSpan={2} className="text-center">Interest</TableHead>
+                </TableRow>
+                 <TableRow>
+                    <TableHead className="text-right">Cash</TableHead>
+                    <TableHead className="text-right">Bank</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="text-right">Cash</TableHead>
+                    <TableHead className="text-right">Bank</TableHead>
+                    <TableHead className="text-right">Cash</TableHead>
+                    <TableHead className="text-right">Bank</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -155,37 +292,48 @@ function Reports() {
                   <TableRow key={item.customerId}>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>{item.customerName}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      ₹{item.deposit.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      ₹{item.loan.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      ₹{item.interest.toFixed(2)}
-                    </TableCell>
+                    <TableCell className="text-right">{item.depositCash.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">{item.depositBank.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">{item.carryFwdLoan.toFixed(2)}</TableCell>
+                    <TableCell>{item.loanChangeType}</TableCell>
+                    <TableCell className="text-right">{item.loanChangeCash.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">{item.loanChangeBank.toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-medium">{item.closingLoan.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">{item.interestCash.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">{item.interestBank.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
               <UiTableFooter>
                 <TableRow className="font-bold bg-muted/50 text-right">
                   <TableCell colSpan={2}>Total</TableCell>
-                  <TableCell>₹{totals.deposit.toFixed(2)}</TableCell>
-                  <TableCell>₹{totals.loan.toFixed(2)}</TableCell>
-                  <TableCell>₹{totals.interest.toFixed(2)}</TableCell>
+                  <TableCell>₹{totals.depositCash.toFixed(2)}</TableCell>
+                  <TableCell>₹{totals.depositBank.toFixed(2)}</TableCell>
+                  <TableCell>₹{totals.carryFwdLoan.toFixed(2)}</TableCell>
+                  <TableCell></TableCell>
+                  <TableCell>₹{totals.loanChangeCash.toFixed(2)}</TableCell>
+                  <TableCell>₹{totals.loanChangeBank.toFixed(2)}</TableCell>
+                  <TableCell>₹{totals.closingLoan.toFixed(2)}</TableCell>
+                  <TableCell>₹{totals.interestCash.toFixed(2)}</TableCell>
+                  <TableCell>₹{totals.interestBank.toFixed(2)}</TableCell>
                 </TableRow>
               </UiTableFooter>
             </Table>
           </div>
+        ) : (
+            <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>No Report Generated</AlertTitle>
+                <AlertDescription>
+                   Select a month and click "Generate Report" to view data.
+                </AlertDescription>
+            </Alert>
         )}
       </CardContent>
       {generatedReport && (
         <CardFooter className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => window.print()}>
             <Printer className="mr-2 h-4 w-4" /> Print
-          </Button>
-          <Button>
-            <FileDown className="mr-2 h-4 w-4" /> Download
           </Button>
         </CardFooter>
       )}
