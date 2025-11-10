@@ -303,45 +303,45 @@ function Reports() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                        <TableHead className='w-[50px]'>Sr.</TableHead>
-                        <TableHead>Customer</TableHead>
-                        <TableHead className="text-right">Deposit</TableHead>
-                        <TableHead className="text-right">Carry Fwd Loan</TableHead>
-                        <TableHead className="text-right">New / Changed Loan</TableHead>
-                        <TableHead className="text-right">Closing Loan</TableHead>
-                        <TableHead className="text-right">Interest</TableHead>
+                        <TableHead className='w-[50px] py-1'>Sr.</TableHead>
+                        <TableHead className='py-1'>Customer</TableHead>
+                        <TableHead className="text-right py-1">Deposit</TableHead>
+                        <TableHead className="text-right py-1">Carry Fwd Loan</TableHead>
+                        <TableHead className="text-right py-1">New / Changed Loan</TableHead>
+                        <TableHead className="text-right py-1">Closing Loan</TableHead>
+                        <TableHead className="text-right py-1">Interest</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {generatedReport.map((item, index) => (
                       <TableRow key={item.customerId}>
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell className="font-medium whitespace-nowrap">{item.customerName}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="py-1">{index + 1}</TableCell>
+                        <TableCell className="font-medium whitespace-nowrap py-1">{item.customerName}</TableCell>
+                        <TableCell className="text-right py-1">
                           {renderCompositeAmount(item.depositCash, item.depositBank)}
                         </TableCell>
-                        <TableCell className="text-right">{formatAmount(item.carryFwdLoan)}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right py-1">{formatAmount(item.carryFwdLoan)}</TableCell>
+                        <TableCell className="text-right py-1">
                           <div className='capitalize'>{item.loanChangeType !== 'N/A' && item.loanChangeType}</div>
                           {renderCompositeAmount(item.loanChangeCash, item.loanChangeBank)}
                         </TableCell>
-                        <TableCell className="text-right font-medium">{formatAmount(item.closingLoan)}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right font-medium py-1">{formatAmount(item.closingLoan)}</TableCell>
+                        <TableCell className="text-right py-1">
                           {renderCompositeAmount(item.interestCash, item.interestBank)}
                         </TableCell>
                       </TableRow>
                     ))}
                     <TableRow className="font-bold bg-muted/50 text-right">
-                      <TableCell colSpan={2}>Total</TableCell>
-                      <TableCell>
+                      <TableCell colSpan={2} className="py-1">Total</TableCell>
+                      <TableCell className="py-1">
                           {renderCompositeAmount(totals.depositCash, totals.depositBank)}
                       </TableCell>
-                      <TableCell>{formatAmount(totals.carryFwdLoan)}</TableCell>
-                      <TableCell>
+                      <TableCell className="py-1">{formatAmount(totals.carryFwdLoan)}</TableCell>
+                      <TableCell className="py-1">
                           {renderCompositeAmount(totals.loanChangeCash, totals.loanChangeBank)}
                       </TableCell>
-                      <TableCell>{formatAmount(totals.closingLoan)}</TableCell>
-                      <TableCell>
+                      <TableCell className="py-1">{formatAmount(totals.closingLoan)}</TableCell>
+                      <TableCell className="py-1">
                           {renderCompositeAmount(totals.interestCash, totals.interestBank)}
                       </TableCell>
                     </TableRow>
