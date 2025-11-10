@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, useEffect, Suspense } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -517,9 +517,7 @@ notes: editingCustomer.notes || '',
 export default function CustomersPage() {
   return (
     <AppShell>
-      <Suspense fallback={<div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
-        <Customers />
-      </Suspense>
+      <Customers />
     </AppShell>
   )
 }

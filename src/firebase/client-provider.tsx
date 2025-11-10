@@ -26,7 +26,7 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (!services) {
+      if (!services && !error) {
         setIsTimedOut(true);
       }
     }, 5000); // 5-second timeout
@@ -34,7 +34,6 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
     try {
       const config = getFirebaseConfig();
       if (config && config.apiKey) {
-        console.log('Firebase config loaded, initializing app...');
         const app = getApps().length > 0 ? getApp() : initializeApp(config);
         const auth = getAuth(app);
         const firestore = getFirestore(app);
@@ -51,7 +50,24 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
     }
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [services, error]);
+
+  if (error || isTimedOut) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background p-4">
+        <Alert variant="destructive" className="max-w-lg">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Connection Error</AlertTitle>
+          <AlertDescription>
+            {error || 'Could not connect to Firebase services. The application may be misconfigured or the service may be unavailable.'}
+            <div className="mt-4 text-xs text-muted-foreground">
+              Please check the browser console for more details and verify your project setup and environment variables.
+            </div>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   if (services) {
     return (
@@ -65,31 +81,12 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
     );
   }
 
-  // Display a loading indicator until timeout or error
-  if (!isTimedOut && !error) {
-     return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="text-muted-foreground">Connecting to services...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // After timeout or if an error occurs, display an error message
   return (
-    <div className="flex h-screen items-center justify-center bg-background p-4">
-      <Alert variant="destructive" className="max-w-lg">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Connection Error</AlertTitle>
-        <AlertDescription>
-          {error || 'Could not connect to Firebase services. The application may be misconfigured or the service may be unavailable.'}
-          <div className="mt-4 text-xs text-muted-foreground">
-            Please check the browser console for more details and verify your project setup.
-          </div>
-        </AlertDescription>
-      </Alert>
+    <div className="flex h-screen items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="text-muted-foreground">Connecting to services...</p>
+      </div>
     </div>
   );
 }
