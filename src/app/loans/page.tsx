@@ -1000,7 +1000,7 @@ function Loans() {
   );
 }
 
-function LoansPage() {
+function LoansPageWithSuspense() {
   return (
     <AppShell>
       <Suspense
@@ -1016,4 +1016,4 @@ function LoansPage() {
   );
 }
 
-export default LoansPage;
+export default LoansPageWithSuspense;

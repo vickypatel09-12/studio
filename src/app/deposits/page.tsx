@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, Suspense } from 'react';
 import {
   doc,
   setDoc,
@@ -754,7 +754,9 @@ function Deposits() {
 export default function DepositsPage() {
   return (
     <AppShell>
-      <Deposits />
+      <Suspense fallback={<div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+        <Deposits />
+      </Suspense>
     </AppShell>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { Suspense, useMemo } from 'react';
 import {
   Card,
   CardHeader,
@@ -267,7 +267,9 @@ function Dashboard() {
 export default function DashboardPage() {
   return (
     <AppShell>
-      <Dashboard />
+       <Suspense fallback={<div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+        <Dashboard />
+      </Suspense>
     </AppShell>
   )
 }

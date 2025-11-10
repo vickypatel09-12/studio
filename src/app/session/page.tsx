@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import {
   Card,
   CardHeader,
@@ -507,7 +507,9 @@ function SessionManagement() {
 export default function SessionManagementPage() {
   return (
     <AppShell>
-      <SessionManagement />
+      <Suspense fallback={<div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+        <SessionManagement />
+      </Suspense>
     </AppShell>
   );
 }

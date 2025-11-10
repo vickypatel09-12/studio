@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import {
   Card,
   CardHeader,
@@ -543,7 +543,9 @@ function Reports() {
 export default function ReportsPage() {
   return (
     <AppShell>
-      <Reports />
+      <Suspense fallback={<div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+        <Reports />
+      </Suspense>
     </AppShell>
   );
 }

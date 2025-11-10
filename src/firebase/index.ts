@@ -48,7 +48,8 @@ export * from './provider';
 export * from './client-provider';
 export * from './firestore/use-collection';
 export * from './firestore/use-doc';
-export * from './auth/use-user';
+// This use-user is now a simple re-export from provider
+export { useUser } from './provider';
 export * from './non-blocking-updates';
 export * from './non-blocking-login';
 export * from './errors';

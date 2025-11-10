@@ -3,7 +3,10 @@ import { useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useAuth, useUser as useUserFromContext } from '@/firebase/provider';
 
-export function useUser() {
+/**
+ * @deprecated This implementation is problematic for SSR. Use the one re-exported from provider.
+ */
+export function useUser_legacy() {
   const auth = useAuth();
   const { user, isUserLoading } = useUserFromContext();
 
