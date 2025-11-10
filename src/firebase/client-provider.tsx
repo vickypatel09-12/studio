@@ -35,8 +35,12 @@ export function FirebaseClientProvider({
         return response.json();
       })
       .then((config) => {
-        if (Object.values(config).some(value => !value)) {
+        const configValues = Object.values(config);
+        if (configValues.some(value => !value)) {
             throw new Error('Firebase configuration is incomplete. Check the values in /public/firebase-config.json.');
+        }
+        if (configValues.some(value => value === '...')) {
+          throw new Error("Firebase configuration in /public/firebase-config.json is incomplete. Please replace the '...' placeholder values with your actual Firebase credentials.");
         }
 
         try {
@@ -80,7 +84,7 @@ export function FirebaseClientProvider({
           <AlertDescription>
             {error}
             <div className="mt-4 text-xs text-muted-foreground">
-              Please check the browser console for more details. If you're running locally, ensure you have created `public/firebase-config.json`.
+              Please check the browser console for more details. If you're running locally, ensure you have created and populated `public/firebase-config.json`.
             </div>
           </AlertDescription>
         </Alert>
