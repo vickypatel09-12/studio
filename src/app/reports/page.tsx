@@ -34,7 +34,7 @@ import { Printer, CalendarIcon, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, startOfMonth, subMonths } from 'date-fns';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, doc, getDoc } from 'firebase/firestore';
+import { collection, query, doc, getDoc, orderBy } from 'firebase/firestore';
 import type { Customer } from '@/lib/data';
 import { AppShell } from '@/components/AppShell';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -106,7 +106,7 @@ function Reports() {
 
   const customersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'customers'));
+    return query(collection(firestore, 'customers'), orderBy('sortOrder'));
   }, [firestore]);
 
   const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersQuery);
