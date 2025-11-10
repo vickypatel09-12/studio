@@ -210,53 +210,6 @@ function Dashboard() {
           </CardContent>
         </Card>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Transactions</CardTitle>
-          <CardDescription>
-            A list of the most recent transactions from deposits and loans.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Customer</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Date</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recentTransactions.slice(0, 5).map((transaction) => (
-                <TableRow key={transaction.id}>
-                  <TableCell>
-                    <div className="font-medium">{transaction.customerName}</div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        transaction.type === 'Deposit' ? 'default' : 'secondary'
-                      }
-                      className={
-                        transaction.type === 'Deposit'
-                          ? 'bg-accent text-accent-foreground'
-                          : ''
-                      }
-                    >
-                      {transaction.type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    ₹{transaction.amount.toFixed(2)}
-                  </TableCell>
-                  <TableCell>{format(new Date(transaction.date), 'MMMM yyyy')}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
     </div>
   );
 }
