@@ -26,7 +26,6 @@ yarn-error.log*
 
 # local env files
 .env*.local
-.env
 
 # vercel
 .vercel
@@ -35,13 +34,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# studio
-.firebase/
-!/.firebase/schema.json
-!/.firebase/clients.json
-!/.firebase/metadata.json
-!/.firebase/views.json
-!/.firebase/functions.json
-
-# Ignore Firebase config
+# Firebase
+src/firebase/config.ts
 public/firebase-config.json

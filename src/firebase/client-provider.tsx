@@ -5,6 +5,7 @@ import { FirebaseProvider } from '@/firebase/provider';
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
+import { firebaseConfig } from './config';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -26,42 +27,26 @@ export function FirebaseClientProvider({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch the configuration from the public JSON file
-    fetch('/firebase-config.json')
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error('firebase-config.json not found or failed to load. Please ensure the file exists in your /public directory.');
-        }
-        return response.json();
-      })
-      .then((config) => {
-        const configValues = Object.values(config);
-        if (configValues.some(value => !value)) {
-            throw new Error('Firebase configuration is incomplete. Check the values in /public/firebase-config.json.');
-        }
-        if (configValues.some(value => value === '...')) {
-          throw new Error("Firebase configuration in /public/firebase-config.json is incomplete. Please replace the '...' placeholder values with your actual Firebase credentials.");
-        }
+    try {
+      const configValues = Object.values(firebaseConfig);
+      if (configValues.some(value => !value)) {
+          throw new Error('Firebase configuration is incomplete. Check the values in src/firebase/config.ts.');
+      }
+      if (configValues.some(value => value === '...')) {
+        throw new Error("Firebase configuration in src/firebase/config.ts is incomplete. Please replace the '...' placeholder values with your actual Firebase credentials.");
+      }
 
-        try {
-          const app =
-            getApps().length > 0 ? getApp() : initializeApp(config);
-          const auth = getAuth(app);
-          const firestore = getFirestore(app);
-          setServices({ firebaseApp: app, auth, firestore });
-        } catch (e: any) {
-          console.error('Error initializing Firebase:', e);
-          setError(`An unexpected error occurred during Firebase initialization: ${e.message}`);
-        } finally {
-            setIsLoading(false);
-        }
-      })
-      .catch((e) => {
-        console.error('Failed to fetch or parse Firebase config:', e);
-        setError(e.message);
+      const app =
+        getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const firestore = getFirestore(app);
+      setServices({ firebaseApp: app, auth, firestore });
+    } catch (e: any) {
+      console.error('Error initializing Firebase:', e);
+      setError(`An unexpected error occurred during Firebase initialization: ${e.message}`);
+    } finally {
         setIsLoading(false);
-      });
-
+    }
   }, []);
 
   if (isLoading) {
@@ -84,7 +69,7 @@ export function FirebaseClientProvider({
           <AlertDescription>
             {error}
             <div className="mt-4 text-xs text-muted-foreground">
-              Please check the browser console for more details. If you're running locally, ensure you have created and populated `public/firebase-config.json`.
+              Please check the browser console for more details. If you're running locally, ensure you have created and populated `src/firebase/config.ts`.
             </div>
           </AlertDescription>
         </Alert>
