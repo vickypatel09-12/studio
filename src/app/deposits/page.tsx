@@ -523,7 +523,7 @@ function Deposits() {
               </div>
             ) : selectedDate && customers ? (
               <div className="overflow-x-auto">
-                <Table>
+                <Table id="deposits-table">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[50px]">Sr.</TableHead>
@@ -767,14 +767,33 @@ export default function DepositsPage() {
           .printable .overflow-x-auto {
             overflow-x: visible !important;
           }
-          .printable table {
-            table-layout: auto !important;
+          #deposits-table {
+            table-layout: fixed !important;
             width: 100% !important;
           }
-          .printable th, .printable td {
+          #deposits-table th,
+          #deposits-table td {
             font-size: 10px !important;
-            padding: 4px 8px !important;
+            padding: 4px 6px !important;
             white-space: nowrap;
+          }
+          #deposits-table th:nth-child(1),
+          #deposits-table td:nth-child(1) {
+            width: 5%;
+          }
+          #deposits-table th:nth-child(2),
+          #deposits-table td:nth-child(2) {
+            width: 45%;
+            white-space: normal;
+            word-break: break-word;
+          }
+          #deposits-table th:nth-child(3),
+          #deposits-table td:nth-child(3),
+          #deposits-table th:nth-child(4),
+          #deposits-table td:nth-child(4),
+          #deposits-table th:nth-child(5),
+          #deposits-table td:nth-child(5) {
+            width: 16.66%;
           }
         }
       `}</style>
