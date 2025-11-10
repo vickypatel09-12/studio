@@ -1,7 +1,6 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  output: 'export',
   skipMiddlewareUrlNormalize: true,
   /* config options here */
   typescript: {
