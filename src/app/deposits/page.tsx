@@ -761,6 +761,9 @@ export default function DepositsPage() {
       </AppShell>
       <style jsx global>{`
         @media print {
+          @page {
+            margin: 0.5in;
+          }
           .printable {
             display: block !important;
           }

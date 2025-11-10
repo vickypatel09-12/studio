@@ -1016,6 +1016,9 @@ export default function LoansPage() {
       </AppShell>
       <style jsx global>{`
         @media print {
+          @page {
+            margin: 0.5in;
+          }
           .printable {
             display: block !important;
           }
