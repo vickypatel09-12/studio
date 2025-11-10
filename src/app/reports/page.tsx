@@ -204,7 +204,19 @@ function Reports() {
         loanChangeBank: 0, closingLoan: 0, interestCash: 0, interestBank: 0 
       };
 
-    const formatAmount = (value: number) => `₹${value.toFixed(2)}`;
+    const formatAmount = (value: number) => value === 0 ? '-' : `₹${value.toFixed(2)}`;
+    
+    const renderCompositeAmount = (cash: number, bank: number) => {
+      const total = cash + bank;
+      if (total === 0) return <span>-</span>;
+      return (
+        <>
+          {cash > 0 && <div>c: {formatAmount(cash)}</div>}
+          {bank > 0 && <div>b: {formatAmount(bank)}</div>}
+        </>
+      )
+    }
+
 
   return (
     <div className="printable">
@@ -307,19 +319,16 @@ function Reports() {
                         <TableCell>{index + 1}</TableCell>
                         <TableCell className="font-medium whitespace-nowrap">{item.customerName}</TableCell>
                         <TableCell className="text-right">
-                          {item.depositCash > 0 && <div>c: {formatAmount(item.depositCash)}</div>}
-                          {item.depositBank > 0 && <div>b: {formatAmount(item.depositBank)}</div>}
+                          {renderCompositeAmount(item.depositCash, item.depositBank)}
                         </TableCell>
                         <TableCell className="text-right">{formatAmount(item.carryFwdLoan)}</TableCell>
                         <TableCell className="text-right">
-                          <div className='capitalize'>{item.loanChangeType}</div>
-                          {item.loanChangeCash > 0 && <div>c: {formatAmount(item.loanChangeCash)}</div>}
-                          {item.loanChangeBank > 0 && <div>b: {formatAmount(item.loanChangeBank)}</div>}
+                          <div className='capitalize'>{item.loanChangeType !== 'N/A' && item.loanChangeType}</div>
+                          {renderCompositeAmount(item.loanChangeCash, item.loanChangeBank)}
                         </TableCell>
                         <TableCell className="text-right font-medium">{formatAmount(item.closingLoan)}</TableCell>
                         <TableCell className="text-right">
-                          {item.interestCash > 0 && <div>c: {formatAmount(item.interestCash)}</div>}
-                          {item.interestBank > 0 && <div>b: {formatAmount(item.interestBank)}</div>}
+                          {renderCompositeAmount(item.interestCash, item.interestBank)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -328,18 +337,15 @@ function Reports() {
                     <TableRow className="font-bold bg-muted/50 text-right">
                       <TableCell colSpan={2}>Total</TableCell>
                       <TableCell>
-                          {totals.depositCash > 0 && <div>c: {formatAmount(totals.depositCash)}</div>}
-                          {totals.depositBank > 0 && <div>b: {formatAmount(totals.depositBank)}</div>}
+                          {renderCompositeAmount(totals.depositCash, totals.depositBank)}
                       </TableCell>
                       <TableCell>{formatAmount(totals.carryFwdLoan)}</TableCell>
                       <TableCell>
-                          {totals.loanChangeCash > 0 && <div>c: {formatAmount(totals.loanChangeCash)}</div>}
-                          {totals.loanChangeBank > 0 && <div>b: {formatAmount(totals.loanChangeBank)}</div>}
+                          {renderCompositeAmount(totals.loanChangeCash, totals.loanChangeBank)}
                       </TableCell>
                       <TableCell>{formatAmount(totals.closingLoan)}</TableCell>
                       <TableCell>
-                          {totals.interestCash > 0 && <div>c: {formatAmount(totals.interestCash)}</div>}
-                          {totals.interestBank > 0 && <div>b: {formatAmount(totals.interestBank)}</div>}
+                          {renderCompositeAmount(totals.interestCash, totals.interestBank)}
                       </TableCell>
                     </TableRow>
                   </UiTableFooter>
