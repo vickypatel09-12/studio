@@ -111,7 +111,8 @@ function Reports() {
 
   const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersQuery);
 
-    const calculateSummary = (reportRows: MonthlyReportRow[]): ReportSummary => {
+    const calculateSummary = (reportRows: MonthlyReportRow[] | null): ReportSummary | null => {
+        if (!reportRows) return null;
         const summary = reportRows.reduce((acc, item) => {
             acc.totalDeposit += (item.depositCash + item.depositBank);
             acc.totalCarryFwdLoan += item.carryFwdLoan;
@@ -214,10 +215,7 @@ function Reports() {
 
         setGeneratedReport(currentMonthData);
         setCurrentMonthSummary(calculateSummary(currentMonthData));
-
-        if(previousMonthData) {
-            setPreviousMonthSummary(calculateSummary(previousMonthData));
-        }
+        setPreviousMonthSummary(calculateSummary(previousMonthData));
 
       } catch (error) {
         toast({ variant: 'destructive', title: 'Error Generating Report', description: 'Could not fetch report data.' });
@@ -478,27 +476,29 @@ function Reports() {
                         { title: 'Previous Month', data: previousMonthSummary },
                         { title: 'Current Month', data: currentMonthSummary },
                         { title: 'Grand Total', data: grandTotalSummary(currentMonthSummary, previousMonthSummary) }
-                      ].map(section => section.data && (
+                      ].map(section => (
                          <div key={section.title} className="border p-2 rounded-lg">
                               <h3 className="font-bold text-center mb-2">{section.title}</h3>
                                <Table>
                                   <TableBody>
-                                      {section.title !== 'Grand Total' && (
-                                        <TableRow><TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data.totalDeposit)}</TableCell></TableRow>
+                                      {section.title === 'Grand Total' ? (
+                                        <>
+                                            <TableRow><TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data?.totalDeposit || 0)}</TableCell></TableRow>
+                                            <TableRow><TableCell className="py-1 px-2 font-medium">Total Loan</TableCell><TableCell className="py-1 px-2 text-right">{`${(section.data?.totalNewIncDec || 0) >= 0 ? '+' : '-'}${formatAmount(section.data?.totalNewIncDec || 0)}`}</TableCell></TableRow>
+                                            <TableRow><TableCell className="py-1 px-2 font-medium">Total Outstanding Loan</TableCell><TableCell className="py-1 px-2 text-right">-{formatAmount(section.data?.totalOutstandingLoan || 0)}</TableCell></TableRow>
+                                            <TableRow><TableCell className="py-1 px-2 font-medium">Total Interest</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data?.totalInterest || 0)}</TableCell></TableRow>
+                                            <TableRow><TableCell className="py-1 px-2 font-medium">Net Balance</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data?.closingBalance || 0)}</TableCell></TableRow>
+                                        </>
+                                      ): (
+                                        <>
+                                            <TableRow><TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data?.totalDeposit || 0)}</TableCell></TableRow>
+                                            <TableRow><TableCell className="py-1 px-2 font-medium">Total Carry Fwd Loan</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data?.totalCarryFwdLoan || 0)}</TableCell></TableRow>
+                                            <TableRow><TableCell className="py-1 px-2 font-medium">Total New/Inc/Dec</TableCell><TableCell className="py-1 px-2 text-right">{`${(section.data?.totalNewIncDec || 0) >= 0 ? '+' : '-'}${formatAmount(section.data?.totalNewIncDec || 0)}`}</TableCell></TableRow>
+                                            <TableRow><TableCell className="py-1 px-2 font-medium">Total Outstanding Loan</TableCell><TableCell className="py-1 px-2 text-right">-{formatAmount(section.data?.totalOutstandingLoan || 0)}</TableCell></TableRow>
+                                            <TableRow><TableCell className="py-1 px-2 font-medium">Total Interest</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data?.totalInterest || 0)}</TableCell></TableRow>
+                                            <TableRow><TableCell className="py-1 px-2 font-medium">Closing Balance</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data?.closingBalance || 0)}</TableCell></TableRow>
+                                        </>
                                       )}
-                                      {section.title === 'Grand Total' && (
-                                         <TableRow><TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data.totalDeposit)}</TableCell></TableRow>
-                                      )}
-
-                                      {section.title !== 'Grand Total' && (
-                                        <TableRow><TableCell className="py-1 px-2 font-medium">Total Carry Fwd Loan</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data.totalCarryFwdLoan)}</TableCell></TableRow>
-                                      )}
-                                      
-                                      <TableRow><TableCell className="py-1 px-2 font-medium">{section.title === 'Grand Total' ? 'Total Loan' : 'Total New/Inc/Dec'}</TableCell><TableCell className="py-1 px-2 text-right">{`${section.data.totalNewIncDec >= 0 ? '+' : '-'}${formatAmount(section.data.totalNewIncDec)}`}</TableCell></TableRow>
-                                      
-                                      <TableRow><TableCell className="py-1 px-2 font-medium">Total Outstanding Loan</TableCell><TableCell className="py-1 px-2 text-right">-{formatAmount(section.data.totalOutstandingLoan)}</TableCell></TableRow>
-                                      <TableRow><TableCell className="py-1 px-2 font-medium">Total Interest</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data.totalInterest)}</TableCell></TableRow>
-                                      <TableRow><TableCell className="py-1 px-2 font-medium">{section.title === 'Grand Total' ? 'Net Balance' : 'Closing Balance'}</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.data.closingBalance)}</TableCell></TableRow>
                                   </TableBody>
                               </Table>
                          </div>
