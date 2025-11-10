@@ -300,7 +300,7 @@ function Customers() {
             email: editingCustomer.email || '',
             phone: editingCustomer.phone || '',
             address: editingCustomer.address || '',
-            notes: editingCustomer.notes || '',
+notes: editingCustomer.notes || '',
         });
         toast({ title: 'Customer Updated', description: `Details for ${trimmedName} have been saved.` });
     }

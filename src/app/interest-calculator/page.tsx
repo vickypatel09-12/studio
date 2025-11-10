@@ -75,28 +75,9 @@ function InterestCalculator() {
         variant: 'destructive',
         title: 'Functionality Disabled',
         description:
-          'The AI interest calculation is temporarily disabled to allow for deployment.',
+          'The AI interest calculation is temporarily disabled.',
       });
     setIsLoading(false);
-    /*
-    try {
-      const res = await calculateInterest({
-        ...values,
-        interestRate: values.interestRate / 100, // Convert percentage to decimal for AI tool
-      });
-      setResult(res);
-    } catch (error) {
-      console.error(error);
-      toast({
-        variant: 'destructive',
-        title: 'Error Calculating Interest',
-        description:
-          'An unexpected error occurred. Please try again.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-    */
   }
 
   return (

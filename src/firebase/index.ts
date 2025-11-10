@@ -1,56 +1,18 @@
 'use client';
 
-import { firebaseConfig } from '@/firebase/config';
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore'
-
-// IMPORTANT: DO NOT MODIFY THIS FUNCTION
-export function initializeFirebase() {
-  if (typeof window === 'undefined') {
-    throw new Error("Firebase should only be initialized on the client side.");
-  }
-  const isConfigured = getApps().length > 0;
-  const firebaseApp = isConfigured ? getApp() : initializeApp(firebaseConfig);
-  return getSdks(firebaseApp);
-}
-
-export function getSdks(firebaseApp: FirebaseApp) {
-  const auth = getAuth(firebaseApp);
-  const firestore = getFirestore(firebaseApp);
-
-  if (process.env.NEXT_PUBLIC_EMULATOR_HOST) {
-    // In development, emulator host is set via .env.local
-    // e.g. NEXT_PUBLIC_EMULATOR_HOST=localhost:8080
-    //
-    // Don't connect to emulators in production.
-    // Production build will not have NEXT_PUBLIC_EMULATOR_HOST defined.
-    const host = process.env.NEXT_PUBLIC_EMULATOR_HOST.split(':')[0];
-    const firestorePort = 8080;
-    const authPort = 9099;
-    
-    try {
-      connectFirestoreEmulator(firestore, host, firestorePort);
-      connectAuthEmulator(auth, `http://${host}:${authPort}`);
-    } catch (e) {
-        // already connected
-    }
-  }
-  
-  return {
-    firebaseApp,
-    auth,
-    firestore
-  };
-}
+// This file is the single entrypoint for all Firebase-related functionality.
+// It should not contain any initialization logic, but rather re-export
+// components and hooks from other modules.
 
 export * from './provider';
 export * from './client-provider';
 export * from './firestore/use-collection';
 export * from './firestore/use-doc';
-// This use-user is now a simple re-export from provider
-export { useUser } from './provider';
+export { useUser } from './provider'; // Re-export the correct useUser hook
 export * from './non-blocking-updates';
 export * from './non-blocking-login';
 export * from './errors';
 export * from './error-emitter';
+
+// We no longer need to export initializeFirebase or getSdks from here,
+// as the client-provider handles the initialization internally.
