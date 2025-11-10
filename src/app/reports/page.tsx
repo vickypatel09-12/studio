@@ -209,10 +209,10 @@ function Reports() {
       const total = cash + bank;
       if (total === 0) return <span>-</span>;
       return (
-        <>
-          {cash > 0 && <div>c: {formatAmount(cash)}</div>}
-          {bank > 0 && <div>b: {formatAmount(bank)}</div>}
-        </>
+        <div className="flex flex-col">
+          {cash > 0 && <span>c: {formatAmount(cash)}</span>}
+          {bank > 0 && <span>b: {formatAmount(bank)}</span>}
+        </div>
       )
     }
 
@@ -323,12 +323,14 @@ function Reports() {
                         <TableCell className="text-right py-1">{formatAmount(item.carryFwdLoan)}</TableCell>
                         <TableCell className="text-right py-1">
                           <div>
-                            <div className="text-xs text-muted-foreground">
-                              {(item.loanChangeCash + item.loanChangeBank) > 0 && item.loanChangeType !== 'N/A' && <span className="capitalize">{item.loanChangeType} </span>}
-                              {item.loanChangeCash > 0 && <span>c: {formatAmount(item.loanChangeCash)}</span>}
-                              {item.loanChangeBank > 0 && <span className="ml-1">b: {formatAmount(item.loanChangeBank)}</span>}
-                            </div>
-                            <div>{formatAmount(item.loanChangeCash + item.loanChangeBank)}</div>
+                            {formatAmount(item.loanChangeCash + item.loanChangeBank)}
+                            {(item.loanChangeCash + item.loanChangeBank) > 0 && (
+                              <span className="ml-1 text-xs text-muted-foreground">
+                                ({item.loanChangeType !== 'N/A' && <span className="capitalize">{item.loanChangeType} </span>}
+                                {item.loanChangeCash > 0 && <span>c: {formatAmount(item.loanChangeCash)} </span>}
+                                {item.loanChangeBank > 0 && <span>b: {formatAmount(item.loanChangeBank)}</span>})
+                              </span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="text-right font-medium py-1">{formatAmount(item.closingLoan)}</TableCell>
@@ -338,20 +340,22 @@ function Reports() {
                       </TableRow>
                     ))}
                     <TableRow className="font-bold bg-muted/50 text-right">
-                      <TableCell colSpan={2} className="py-1">Total</TableCell>
+                      <TableCell colSpan={2} className="text-left py-1">Total</TableCell>
                       <TableCell className="py-1">
                           {renderCompositeAmount(totals.depositCash, totals.depositBank)}
                       </TableCell>
                       <TableCell className="py-1">{formatAmount(totals.carryFwdLoan)}</TableCell>
-                       <TableCell className="text-right py-1">
+                      <TableCell className="text-right py-1">
                           <div>
-                            <div className="text-xs text-muted-foreground">
-                              {totals.loanChangeCash > 0 && <span>c: {formatAmount(totals.loanChangeCash)}</span>}
-                              {totals.loanChangeBank > 0 && <span className="ml-1">b: {formatAmount(totals.loanChangeBank)}</span>}
-                            </div>
-                            <div>{formatAmount(totals.loanChangeCash + totals.loanChangeBank)}</div>
+                              {formatAmount(totals.loanChangeCash + totals.loanChangeBank)}
+                              {(totals.loanChangeCash + totals.loanChangeBank) > 0 && (
+                                <span className="ml-1 text-xs text-muted-foreground">
+                                  ({totals.loanChangeCash > 0 && <span>c: {formatAmount(totals.loanChangeCash)} </span>}
+                                  {totals.loanChangeBank > 0 && <span>b: {formatAmount(totals.loanChangeBank)}</span>})
+                                </span>
+                              )}
                           </div>
-                        </TableCell>
+                      </TableCell>
                       <TableCell className="py-1">{formatAmount(totals.closingLoan)}</TableCell>
                       <TableCell className="py-1">
                           {renderCompositeAmount(totals.interestCash, totals.interestBank)}
