@@ -464,7 +464,7 @@ function Deposits() {
   return (
     <div className="space-y-6">
       <div className='no-print'>
-        <BalanceSummary selectedDate={selectedDate} />
+        <BalanceSummary selectedDate={selectedDate} currentDeposits={deposits} />
       </div>
       
       <Card className="printable">

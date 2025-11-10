@@ -23,13 +23,14 @@ import {
 import { Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
-type Deposit = { cash: number; bank: number };
+type Deposit = { customerId: string; cash: number; bank: number };
 type MonthlyDepositDoc = {
   deposits?: Deposit[];
   draft?: Deposit[];
 };
 
 type Loan = {
+  customerId: string;
   carryFwd: number;
   changeType: 'new' | 'increase' | 'decrease';
   changeCash: number;
@@ -63,7 +64,15 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export function BalanceSummary({ selectedDate: dateProp }: { selectedDate?: Date }) {
+export function BalanceSummary({ 
+  selectedDate: dateProp,
+  currentDeposits: liveDeposits,
+  currentLoans: liveLoans,
+}: { 
+  selectedDate?: Date,
+  currentDeposits?: Deposit[],
+  currentLoans?: Loan[],
+}) {
   const firestore = useFirestore();
   const [date, setDate] = useState(() => startOfMonth(dateProp || new Date()));
   const [summary, setSummary] = useState({
@@ -85,74 +94,62 @@ export function BalanceSummary({ selectedDate: dateProp }: { selectedDate?: Date
 
       const prevMonth = subMonths(date, 1);
       const prevMonthId = getMonthId(prevMonth);
-      const currentMonthId = getMonthId(date);
 
       const prevDepositRef = doc(firestore, 'monthlyDeposits', prevMonthId);
       const prevLoanRef = doc(firestore, 'monthlyLoans', prevMonthId);
-      const currentDepositRef = doc(firestore, 'monthlyDeposits', currentMonthId);
-      const currentLoanRef = doc(firestore, 'monthlyLoans', currentMonthId);
       
-      // Need to go back two months to get the opening balance for the previous month
       const twoMonthsAgo = subMonths(date, 2);
       const twoMonthsAgoId = getMonthId(twoMonthsAgo);
       const twoMonthsAgoDepositRef = doc(firestore, 'monthlyDeposits', twoMonthsAgoId);
       const twoMonthsAgoLoanRef = doc(firestore, 'monthlyLoans', twoMonthsAgoId);
 
-
       try {
         const [
           prevDepositSnap,
           prevLoanSnap,
-          currentDepositSnap,
-          currentLoanSnap,
           twoMonthsAgoDepositSnap,
           twoMonthsAgoLoanSnap,
         ] = await Promise.all([
           getDoc(prevDepositRef),
           getDoc(prevLoanRef),
-          getDoc(currentDepositRef),
-          getDoc(currentLoanRef),
           getDoc(twoMonthsAgoDepositRef),
           getDoc(twoMonthsAgoLoanRef)
         ]);
-
-        const prevDepositsData = prevDepositSnap.exists()
-          ? (prevDepositSnap.data() as MonthlyDepositDoc)
-          : null;
-        const prevLoansData = prevLoanSnap.exists()
-          ? (prevLoanSnap.data() as MonthlyLoanDoc)
-          : null;
-        const currentDepositsData = currentDepositSnap.exists()
-          ? (currentDepositSnap.data() as MonthlyDepositDoc)
-          : null;
-        const currentLoansData = currentLoanSnap.exists()
-          ? (currentLoanSnap.data() as MonthlyLoanDoc)
-          : null;
-        const twoMonthsAgoDepositsData = twoMonthsAgoDepositSnap.exists()
-          ? (twoMonthsAgoDepositSnap.data() as MonthlyDepositDoc)
-          : null;
-        const twoMonthsAgoLoansData = twoMonthsAgoLoanSnap.exists()
-            ? (twoMonthsAgoLoanSnap.data() as MonthlyLoanDoc)
-            : null;
-
         
+        let currentDeposits: Deposit[] = liveDeposits || [];
+        let currentLoans: Loan[] = liveLoans || [];
+
+        // If live data is not passed, fetch from Firestore
+        if (!liveDeposits) {
+          const currentDepositSnap = await getDoc(doc(firestore, 'monthlyDeposits', getMonthId(date)));
+          if (currentDepositSnap.exists()) {
+             const data = currentDepositSnap.data() as MonthlyDepositDoc;
+             currentDeposits = data.deposits || data.draft || [];
+          }
+        }
+        if (!liveLoans) {
+          const currentLoanSnap = await getDoc(doc(firestore, 'monthlyLoans', getMonthId(date)));
+           if (currentLoanSnap.exists()) {
+             const data = currentLoanSnap.data() as MonthlyLoanDoc;
+             currentLoans = data.loans || data.draft || [];
+          }
+        }
+        
+        const prevDepositsData = prevDepositSnap.exists() ? (prevDepositSnap.data() as MonthlyDepositDoc) : null;
+        const prevLoansData = prevLoanSnap.exists() ? (prevLoanSnap.data() as MonthlyLoanDoc) : null;
+        const twoMonthsAgoDepositsData = twoMonthsAgoDepositSnap.exists() ? (twoMonthsAgoDepositSnap.data() as MonthlyDepositDoc) : null;
+        const twoMonthsAgoLoansData = twoMonthsAgoLoanSnap.exists() ? (twoMonthsAgoLoanSnap.data() as MonthlyLoanDoc) : null;
+
         const prevDeposits = prevDepositsData?.deposits || prevDepositsData?.draft || [];
         const prevLoans = prevLoansData?.loans || prevLoansData?.draft || [];
-        const currentDeposits = currentDepositsData?.deposits || currentDepositsData?.draft || [];
-        const currentLoans = currentLoansData?.loans || currentLoansData?.draft || [];
         const twoMonthsAgoDeposits = twoMonthsAgoDepositsData?.deposits || twoMonthsAgoDepositsData?.draft || [];
         const twoMonthsAgoLoans = twoMonthsAgoLoansData?.loans || twoMonthsAgoLoansData?.draft || [];
 
-        // --- Calculate Opening Balance from Previous Month's Closing Balance ---
-
-        // 1. Get opening balance for the *previous* month
         const twoMonthsAgoTotalDeposits = twoMonthsAgoDeposits.reduce((acc, d) => ({cash: acc.cash + (d.cash || 0), bank: acc.bank + (d.bank || 0)}), {cash: 0, bank: 0});
         const twoMonthsAgoOutstandingLoans = twoMonthsAgoLoans.reduce((sum, l) => sum + calculateClosingBalance(l), 0);
         const twoMonthsAgoTotalBalance = (twoMonthsAgoTotalDeposits.cash + twoMonthsAgoTotalDeposits.bank) - twoMonthsAgoOutstandingLoans;
         const prevMonthOpeningBalance = { cash: twoMonthsAgoTotalBalance, bank: 0 };
 
-
-        // 2. Get changes within the *previous* month
         const prevMonthDeposits = prevDeposits.reduce((acc, d) => ({cash: acc.cash + (d.cash || 0), bank: acc.bank + (d.bank || 0)}), {cash: 0, bank: 0});
         const prevMonthLoanChanges = prevLoans.reduce((acc, l) => {
             if (l.changeType === 'new' || l.changeType === 'increase') {
@@ -165,29 +162,23 @@ export function BalanceSummary({ selectedDate: dateProp }: { selectedDate?: Date
             return acc;
         }, { given: { cash: 0, bank: 0 }, repaid: { cash: 0, bank: 0 } });
         
-        // 3. Calculate closing balance of *previous* month
         const prevClosingCash = prevMonthOpeningBalance.cash + prevMonthDeposits.cash + prevMonthLoanChanges.repaid.cash - prevMonthLoanChanges.given.cash;
         const prevClosingBank = prevMonthOpeningBalance.bank + prevMonthDeposits.bank + prevMonthLoanChanges.repaid.bank - prevMonthLoanChanges.given.bank;
         
-        // 4. This is the opening balance for the *current* month
         const openingBalance = {
             cash: prevClosingCash,
             bank: prevClosingBank,
         };
 
-        // --- Calculate Current Month Changes ---
-        const currentMonthDeposits =
-          currentDeposits.reduce(
+        const currentMonthDeposits = currentDeposits.reduce(
             (totals, d) => {
               totals.cash += d.cash || 0;
               totals.bank += d.bank || 0;
               return totals;
-            },
-            { cash: 0, bank: 0 }
-          ) ?? { cash: 0, bank: 0 };
+            }, { cash: 0, bank: 0 }
+        );
         
-        const loanChanges =
-          currentLoans.reduce(
+        const loanChanges = currentLoans.reduce(
             (totals, l) => {
               if (l.changeType === 'new' || l.changeType === 'increase') {
                 totals.given.cash += l.changeCash || 0;
@@ -197,16 +188,11 @@ export function BalanceSummary({ selectedDate: dateProp }: { selectedDate?: Date
                 totals.repaid.bank += l.changeBank || 0;
               }
               return totals;
-            },
-            {
+            }, {
               given: { cash: 0, bank: 0 },
               repaid: { cash: 0, bank: 0 },
             }
-          ) ?? {
-            given: { cash: 0, bank: 0 },
-            repaid: { cash: 0, bank: 0 },
-          };
-
+          );
 
         setSummary({
           openingBalance,
@@ -222,7 +208,7 @@ export function BalanceSummary({ selectedDate: dateProp }: { selectedDate?: Date
     };
 
     fetchSummaryData();
-  }, [date, firestore]);
+  }, [date, firestore, liveDeposits, liveLoans]);
   
   const totalCredited = {
     cash: summary.currentDeposits.cash + summary.loanRepaid.cash,

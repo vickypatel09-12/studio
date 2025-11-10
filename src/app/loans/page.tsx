@@ -611,7 +611,7 @@ function Loans() {
       </div>
 
       <div className='no-print'>
-        {selectedDate && <BalanceSummary selectedDate={selectedDate} />}
+        {selectedDate && <BalanceSummary selectedDate={selectedDate} currentLoans={loans} />}
       </div>
 
       <Card>
