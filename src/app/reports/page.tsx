@@ -32,7 +32,7 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { Printer, CalendarIcon, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, startOfMonth } from 'date-fns';
+import { format, startOfMonth, subMonths } from 'date-fns';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, doc, getDoc } from 'firebase/firestore';
 import type { Customer } from '@/lib/data';
@@ -81,6 +81,14 @@ type MonthlyReportRow = {
   interestBank: number;
 };
 
+type ReportSummary = {
+    totalDeposit: number;
+    totalCarryFwdLoan: number;
+    totalNewIncDec: number;
+    totalOutstandingLoan: number;
+    totalInterest: number;
+}
+
 const getMonthId = (date: Date) => format(date, 'yyyy-MM');
 
 function Reports() {
@@ -90,17 +98,10 @@ function Reports() {
   const [generatedReport, setGeneratedReport] = useState<MonthlyReportRow[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const [currentDateTime, setCurrentDateTime] = useState('');
 
-  useEffect(() => {
-    // This effect needs to run only on the client
-    const updateDateTime = () => {
-      setCurrentDateTime(format(new Date(), 'dd/MM/yyyy, HH:mm'));
-    };
-    updateDateTime();
-    const interval = setInterval(updateDateTime, 60000); // Update every minute
-    return () => clearInterval(interval);
-  }, []);
+  const [currentMonthSummary, setCurrentMonthSummary] = useState<ReportSummary | null>(null);
+  const [previousMonthSummary, setPreviousMonthSummary] = useState<ReportSummary | null>(null);
+
 
   const customersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -109,6 +110,23 @@ function Reports() {
 
   const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersQuery);
 
+    const calculateSummary = (reportRows: MonthlyReportRow[]): ReportSummary => {
+        return reportRows.reduce((acc, item) => {
+            acc.totalDeposit += (item.depositCash + item.depositBank);
+            acc.totalCarryFwdLoan += item.carryFwdLoan;
+            acc.totalNewIncDec += (item.loanChangeCash + item.loanChangeBank);
+            acc.totalOutstandingLoan += item.closingLoan;
+            acc.totalInterest += (item.interestCash + item.interestBank);
+            return acc;
+        }, {
+            totalDeposit: 0,
+            totalCarryFwdLoan: 0,
+            totalNewIncDec: 0,
+            totalOutstandingLoan: 0,
+            totalInterest: 0,
+        });
+    };
+
   const handleGenerateReport = async () => {
     if (!firestore || !customers) {
       toast({ variant: 'destructive', title: 'Error', description: 'Customer data not loaded yet.' });
@@ -116,60 +134,76 @@ function Reports() {
     }
     setIsLoading(true);
     setGeneratedReport(null);
+    setCurrentMonthSummary(null);
+    setPreviousMonthSummary(null);
 
     if (reportType === 'monthly') {
-      const monthId = getMonthId(selectedDate);
-      const depositDocRef = doc(firestore, 'monthlyDeposits', monthId);
-      const loanDocRef = doc(firestore, 'monthlyLoans', monthId);
+        const fetchMonthData = async (date: Date) => {
+            const monthId = getMonthId(date);
+            const depositDocRef = doc(firestore, 'monthlyDeposits', monthId);
+            const loanDocRef = doc(firestore, 'monthlyLoans', monthId);
+            
+            const [depositDocSnap, loanDocSnap] = await Promise.all([
+                getDoc(depositDocRef),
+                getDoc(loanDocRef),
+            ]);
 
+            const depositData = depositDocSnap.exists() ? (depositDocSnap.data() as MonthlyDepositDoc).deposits || (depositDocSnap.data() as MonthlyDepositDoc).draft : [];
+            const loanData = loanDocSnap.exists() ? (loanDocSnap.data() as MonthlyLoanDoc).loans || (loanDocSnap.data() as MonthlyLoanDoc).draft : [];
+
+            if (!depositData || depositData.length === 0 || !loanData || loanData.length === 0) {
+                return null;
+            }
+
+            return customers.map(customer => {
+                const dep = depositData.find(d => d.customerId === customer.id);
+                const loan = loanData.find(l => l.customerId === customer.id);
+                const changeTotal = (loan?.changeCash || 0) + (loan?.changeBank || 0);
+                let adjustment = 0;
+                if (loan?.changeType === 'new' || loan?.changeType === 'increase') {
+                    adjustment = changeTotal;
+                } else if (loan?.changeType === 'decrease') {
+                    adjustment = -changeTotal;
+                }
+                const closingLoan = (loan?.carryFwd || 0) + adjustment;
+                return {
+                    customerId: customer.id,
+                    customerName: customer.name,
+                    depositCash: dep?.cash || 0,
+                    depositBank: dep?.bank || 0,
+                    carryFwdLoan: loan?.carryFwd || 0,
+                    loanChangeType: loan?.changeType || 'N/A',
+                    loanChangeCash: loan?.changeCash || 0,
+                    loanChangeBank: loan?.changeBank || 0,
+                    closingLoan: closingLoan,
+                    interestCash: loan?.interestCash || 0,
+                    interestBank: loan?.interestBank || 0,
+                };
+            });
+        };
+      
       try {
-        const [depositDocSnap, loanDocSnap] = await Promise.all([
-          getDoc(depositDocRef),
-          getDoc(loanDocRef),
-        ]);
+        const currentMonthData = await fetchMonthData(selectedDate);
 
-        const depositData = depositDocSnap.exists() ? (depositDocSnap.data() as MonthlyDepositDoc).deposits || (depositDocSnap.data() as MonthlyDepositDoc).draft : [];
-        const loanData = loanDocSnap.exists() ? (loanDocSnap.data() as MonthlyLoanDoc).loans || (loanDocSnap.data() as MonthlyLoanDoc).draft : [];
-
-        if (!depositData || depositData.length === 0 || !loanData || loanData.length === 0) {
-           toast({
-            variant: 'destructive',
-            title: 'No Data Found',
-            description: `No submitted or draft data found for ${format(selectedDate, 'MMMM yyyy')}.`
-          });
-          setIsLoading(false);
-          return;
+        if (!currentMonthData) {
+            toast({
+                variant: 'destructive',
+                title: 'No Data Found',
+                description: `No submitted or draft data found for ${format(selectedDate, 'MMMM yyyy')}.`
+            });
+            setIsLoading(false);
+            return;
         }
 
-        const reportRows: MonthlyReportRow[] = customers.map(customer => {
-          const dep = depositData.find(d => d.customerId === customer.id);
-          const loan = loanData.find(l => l.customerId === customer.id);
+        const prevMonthDate = subMonths(selectedDate, 1);
+        const previousMonthData = await fetchMonthData(prevMonthDate);
 
-          const changeTotal = (loan?.changeCash || 0) + (loan?.changeBank || 0);
-          let adjustment = 0;
-          if (loan?.changeType === 'new' || loan?.changeType === 'increase') {
-            adjustment = changeTotal;
-          } else if (loan?.changeType === 'decrease') {
-            adjustment = -changeTotal;
-          }
-          const closingLoan = (loan?.carryFwd || 0) + adjustment;
+        setGeneratedReport(currentMonthData);
+        setCurrentMonthSummary(calculateSummary(currentMonthData));
 
-          return {
-            customerId: customer.id,
-            customerName: customer.name,
-            depositCash: dep?.cash || 0,
-            depositBank: dep?.bank || 0,
-            carryFwdLoan: loan?.carryFwd || 0,
-            loanChangeType: loan?.changeType || 'N/A',
-            loanChangeCash: loan?.changeCash || 0,
-            loanChangeBank: loan?.changeBank || 0,
-            closingLoan: closingLoan,
-            interestCash: loan?.interestCash || 0,
-            interestBank: loan?.interestBank || 0,
-          };
-        });
-
-        setGeneratedReport(reportRows);
+        if(previousMonthData) {
+            setPreviousMonthSummary(calculateSummary(previousMonthData));
+        }
 
       } catch (error) {
         toast({ variant: 'destructive', title: 'Error Generating Report', description: 'Could not fetch report data.' });
@@ -205,12 +239,28 @@ function Reports() {
       };
 
     const formatAmount = (value: number) => value === 0 ? '-' : `₹${value.toFixed(2)}`;
+
+     const renderBreakdown = (items: {label: string, value: number}[]) => {
+        const parts = items.filter(i => i.value > 0).map(i => `${i.label}: ${formatAmount(i.value)}`);
+        if (parts.length === 0) return null;
+        return <div className="text-xs text-muted-foreground whitespace-nowrap">({parts.join(' ')})</div>;
+    };
+    
+    const grandTotalSummary = (current: ReportSummary | null, prev: ReportSummary | null): ReportSummary => {
+        return {
+            totalDeposit: (current?.totalDeposit || 0) + (prev?.totalDeposit || 0),
+            totalCarryFwdLoan: (prev?.totalOutstandingLoan || 0),
+            totalNewIncDec: (current?.totalNewIncDec || 0) + (prev?.totalNewIncDec || 0),
+            totalOutstandingLoan: current?.totalOutstandingLoan || 0,
+            totalInterest: (current?.totalInterest || 0) + (prev?.totalInterest || 0),
+        }
+    }
     
   return (
     <div className="printable">
-       <div className="print-only p-4">
+       <div className="print-only p-4 text-center">
          {generatedReport && (
-          <h2 className="text-center text-lg font-semibold mb-2">
+          <h2 className="text-lg font-semibold mb-2">
             Report for {format(selectedDate, 'MMMM yyyy')}
           </h2>
         )}
@@ -307,39 +357,29 @@ function Reports() {
                        const depositTotal = item.depositCash + item.depositBank;
                        const loanChangeTotal = item.loanChangeCash + item.loanChangeBank;
                        const interestTotal = item.interestCash + item.interestBank;
-                       
-                       const loanChangeBreakdown = [];
-                       if (loanChangeTotal > 0 && item.loanChangeType !== 'N/A') loanChangeBreakdown.push(item.loanChangeType);
-                       if (item.loanChangeCash > 0) loanChangeBreakdown.push(`c: ${formatAmount(item.loanChangeCash)}`);
-                       if (item.loanChangeBank > 0) loanChangeBreakdown.push(`b: ${formatAmount(item.loanChangeBank)}`);
-                       
-                       const depositBreakdown = [];
-                       if (item.depositCash > 0) depositBreakdown.push(`c: ${formatAmount(item.depositCash)}`);
-                       if (item.depositBank > 0) depositBreakdown.push(`b: ${formatAmount(item.depositBank)}`);
 
-                        const interestBreakdown = [];
-                        if (item.interestCash > 0) interestBreakdown.push(`c: ${formatAmount(item.interestCash)}`);
-                        if (item.interestBank > 0) interestBreakdown.push(`b: ${formatAmount(item.interestBank)}`);
-
-
-                        return (
+                       return (
                           <TableRow key={item.customerId}>
                             <TableCell className="py-1">{index + 1}</TableCell>
                             <TableCell className="font-medium whitespace-nowrap py-1">{item.customerName}</TableCell>
                             <TableCell className="text-right py-1">
-                               {depositTotal === 0 ? formatAmount(0) : (
-                                <div className="flex flex-col">
-                                  <div>{formatAmount(depositTotal)}</div>
-                                  {depositBreakdown.length > 0 && <div className="text-xs text-muted-foreground whitespace-nowrap">({depositBreakdown.join(' ')})</div>}
-                                </div>
-                              )}
+                                {depositTotal === 0 ? formatAmount(0) : (
+                                    <div className="flex flex-col">
+                                        <div>{formatAmount(depositTotal)}</div>
+                                        {renderBreakdown([{label: 'c', value: item.depositCash}, {label: 'b', value: item.depositBank}])}
+                                    </div>
+                                )}
                             </TableCell>
                             <TableCell className="text-right py-1">{formatAmount(item.carryFwdLoan)}</TableCell>
                              <TableCell className="text-right py-1">
                                {loanChangeTotal === 0 ? formatAmount(0) : (
                                   <div className="flex flex-col">
                                     <div>{formatAmount(loanChangeTotal)}</div>
-                                    <div className="text-xs text-muted-foreground whitespace-nowrap">({loanChangeBreakdown.join(' ')})</div>
+                                    {renderBreakdown([
+                                        ...(item.loanChangeType !== 'N/A' ? [{label: item.loanChangeType, value: -1}] : []),
+                                        {label: 'c', value: item.loanChangeCash},
+                                        {label: 'b', value: item.loanChangeBank}
+                                    ].map(item => item.value === -1 ? {label: item.label, value: 1} : item))}
                                   </div>
                                )}
                             </TableCell>
@@ -348,7 +388,7 @@ function Reports() {
                               {interestTotal === 0 ? formatAmount(0) : (
                                 <div className="flex flex-col">
                                   <div>{formatAmount(interestTotal)}</div>
-                                  {interestBreakdown.length > 0 && <div className="text-xs text-muted-foreground whitespace-nowrap">({interestBreakdown.join(' ')})</div>}
+                                  {renderBreakdown([{label: 'c', value: item.interestCash}, {label: 'b', value: item.interestBank}])}
                                 </div>
                               )}
                             </TableCell>
@@ -358,38 +398,23 @@ function Reports() {
                      <TableRow className="font-bold bg-muted/50 text-right">
                         <TableCell colSpan={2} className="text-left py-1">Total</TableCell>
                         <TableCell className="py-1">
-                          <div className="flex flex-col">
+                           <div className="flex flex-col">
                             <div>{formatAmount(totals.depositCash + totals.depositBank)}</div>
-                            <div className="text-xs text-muted-foreground whitespace-nowrap">
-                              (
-                                {totals.depositCash > 0 && <span>c: {formatAmount(totals.depositCash)} </span>}
-                                {totals.depositBank > 0 && <span>b: {formatAmount(totals.depositBank)}</span>}
-                              )
-                            </div>
+                            {renderBreakdown([{label: 'c', value: totals.depositCash}, {label: 'b', value: totals.depositBank}])}
                           </div>
                         </TableCell>
                         <TableCell className="py-1">{formatAmount(totals.carryFwdLoan)}</TableCell>
                         <TableCell className="text-right py-1">
                              <div className="flex flex-col">
                                 <div>{formatAmount(totals.loanChangeCash + totals.loanChangeBank)}</div>
-                                <div className="text-xs text-muted-foreground whitespace-nowrap">
-                                  (
-                                    {totals.loanChangeCash > 0 && <span>c: {formatAmount(totals.loanChangeCash)} </span>}
-                                    {totals.loanChangeBank > 0 && <span>b: {formatAmount(totals.loanChangeBank)}</span>}
-                                  )
-                                </div>
+                                {renderBreakdown([{label: 'c', value: totals.loanChangeCash}, {label: 'b', value: totals.loanChangeBank}])}
                             </div>
                         </TableCell>
                         <TableCell className="py-1">{formatAmount(totals.closingLoan)}</TableCell>
                         <TableCell className="py-1">
                            <div className="flex flex-col">
                               <div>{formatAmount(totals.interestCash + totals.interestBank)}</div>
-                                <div className="text-xs text-muted-foreground whitespace-nowrap">
-                                    (
-                                      {totals.interestCash > 0 && <span>c: {formatAmount(totals.interestCash)} </span>}
-                                      {totals.interestBank > 0 && <span>b: {formatAmount(totals.interestBank)}</span>}
-                                    )
-                                </div>
+                              {renderBreakdown([{label: 'c', value: totals.interestCash}, {label: 'b', value: totals.interestBank}])}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -402,6 +427,30 @@ function Reports() {
                 <Printer className="mr-2 h-4 w-4" /> Print
               </Button>
             </CardFooter>
+            
+            <div className="print-only px-6 pt-4">
+                <div className="grid grid-cols-3 gap-4">
+                    {(previousMonthSummary || currentMonthSummary) && [
+                        {title: 'Previous Month', summary: previousMonthSummary},
+                        {title: 'Current Month', summary: currentMonthSummary},
+                        {title: 'Grand Total', summary: grandTotalSummary(currentMonthSummary, previousMonthSummary)},
+                    ].map((section, index) => section.summary && (
+                       <div key={index} className="border p-2 rounded-lg">
+                            <h3 className="font-bold text-center mb-2">{section.title}</h3>
+                             <Table>
+                                <TableBody>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalDeposit)}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Carry Fwd Loan</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalCarryFwdLoan)}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total New/Inc/Dec</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalNewIncDec)}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Outstanding Loan</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalOutstandingLoan)}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Interest</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(section.summary.totalInterest)}</TableCell></TableRow>
+                                </TableBody>
+                            </Table>
+                       </div>
+                    ))}
+                </div>
+            </div>
+
           </>
         ) : (
             <CardContent className="no-print">
