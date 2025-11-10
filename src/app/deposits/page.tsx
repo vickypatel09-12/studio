@@ -462,20 +462,20 @@ function Deposits() {
   }
 
   return (
-    <div className="space-y-6 printable">
-      <div className="print-only text-center my-4">
-        {selectedDate && (
-          <h2 className="text-lg font-semibold mb-2">
-            Monthly Deposits for {format(selectedDate, 'MMMM yyyy')}
-          </h2>
-        )}
-      </div>
-
+    <div className="space-y-6">
       <div className='no-print'>
         <BalanceSummary selectedDate={selectedDate} />
       </div>
       
-      <Card>
+      <Card className="printable">
+        <div className="print-only text-center my-4">
+            {selectedDate && (
+            <h2 className="text-lg font-semibold mb-2">
+                Monthly Deposits for {format(selectedDate, 'MMMM yyyy')}
+            </h2>
+            )}
+        </div>
+
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between no-print">
           <div>
             <CardTitle>Monthly Deposits</CardTitle>
@@ -517,7 +517,7 @@ function Deposits() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex items-center justify-center p-8">
+            <div className="flex items-center justify-center p-8 no-print">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : selectedDate && customers ? (
@@ -567,8 +567,9 @@ function Deposits() {
                                 e.target.value
                               )
                             }
-                            className="w-full text-right"
+                            className="w-full text-right no-print"
                           />
+                          <span className="print-only">{deposit.cash.toFixed(2)}</span>
                         </TableCell>
                         <TableCell>
                           <Input
@@ -583,8 +584,9 @@ function Deposits() {
                                 e.target.value
                               )
                             }
-                            className="w-full text-right"
+                            className="w-full text-right no-print"
                           />
+                           <span className="print-only">{deposit.bank.toFixed(2)}</span>
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           ₹{depositTotal.toFixed(2)}
