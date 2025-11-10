@@ -197,68 +197,77 @@ function Reports() {
     const formatAmount = (value: number) => `₹${value.toFixed(2)}`;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Generate Reports</CardTitle>
-        <CardDescription>
-          Select a report type and date range to generate financial reports.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-          <div className="grid gap-2">
-            <label>Report Type</label>
-            <Select
-              value={reportType}
-              onValueChange={(value: ReportType) => setReportType(value)}
-            >
-              <SelectTrigger className="w-full sm:w-[240px]">
-                <SelectValue placeholder="Select a report type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="monthly">Monthly Report</SelectItem>
-                <SelectItem value="all-time" disabled>All-Time Report</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {reportType === 'monthly' && (
-            <div className="grid gap-2">
-              <label>Month</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={'outline'}
-                    className={cn(
-                      'w-full justify-start text-left font-normal sm:w-[240px]',
-                      !selectedDate && 'text-muted-foreground'
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? (
-                      format(selectedDate, 'MMMM yyyy')
-                    ) : (
-                      <span>Pick a month</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={(date) => date && setSelectedDate(startOfMonth(date))}
-                    initialFocus
-                    captionLayout="dropdown-buttons"
-                    fromYear={2020}
-                    toYear={new Date().getFullYear() + 5}
-                  />
-                </PopoverContent>
-              </Popover>
+    <div className="printable">
+      <div className="print-only p-4">
+        <h1 className="text-2xl font-bold text-center">
+          Report for {format(selectedDate, 'MMMM yyyy')}
+        </h1>
+      </div>
+      <Card>
+        <div className="no-print">
+          <CardHeader>
+            <CardTitle>Generate Reports</CardTitle>
+            <CardDescription>
+              Select a report type and date range to generate financial reports.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+              <div className="grid gap-2">
+                <label>Report Type</label>
+                <Select
+                  value={reportType}
+                  onValueChange={(value: ReportType) => setReportType(value)}
+                >
+                  <SelectTrigger className="w-full sm:w-[240px]">
+                    <SelectValue placeholder="Select a report type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly Report</SelectItem>
+                    <SelectItem value="all-time" disabled>All-Time Report</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {reportType === 'monthly' && (
+                <div className="grid gap-2">
+                  <label>Month</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={'outline'}
+                        className={cn(
+                          'w-full justify-start text-left font-normal sm:w-[240px]',
+                          !selectedDate && 'text-muted-foreground'
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {selectedDate ? (
+                          format(selectedDate, 'MMMM yyyy')
+                        ) : (
+                          <span>Pick a month</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => date && setSelectedDate(startOfMonth(date))}
+                        initialFocus
+                        captionLayout="dropdown-buttons"
+                        fromYear={2020}
+                        toYear={new Date().getFullYear() + 5}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
+              <Button onClick={handleGenerateReport} disabled={isLoading || customersLoading}>
+                {isLoading || customersLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                Generate Report
+              </Button>
             </div>
-          )}
-          <Button onClick={handleGenerateReport} disabled={isLoading || customersLoading}>
-            {isLoading || customersLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-            Generate Report
-          </Button>
+          </CardContent>
         </div>
 
         {isLoading ? (
@@ -266,81 +275,85 @@ function Reports() {
                 <Loader2 className="h-8 w-8 animate-spin"/>
             </div>
         ) : generatedReport ? (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                    <TableHead className='w-[50px]'>Sr.</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead className="text-right">Deposit</TableHead>
-                    <TableHead className="text-right">Carry Fwd Loan</TableHead>
-                    <TableHead className="text-right">New / Changed Loan</TableHead>
-                    <TableHead className="text-right">Closing Loan</TableHead>
-                    <TableHead className="text-right">Interest</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {generatedReport.map((item, index) => (
-                  <TableRow key={item.customerId}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell className="font-medium">{item.customerName}</TableCell>
-                    <TableCell className="text-right">
-                      {item.depositCash > 0 && <div>c: {formatAmount(item.depositCash)}</div>}
-                      {item.depositBank > 0 && <div>b: {formatAmount(item.depositBank)}</div>}
-                    </TableCell>
-                    <TableCell className="text-right">{formatAmount(item.carryFwdLoan)}</TableCell>
-                    <TableCell className="text-right">
-                       <div><span className='capitalize'>{item.loanChangeType}</span></div>
-                       {item.loanChangeCash > 0 && <div>c: {formatAmount(item.loanChangeCash)}</div>}
-                       {item.loanChangeBank > 0 && <div>b: {formatAmount(item.loanChangeBank)}</div>}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">{formatAmount(item.closingLoan)}</TableCell>
-                    <TableCell className="text-right">
-                      {item.interestCash > 0 && <div>c: {formatAmount(item.interestCash)}</div>}
-                      {item.interestBank > 0 && <div>b: {formatAmount(item.interestBank)}</div>}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-              <UiTableFooter>
-                <TableRow className="font-bold bg-muted/50 text-right">
-                  <TableCell colSpan={2}>Total</TableCell>
-                  <TableCell>
-                      {totals.depositCash > 0 && <div>c: {formatAmount(totals.depositCash)}</div>}
-                      {totals.depositBank > 0 && <div>b: {formatAmount(totals.depositBank)}</div>}
-                  </TableCell>
-                  <TableCell>{formatAmount(totals.carryFwdLoan)}</TableCell>
-                  <TableCell>
-                      {totals.loanChangeCash > 0 && <div>c: {formatAmount(totals.loanChangeCash)}</div>}
-                      {totals.loanChangeBank > 0 && <div>b: {formatAmount(totals.loanChangeBank)}</div>}
-                  </TableCell>
-                  <TableCell>{formatAmount(totals.closingLoan)}</TableCell>
-                  <TableCell>
-                      {totals.interestCash > 0 && <div>c: {formatAmount(totals.interestCash)}</div>}
-                      {totals.interestBank > 0 && <div>b: {formatAmount(totals.interestBank)}</div>}
-                  </TableCell>
-                </TableRow>
-              </UiTableFooter>
-            </Table>
-          </div>
+          <>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                        <TableHead className='w-[50px]'>Sr.</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead className="text-right">Deposit</TableHead>
+                        <TableHead className="text-right">Carry Fwd Loan</TableHead>
+                        <TableHead className="text-right">New / Changed Loan</TableHead>
+                        <TableHead className="text-right">Closing Loan</TableHead>
+                        <TableHead className="text-right">Interest</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {generatedReport.map((item, index) => (
+                      <TableRow key={item.customerId}>
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell className="font-medium">{item.customerName}</TableCell>
+                        <TableCell className="text-right">
+                          {item.depositCash > 0 && <div>c: {formatAmount(item.depositCash)}</div>}
+                          {item.depositBank > 0 && <div>b: {formatAmount(item.depositBank)}</div>}
+                        </TableCell>
+                        <TableCell className="text-right">{formatAmount(item.carryFwdLoan)}</TableCell>
+                        <TableCell className="text-right">
+                          <div><span className='capitalize'>{item.loanChangeType}</span></div>
+                          {item.loanChangeCash > 0 && <div>c: {formatAmount(item.loanChangeCash)}</div>}
+                          {item.loanChangeBank > 0 && <div>b: {formatAmount(item.loanChangeBank)}</div>}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">{formatAmount(item.closingLoan)}</TableCell>
+                        <TableCell className="text-right">
+                          {item.interestCash > 0 && <div>c: {formatAmount(item.interestCash)}</div>}
+                          {item.interestBank > 0 && <div>b: {formatAmount(item.interestBank)}</div>}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                  <UiTableFooter>
+                    <TableRow className="font-bold bg-muted/50 text-right">
+                      <TableCell colSpan={2}>Total</TableCell>
+                      <TableCell>
+                          {totals.depositCash > 0 && <div>c: {formatAmount(totals.depositCash)}</div>}
+                          {totals.depositBank > 0 && <div>b: {formatAmount(totals.depositBank)}</div>}
+                      </TableCell>
+                      <TableCell>{formatAmount(totals.carryFwdLoan)}</TableCell>
+                      <TableCell>
+                          {totals.loanChangeCash > 0 && <div>c: {formatAmount(totals.loanChangeCash)}</div>}
+                          {totals.loanChangeBank > 0 && <div>b: {formatAmount(totals.loanChangeBank)}</div>}
+                      </TableCell>
+                      <TableCell>{formatAmount(totals.closingLoan)}</TableCell>
+                      <TableCell>
+                          {totals.interestCash > 0 && <div>c: {formatAmount(totals.interestCash)}</div>}
+                          {totals.interestBank > 0 && <div>b: {formatAmount(totals.interestBank)}</div>}
+                      </TableCell>
+                    </TableRow>
+                  </UiTableFooter>
+                </Table>
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-end gap-2 no-print">
+              <Button variant="outline" onClick={() => window.print()}>
+                <Printer className="mr-2 h-4 w-4" /> Print
+              </Button>
+            </CardFooter>
+          </>
         ) : (
-            <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>No Report Generated</AlertTitle>
-                <AlertDescription>
-                   Select a month and click "Generate Report" to view data.
-                </AlertDescription>
-            </Alert>
+            <CardContent className="no-print">
+              <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>No Report Generated</AlertTitle>
+                  <AlertDescription>
+                    Select a month and click "Generate Report" to view data.
+                  </AlertDescription>
+              </Alert>
+            </CardContent>
         )}
-      </CardContent>
-      {generatedReport && (
-        <CardFooter className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => window.print()}>
-            <Printer className="mr-2 h-4 w-4" /> Print
-          </Button>
-        </CardFooter>
-      )}
-    </Card>
+      </Card>
+    </div>
   );
 }
 
