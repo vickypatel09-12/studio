@@ -7,6 +7,9 @@ import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore'
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
+  if (typeof window === 'undefined') {
+    throw new Error("Firebase should only be initialized on the client side.");
+  }
   const isConfigured = getApps().length > 0;
   const firebaseApp = isConfigured ? getApp() : initializeApp(firebaseConfig);
   return getSdks(firebaseApp);
