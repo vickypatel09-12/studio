@@ -611,11 +611,11 @@ function Loans() {
   return (
     <>
       <div className="space-y-6">
-        <div className="no-print">
+        <div className="no-print animate-fade-in-up">
           <BalanceSummary />
         </div>
 
-        <Card className="printable">
+        <Card className="printable animate-fade-in-up" style={{ animationDelay: '100ms' }}>
           <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between no-print">
             <div>
               <CardTitle>Loans &amp; Interest</CardTitle>
@@ -928,7 +928,7 @@ function Loans() {
           )}
         </Card>
         
-        <Card className="no-print">
+        <Card className="no-print animate-fade-in-up" style={{ animationDelay: '200ms' }}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <History className="h-5 w-5" />

@@ -382,7 +382,7 @@ function Reports() {
   return (
     <>
       <div>
-        <Card className="printable">
+        <Card className="printable animate-fade-in-up">
           <div className="no-print">
             <CardHeader>
               <CardTitle>Generate Reports</CardTitle>

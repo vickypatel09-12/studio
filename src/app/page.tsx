@@ -75,7 +75,7 @@ type Transaction = {
 
 function Dashboard() {
   const firestore = useFirestore();
-  const { liveMonthId, liveDeposits, liveLoans } = useLiveData();
+  const { liveMonthId, deposits: liveDeposits, loans: liveLoans } = useLiveData();
 
   const customersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -218,7 +218,7 @@ function Dashboard() {
   return (
     <div className="grid gap-6">
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="animate-fade-in-up">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Inflow</CardTitle>
             <ArrowDownToDot className="h-4 w-4 text-muted-foreground" />
@@ -230,7 +230,7 @@ function Dashboard() {
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="animate-fade-in-up" style={{ animationDelay: '50ms' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Outstanding Loans
@@ -244,7 +244,7 @@ function Dashboard() {
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="animate-fade-in-up" style={{ animationDelay: '100ms' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Interest</CardTitle>
             <Percent className="h-4 w-4 text-muted-foreground" />
@@ -256,7 +256,7 @@ function Dashboard() {
             </p>
           </CardContent>
         </Card>
-         <Card>
+         <Card className="animate-fade-in-up" style={{ animationDelay: '150ms' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Available Balance</CardTitle>
             <Wallet className="h-4 w-4 text-muted-foreground" />
@@ -268,7 +268,7 @@ function Dashboard() {
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="animate-fade-in-up" style={{ animationDelay: '200ms' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Active Customers
@@ -282,7 +282,7 @@ function Dashboard() {
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="animate-fade-in-up" style={{ animationDelay: '250ms' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Available Cash</CardTitle>
             <PiggyBank className="h-4 w-4 text-muted-foreground" />
@@ -294,7 +294,7 @@ function Dashboard() {
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="animate-fade-in-up" style={{ animationDelay: '300ms' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Available Bank Balance</CardTitle>
             <University className="h-4 w-4 text-muted-foreground" />

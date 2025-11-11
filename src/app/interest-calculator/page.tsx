@@ -95,7 +95,7 @@ function InterestCalculator() {
 
   return (
     <div className="flex justify-center">
-      <Card className="w-full max-w-2xl">
+      <Card className="w-full max-w-2xl animate-fade-in-up">
         <CardHeader>
           <CardTitle>Interest Calculation Tool</CardTitle>
           <CardDescription>

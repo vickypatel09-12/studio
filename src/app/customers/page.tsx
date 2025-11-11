@@ -354,7 +354,7 @@ notes: editingCustomer.notes || '',
 
   return (
     <>
-      <Card className="printable">
+      <Card className="printable animate-fade-in-up">
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between no-print">
           <div>
             <CardTitle>Customers</CardTitle>
