@@ -42,7 +42,7 @@ const formatCurrency = (value: number) => {
 
 export function BalanceSummary() {
   const firestore = useFirestore();
-  const { liveMonthId, liveDeposits, liveLoans } = useLiveData();
+  const { liveMonthId, deposits, loans } = useLiveData();
 
   const depositsQuery = useMemoFirebase(
     () => (firestore ? query(collection(firestore, 'monthlyDeposits')) : null),
@@ -62,9 +62,9 @@ export function BalanceSummary() {
     
     // Start with DB data
     const combinedDeposits: MonthlyDepositDoc[] = allDbDeposits ? JSON.parse(JSON.stringify(allDbDeposits)) : [];
-    if (liveMonthId && liveDeposits.length > 0) {
+    if (liveMonthId && deposits && deposits.length > 0) {
         const existingIndex = combinedDeposits.findIndex(d => d.id === liveMonthId);
-        const liveData = { id: liveMonthId, deposits: liveDeposits, draft: liveDeposits };
+        const liveData = { id: liveMonthId, deposits: deposits, draft: deposits };
         if (existingIndex > -1) {
             // Replace DB data for the live month with live data
             combinedDeposits[existingIndex] = liveData;
@@ -75,9 +75,9 @@ export function BalanceSummary() {
     }
     
     const combinedLoans: MonthlyLoanDoc[] = allDbLoans ? JSON.parse(JSON.stringify(allDbLoans)) : [];
-    if (liveMonthId && liveLoans.length > 0) {
+    if (liveMonthId && loans && loans.length > 0) {
         const existingIndex = combinedLoans.findIndex(l => l.id === liveMonthId);
-        const liveData = { id: liveMonthId, loans: liveLoans, draft: liveLoans };
+        const liveData = { id: liveMonthId, loans: loans, draft: loans };
          if (existingIndex > -1) {
             combinedLoans[existingIndex] = liveData;
         } else {
@@ -164,7 +164,7 @@ export function BalanceSummary() {
         availableBalance: availableBalanceValue, 
         monthLabel 
     };
-  }, [allDbDeposits, allDbLoans, liveMonthId, liveDeposits, liveLoans]);
+  }, [allDbDeposits, allDbLoans, liveMonthId, deposits, loans]);
   
   const isLoading = depositsLoading || loansLoading;
 
