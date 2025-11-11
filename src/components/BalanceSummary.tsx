@@ -75,12 +75,7 @@ export function BalanceSummary({
 }) {
   const firestore = useFirestore();
   const [date, setDate] = useState(() => startOfMonth(dateProp || new Date()));
-  const [summary, setSummary] = useState({
-    openingBalance: { cash: 0, bank: 0 },
-    currentDeposits: { cash: 0, bank: 0 },
-    loanGiven: { cash: 0, bank: 0 },
-    loanRepaid: { cash: 0, bank: 0 },
-  });
+  const [openingBalance, setOpeningBalance] = useState({ cash: 0, bank: 0 });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -88,7 +83,7 @@ export function BalanceSummary({
   }, [dateProp]);
 
   useEffect(() => {
-    const fetchSummaryData = async () => {
+    const fetchOpeningBalance = async () => {
       if (!firestore) return;
       setIsLoading(true);
 
@@ -115,25 +110,6 @@ export function BalanceSummary({
           getDoc(twoMonthsAgoDepositRef),
           getDoc(twoMonthsAgoLoanRef)
         ]);
-        
-        let currentDeposits: Deposit[] = liveDeposits || [];
-        let currentLoans: Loan[] = liveLoans || [];
-
-        // If live data is not passed, fetch from Firestore
-        if (!liveDeposits) {
-          const currentDepositSnap = await getDoc(doc(firestore, 'monthlyDeposits', getMonthId(date)));
-          if (currentDepositSnap.exists()) {
-             const data = currentDepositSnap.data() as MonthlyDepositDoc;
-             currentDeposits = data.deposits || data.draft || [];
-          }
-        }
-        if (!liveLoans) {
-          const currentLoanSnap = await getDoc(doc(firestore, 'monthlyLoans', getMonthId(date)));
-           if (currentLoanSnap.exists()) {
-             const data = currentLoanSnap.data() as MonthlyLoanDoc;
-             currentLoans = data.loans || data.draft || [];
-          }
-        }
         
         const prevDepositsData = prevDepositSnap.exists() ? (prevDepositSnap.data() as MonthlyDepositDoc) : null;
         const prevLoansData = prevLoanSnap.exists() ? (prevLoanSnap.data() as MonthlyLoanDoc) : null;
@@ -165,67 +141,61 @@ export function BalanceSummary({
         const prevClosingCash = prevMonthOpeningBalance.cash + prevMonthDeposits.cash + prevMonthLoanChanges.repaid.cash - prevMonthLoanChanges.given.cash;
         const prevClosingBank = prevMonthOpeningBalance.bank + prevMonthDeposits.bank + prevMonthLoanChanges.repaid.bank - prevMonthLoanChanges.given.bank;
         
-        const openingBalance = {
+        setOpeningBalance({
             cash: prevClosingCash,
             bank: prevClosingBank,
-        };
-
-        const currentMonthDeposits = currentDeposits.reduce(
-            (totals, d) => {
-              totals.cash += d.cash || 0;
-              totals.bank += d.bank || 0;
-              return totals;
-            }, { cash: 0, bank: 0 }
-        );
-        
-        const loanChanges = currentLoans.reduce(
-            (totals, l) => {
-              if (l.changeType === 'new' || l.changeType === 'increase') {
-                totals.given.cash += l.changeCash || 0;
-                totals.given.bank += l.changeBank || 0;
-              } else if (l.changeType === 'decrease') {
-                totals.repaid.cash += l.changeCash || 0;
-                totals.repaid.bank += l.changeBank || 0;
-              }
-              return totals;
-            }, {
-              given: { cash: 0, bank: 0 },
-              repaid: { cash: 0, bank: 0 },
-            }
-          );
-
-        setSummary({
-          openingBalance,
-          currentDeposits: currentMonthDeposits,
-          loanGiven: loanChanges.given,
-          loanRepaid: loanChanges.repaid,
         });
+
       } catch (error) {
-        console.error('Error fetching summary data:', error);
+        console.error('Error fetching opening balance:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchSummaryData();
-  }, [date, firestore, liveDeposits, liveLoans]);
+    fetchOpeningBalance();
+  }, [date, firestore]);
+
+  const currentMonthDeposits = (liveDeposits || []).reduce(
+      (totals, d) => {
+        totals.cash += d.cash || 0;
+        totals.bank += d.bank || 0;
+        return totals;
+      }, { cash: 0, bank: 0 }
+  );
+
+  const loanChanges = (liveLoans || []).reduce(
+      (totals, l) => {
+        if (l.changeType === 'new' || l.changeType === 'increase') {
+          totals.given.cash += l.changeCash || 0;
+          totals.given.bank += l.changeBank || 0;
+        } else if (l.changeType === 'decrease') {
+          totals.repaid.cash += l.changeCash || 0;
+          totals.repaid.bank += l.changeBank || 0;
+        }
+        return totals;
+      }, {
+        given: { cash: 0, bank: 0 },
+        repaid: { cash: 0, bank: 0 },
+      }
+    );
   
   const totalCredited = {
-    cash: summary.currentDeposits.cash + summary.loanRepaid.cash,
-    bank: summary.currentDeposits.bank + summary.loanRepaid.bank,
-    total: summary.currentDeposits.cash + summary.loanRepaid.cash + summary.currentDeposits.bank + summary.loanRepaid.bank
+    cash: currentMonthDeposits.cash + loanChanges.repaid.cash,
+    bank: currentMonthDeposits.bank + loanChanges.repaid.bank,
+    total: currentMonthDeposits.cash + loanChanges.repaid.cash + currentMonthDeposits.bank + loanChanges.repaid.bank
   };
 
   const totalDebit = {
-      cash: summary.loanGiven.cash,
-      bank: summary.loanGiven.bank,
-      total: summary.loanGiven.cash + summary.loanGiven.bank
+      cash: loanChanges.given.cash,
+      bank: loanChanges.given.bank,
+      total: loanChanges.given.cash + loanChanges.given.bank
   };
 
   const availableBalance = {
-    cash: summary.openingBalance.cash + totalCredited.cash - totalDebit.cash,
-    bank: summary.openingBalance.bank + totalCredited.bank - totalDebit.bank,
-    total: summary.openingBalance.cash + totalCredited.cash - totalDebit.cash + summary.openingBalance.bank + totalCredited.bank - totalDebit.bank
+    cash: openingBalance.cash + totalCredited.cash - totalDebit.cash,
+    bank: openingBalance.bank + totalCredited.bank - totalDebit.bank,
+    total: openingBalance.cash + totalCredited.cash - totalDebit.cash + openingBalance.bank + totalCredited.bank - totalDebit.bank
   };
 
 
