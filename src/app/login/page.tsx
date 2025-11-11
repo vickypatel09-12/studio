@@ -83,7 +83,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center py-12">
+    <div className="flex min-h-screen flex-col items-center justify-center py-12">
       <div className="mx-auto grid w-[350px] gap-6">
         <div className="grid gap-2 text-center animate-fade-in-up">
            <div className="flex items-center justify-center gap-4 text-primary">
@@ -97,12 +97,12 @@ export default function LoginPage() {
         <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="grid gap-4 animate-fade-in-up" style={{animationDelay: '100ms'}}>
           <div className="grid gap-2">
             <Label htmlFor="login-email">Email</Label>
-            <Input id="login-email" type="email" placeholder="m@example.com" {...loginForm.register('email')} />
+            <Input id="login-email" type="email" placeholder="m@example.com" {...loginForm.register('email')} className="border border-input"/>
             {loginForm.formState.errors.email && <p className="text-sm text-destructive">{loginForm.formState.errors.email.message}</p>}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="login-password">Password</Label>
-            <Input id="login-password" type="password" {...loginForm.register('password')} />
+            <Input id="login-password" type="password" {...loginForm.register('password')} className="border border-input" />
             {loginForm.formState.errors.password && <p className="text-sm text-destructive">{loginForm.formState.errors.password.message}</p>}
           </div>
           <Button type="submit" className="w-full" disabled={isLoading}>
@@ -110,6 +110,9 @@ export default function LoginPage() {
             Login
           </Button>
         </form>
+      </div>
+       <div className="absolute bottom-4 text-center text-sm text-muted-foreground animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+          <p>Created by: Vikesh Patel</p>
       </div>
     </div>
   );
