@@ -86,7 +86,6 @@ import { AppShell } from '@/components/AppShell';
 import { BalanceSummary } from '@/components/BalanceSummary';
 import { Label } from '@/components/ui/label';
 import { useLiveData, type Loan, type LoanChangeType } from '@/context/LiveDataContext';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 type MonthlyLoanDoc = {
   id: string;
@@ -671,7 +670,7 @@ function Loans() {
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : selectedDate && customers ? (
-              <ScrollArea className="h-[calc(100vh-28rem)]">
+              <>
                 {!isDepositSubmitted && (
                      <Alert variant="destructive" className="no-print mb-4">
                         <AlertTriangle className="h-4 w-4" />
@@ -879,7 +878,7 @@ function Loans() {
                     </TableRow>
                   </UiTableFooter>
                 </Table>
-              </ScrollArea>
+              </>
             ) : (
               <Alert className="no-print">
                 <Info className="h-4 w-4" />

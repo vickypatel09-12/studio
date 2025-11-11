@@ -77,7 +77,6 @@ import { AppShell } from '@/components/AppShell';
 import { BalanceSummary } from '@/components/BalanceSummary';
 import { Label } from '@/components/ui/label';
 import { useLiveData, type Deposit } from '@/context/LiveDataContext';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 type Session = {
   id: 'status';
@@ -531,7 +530,6 @@ function Deposits() {
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : selectedDate && customers ? (
-              <ScrollArea className="h-[calc(100vh-28rem)]">
                 <Table id="deposits-table">
                   <TableHeader>
                     <TableRow>
@@ -614,7 +612,6 @@ function Deposits() {
                     </TableRow>
                   </UiTableFooter>
                 </Table>
-              </ScrollArea>
             ) : (
               <Alert className="no-print">
                 <Info className="h-4 w-4" />
