@@ -94,6 +94,10 @@
     display: none !important;
   }
 
+  .print-hide-row {
+    display: none !important;
+  }
+
   main[class*="peer-"] {
     margin-left: 0 !important;
   }

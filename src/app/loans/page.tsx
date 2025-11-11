@@ -729,9 +729,10 @@ function Loans() {
                       );
                       if (!loan) return null;
                       const changeTotal = getChangeTotal(loan);
+                      const isRowEmpty = (loan.carryFwd || 0) === 0 && changeTotal === 0 && (loan.interestTotal || 0) === 0;
 
                       return (
-                        <TableRow key={customer.id}>
+                        <TableRow key={customer.id} className={isRowEmpty ? 'print-hide-row' : ''}>
                           <TableCell className="font-medium">
                             {index + 1}
                           </TableCell>
@@ -824,7 +825,7 @@ function Loans() {
                                 type="number"
                                 placeholder="₹0.00"
                                 value={loan.interestCash || ''}
-                                disabled={!isSessionActive || isSubmitted || loan.interestTotal === 0}
+                                disabled={!isSessionActive || isSubmitted || (loan.interestTotal || 0) === 0}
                                 onChange={(e) =>
                                     handleLoanChange(
                                     customer.id,
@@ -843,7 +844,7 @@ function Loans() {
                                 type="number"
                                 placeholder="₹0.00"
                                 value={loan.interestBank || ''}
-                                disabled={!isSessionActive || isSubmitted || loan.interestTotal === 0}
+                                disabled={!isSessionActive || isSubmitted || (loan.interestTotal || 0) === 0}
                                 onChange={(e) =>
                                     handleLoanChange(
                                     customer.id,
