@@ -116,6 +116,7 @@ type Session = {
   id: 'status';
   status: 'active' | 'closed';
   interestRate?: number;
+  interestRateType?: 'monthly' | 'annual';
 };
 
 const getMonthId = (date: Date) => format(date, 'yyyy-MM');
@@ -179,6 +180,8 @@ function Loans() {
       const prevDocRef = doc(firestore, 'monthlyLoans', prevMonthId);
 
       const sessionInterestRate = session?.interestRate ? session.interestRate / 100 : 0;
+      const monthlyInterestRate = session?.interestRateType === 'annual' ? sessionInterestRate / 12 : sessionInterestRate;
+
 
       try {
         const prevDocSnap = await getDoc(prevDocRef);
@@ -190,7 +193,7 @@ function Loans() {
             initialLoans = customers.map((c) => {
                 const prevLoan = prevLoansData.find((l) => l.customerId === c.id);
                 const carryFwd = prevLoan ? calculateClosingBalance(prevLoan) : 0;
-                const interestTotal = (carryFwd * sessionInterestRate) / 12;
+                const interestTotal = carryFwd * monthlyInterestRate;
                 return {
                 customerId: c.id,
                 carryFwd: carryFwd,

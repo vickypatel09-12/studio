@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardHeader,
@@ -27,6 +27,7 @@ import {
   setDocumentNonBlocking,
   deleteDocumentNonBlocking,
   useMemoFirebase,
+  updateDocumentNonBlocking,
 } from '@/firebase';
 import { doc, Timestamp } from 'firebase/firestore';
 import {
@@ -37,6 +38,7 @@ import {
   Calendar as CalendarIcon,
   Percent,
   Trash2,
+  Pencil,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
@@ -55,6 +57,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { AppShell } from '@/components/AppShell';
 
@@ -64,6 +73,7 @@ type Session = {
   startDate?: Timestamp;
   endDate?: Timestamp;
   interestRate?: number;
+  interestRateType?: 'monthly' | 'annual';
 };
 
 function SessionManagement() {
@@ -72,6 +82,7 @@ function SessionManagement() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isStartSessionDialogOpen, setIsStartSessionDialogOpen] =
     useState(false);
+  const [isEditSessionDialogOpen, setIsEditSessionDialogOpen] = useState(false);
   const [isEndSessionDialogOpen, setIsEndSessionDialogOpen] = useState(false);
   const [isRevertSessionDialogOpen, setIsRevertSessionDialogOpen] =
     useState(false);
@@ -80,6 +91,8 @@ function SessionManagement() {
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [interestRate, setInterestRate] = useState<number | ''>('');
+  const [interestRateType, setInterestRateType] = useState<'monthly' | 'annual'>('annual');
+
 
   const sessionDocRef = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -87,6 +100,13 @@ function SessionManagement() {
   }, [firestore]);
 
   const { data: session, isLoading } = useDoc<Session>(sessionDocRef);
+
+  useEffect(() => {
+    if (session && isEditSessionDialogOpen) {
+        setInterestRate(session.interestRate || '');
+        setInterestRateType(session.interestRateType || 'annual');
+    }
+  }, [session, isEditSessionDialogOpen]);
 
   const handleStartSession = () => {
     if (!firestore || !sessionDocRef) return;
@@ -121,6 +141,7 @@ function SessionManagement() {
       status: 'active',
       startDate: Timestamp.fromDate(startDate),
       interestRate: interestRate,
+      interestRateType: interestRateType,
     };
     delete newSession.endDate;
 
@@ -134,6 +155,32 @@ function SessionManagement() {
     setInterestRate('');
     setIsProcessing(false);
   };
+  
+   const handleEditSession = () => {
+    if (!firestore || !sessionDocRef) return;
+     if (interestRate === '' || interestRate <= 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid Interest Rate',
+        description: 'Please enter a valid interest rate.',
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    const updatedSession: Partial<Session> = {
+      interestRate: interestRate,
+      interestRateType: interestRateType,
+    };
+    updateDocumentNonBlocking(sessionDocRef, updatedSession);
+    toast({
+      title: 'Session Updated',
+      description: `The session interest rate has been updated.`,
+    });
+    setIsEditSessionDialogOpen(false);
+    setIsProcessing(false);
+  };
+
 
   const confirmEndSession = () => {
     if (!firestore || !sessionDocRef) return;
@@ -261,7 +308,7 @@ function SessionManagement() {
                     {session.interestRate && (
                       <div className="flex items-center gap-2">
                         <Percent className="h-4 w-4" />
-                        <span>Interest Rate: {session.interestRate}%</span>
+                        <span>Interest Rate: {session.interestRate}% {session.interestRateType}</span>
                       </div>
                     )}
                     {session.status === 'closed' && session.endDate && (
@@ -278,6 +325,15 @@ function SessionManagement() {
             )}
           </CardContent>
           <CardFooter className="flex flex-wrap justify-end gap-4">
+            {session?.status === 'active' && (
+               <Button
+                  variant="outline"
+                  onClick={() => setIsEditSessionDialogOpen(true)}
+                  disabled={isProcessing}
+                >
+                  <Pencil className="mr-2 h-4 w-4" /> Edit Session
+                </Button>
+            )}
             {session?.status === 'closed' && (
               <>
                 <Button
@@ -324,7 +380,7 @@ function SessionManagement() {
           <DialogHeader>
             <DialogTitle>Start New Financial Session</DialogTitle>
             <DialogDescription>
-              To start a new session, please provide the start date and annual interest rate. This cannot be changed later.
+              To start a new session, please provide the start date and interest rate details.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -356,6 +412,23 @@ function SessionManagement() {
               </Popover>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="interest-rate-type" className="text-right">
+                Rate Type
+              </Label>
+               <Select
+                  value={interestRateType}
+                  onValueChange={(value: 'monthly' | 'annual') => setInterestRateType(value)}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="annual">Annual</SelectItem>
+                  </SelectContent>
+                </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="interest-rate" className="text-right">
                 Interest Rate (%)
               </Label>
@@ -381,6 +454,67 @@ function SessionManagement() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
               Confirm & Start
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Session Dialog */}
+       <Dialog
+        open={isEditSessionDialogOpen}
+        onOpenChange={setIsEditSessionDialogOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Active Session</DialogTitle>
+            <DialogDescription>
+              Update the interest rate details for the current active session.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-interest-rate-type" className="text-right">
+                Rate Type
+              </Label>
+               <Select
+                  value={interestRateType}
+                  onValueChange={(value: 'monthly' | 'annual') => setInterestRateType(value)}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="annual">Annual</SelectItem>
+                  </SelectContent>
+                </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-interest-rate" className="text-right">
+                Interest Rate (%)
+              </Label>
+              <Input
+                id="edit-interest-rate"
+                type="number"
+                value={interestRate}
+                onChange={(e) => setInterestRate(Number(e.target.value))}
+                placeholder="e.g., 12"
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditSessionDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleEditSession} disabled={isProcessing}>
+              {isProcessing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>

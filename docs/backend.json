@@ -93,7 +93,7 @@
         },
         "customerId": {
           "type": "string",
-          "description": "Reference to Customer. (Relationship: Customer 1:N Loan)"
+          "description": "Reference to Customer. (Relationship_ Customer 1:N Loan)"
         },
         "carryForwardLoan": {
           "type": "number",
@@ -165,7 +165,12 @@
         },
         "interestRate": {
             "type": "number",
-            "description": "The annual interest rate for the session."
+            "description": "The interest rate for the session."
+        },
+         "interestRateType": {
+          "type": "string",
+          "description": "The type of interest rate.",
+          "enum": ["monthly", "annual"]
         }
       },
       "required": [
