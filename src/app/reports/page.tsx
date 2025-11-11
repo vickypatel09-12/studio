@@ -34,7 +34,7 @@ import { Printer, CalendarIcon, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, startOfMonth, subMonths } from 'date-fns';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, doc, getDoc, orderBy } from 'firebase/firestore';
+import { collection, query, doc, getDoc, getDocs, orderBy } from 'firebase/firestore';
 import type { Customer } from '@/lib/data';
 import { AppShell } from '@/components/AppShell';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -81,6 +81,18 @@ type MonthlyReportRow = {
   interestBank: number;
 };
 
+type AllTimeReportRow = {
+  customerId: string;
+  customerName: string;
+  totalDeposit: number;
+  totalLoanGiven: number;
+  totalLoanRepaid: number;
+  netLoanChange: number;
+  latestClosingLoan: number;
+  totalInterest: number;
+};
+
+
 type ReportSummary = {
     totalDeposit: number;
     totalCarryFwdLoan: number;
@@ -96,7 +108,7 @@ function Reports() {
   const firestore = useFirestore();
   const [reportType, setReportType] = useState<ReportType>('monthly');
   const [selectedDate, setSelectedDate] = useState<Date>(startOfMonth(new Date()));
-  const [generatedReport, setGeneratedReport] = useState<MonthlyReportRow[] | null>(null);
+  const [generatedReport, setGeneratedReport] = useState<MonthlyReportRow[] | AllTimeReportRow[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -197,6 +209,7 @@ function Reports() {
                     carryFwdLoan: loan?.carryFwd || 0,
                     loanChangeType: loan?.changeType || 'N/A',
                     loanChangeCash: loan?.changeCash || 0,
+
                     loanChangeBank: loan?.changeBank || 0,
                     closingLoan: closingLoan,
                     interestCash: loan?.interestCash || 0,
@@ -229,15 +242,74 @@ function Reports() {
         toast({ variant: 'destructive', title: 'Error Generating Report', description: 'Could not fetch report data.' });
         console.error("Error generating report:", error);
       }
-    } else {
-        // All-time report logic would go here
-        toast({ title: 'Not Implemented', description: 'All-time reports are not yet available.' });
+    } else if (reportType === 'all-time') {
+        try {
+            const depositsCollectionRef = collection(firestore, 'monthlyDeposits');
+            const loansCollectionRef = collection(firestore, 'monthlyLoans');
+
+            const [depositDocs, loanDocs] = await Promise.all([
+                getDocs(depositsCollectionRef),
+                getDocs(loansCollectionRef),
+            ]);
+
+            const allDeposits = depositDocs.docs.flatMap(doc => (doc.data() as MonthlyDepositDoc).deposits || []);
+            const allLoans = loanDocs.docs.flatMap(doc => (doc.data() as MonthlyLoanDoc).loans || []);
+            
+            const latestMonthId = loanDocs.docs.map(doc => doc.id).sort().pop();
+            const latestLoansData = latestMonthId ? (await getDoc(doc(loansCollectionRef, latestMonthId))).data() as MonthlyLoanDoc : null;
+            const latestLoans = latestLoansData?.loans || latestLoansData?.draft || [];
+
+            const report: AllTimeReportRow[] = customers.map(customer => {
+                const customerDeposits = allDeposits.filter(d => d.customerId === customer.id);
+                const customerLoans = allLoans.filter(l => l.customerId === customer.id);
+
+                const totalDeposit = customerDeposits.reduce((sum, d) => sum + (d.cash || 0) + (d.bank || 0), 0);
+                const totalInterest = customerLoans.reduce((sum, l) => sum + (l.interestTotal || 0), 0);
+
+                const loanGiven = customerLoans
+                    .filter(l => l.changeType === 'new' || l.changeType === 'increase')
+                    .reduce((sum, l) => sum + (l.changeCash || 0) + (l.changeBank || 0), 0);
+                
+                const loanRepaid = customerLoans
+                    .filter(l => l.changeType === 'decrease')
+                    .reduce((sum, l) => sum + (l.changeCash || 0) + (l.changeBank || 0), 0);
+
+                const latestLoanForCustomer = latestLoans.find(l => l.customerId === customer.id);
+                let latestClosingLoan = 0;
+                if (latestLoanForCustomer) {
+                    const changeTotal = (latestLoanForCustomer.changeCash || 0) + (latestLoanForCustomer.changeBank || 0);
+                    let adjustment = 0;
+                    if (latestLoanForCustomer.changeType === 'new' || latestLoanForCustomer.changeType === 'increase') {
+                        adjustment = changeTotal;
+                    } else if (latestLoanForCustomer.changeType === 'decrease') {
+                        adjustment = -changeTotal;
+                    }
+                    latestClosingLoan = (latestLoanForCustomer.carryFwd || 0) + adjustment;
+                }
+
+                return {
+                    customerId: customer.id,
+                    customerName: customer.name,
+                    totalDeposit,
+                    totalLoanGiven: loanGiven,
+                    totalLoanRepaid: loanRepaid,
+                    netLoanChange: loanGiven - loanRepaid,
+                    latestClosingLoan: latestClosingLoan,
+                    totalInterest,
+                };
+            });
+            setGeneratedReport(report);
+
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error Generating All-Time Report', description: 'Could not fetch all-time data.' });
+            console.error("Error generating all-time report:", error);
+        }
     }
     
     setIsLoading(false);
   };
   
-    const totals = generatedReport?.reduce(
+    const totals = generatedReport && reportType === 'monthly' ? (generatedReport as MonthlyReportRow[]).reduce(
       (acc, item) => {
         acc.depositCash += item.depositCash;
         acc.depositBank += item.depositBank;
@@ -261,10 +333,21 @@ function Reports() {
         depositCash: 0, depositBank: 0, carryFwdLoan: 0, loanChangeCash: 0, 
         loanChangeBank: 0, closingLoan: 0, interestCash: 0, interestBank: 0 
       }
-    ) || { 
-        depositCash: 0, depositBank: 0, carryFwdLoan: 0, loanChangeCash: 0, 
-        loanChangeBank: 0, closingLoan: 0, interestCash: 0, interestBank: 0 
-      };
+    ) : null;
+    
+    const allTimeTotals = generatedReport && reportType === 'all-time' ? (generatedReport as AllTimeReportRow[]).reduce(
+      (acc, item) => {
+          acc.totalDeposit += item.totalDeposit;
+          acc.totalLoanGiven += item.totalLoanGiven;
+          acc.totalLoanRepaid += item.totalLoanRepaid;
+          acc.netLoanChange += item.netLoanChange;
+          acc.latestClosingLoan += item.latestClosingLoan;
+          acc.totalInterest += item.totalInterest;
+          return acc;
+      },
+      { totalDeposit: 0, totalLoanGiven: 0, totalLoanRepaid: 0, netLoanChange: 0, latestClosingLoan: 0, totalInterest: 0 }
+    ) : null;
+
 
     const formatAmount = (value: number) => `₹${Math.abs(value).toFixed(2)}`;
 
@@ -320,7 +403,7 @@ function Reports() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="monthly">Monthly Report</SelectItem>
-                      <SelectItem value="all-time" disabled>All-Time Report</SelectItem>
+                      <SelectItem value="all-time">All-Time Report</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -374,11 +457,15 @@ function Reports() {
             <>
                <div className="hidden print-only p-6">
                 <h1 className="text-2xl font-bold text-center">
-                    Monthly Report for {selectedDate ? format(selectedDate, 'MMMM yyyy') : 'N/A'}
+                    {reportType === 'monthly' 
+                        ? `Monthly Report for ${selectedDate ? format(selectedDate, 'MMMM yyyy') : 'N/A'}`
+                        : 'All-Time Report'
+                    }
                 </h1>
               </div>
               <CardContent>
                 <div className="overflow-x-auto">
+                  {reportType === 'monthly' ? (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -392,7 +479,7 @@ function Reports() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {generatedReport.map((item, index) => {
+                      {(generatedReport as MonthlyReportRow[]).map((item, index) => {
                          const depositTotal = item.depositCash + item.depositBank;
                          const loanChangeTotal = item.loanChangeCash + item.loanChangeBank;
                          const interestTotal = item.interestCash + item.interestBank;
@@ -442,6 +529,7 @@ function Reports() {
                             </TableRow>
                           )
                       })}
+                      {totals && (
                        <TableRow className="font-bold bg-muted/50 text-right">
                           <TableCell colSpan={2} className="text-left">Total</TableCell>
                           <TableCell>
@@ -465,11 +553,51 @@ function Reports() {
                             </div>
                           </TableCell>
                         </TableRow>
+                      )}
                     </TableBody>
                   </Table>
+                  ) : (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Sr.</TableHead>
+                                <TableHead>Customer</TableHead>
+                                <TableHead className="text-right">Total Deposit</TableHead>
+                                <TableHead className="text-right">Total Loan Given</TableHead>
+                                <TableHead className="text-right">Total Loan Repaid</TableHead>
+                                <TableHead className="text-right">Outstanding Loan</TableHead>
+                                <TableHead className="text-right">Total Interest</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {(generatedReport as AllTimeReportRow[]).map((item, index) => (
+                                <TableRow key={item.customerId}>
+                                    <TableCell>{index + 1}</TableCell>
+                                    <TableCell className="font-medium whitespace-nowrap customer-name-cell">{item.customerName}</TableCell>
+                                    <TableCell className="text-right">{formatAmount(item.totalDeposit)}</TableCell>
+                                    <TableCell className="text-right">{formatAmount(item.totalLoanGiven)}</TableCell>
+                                    <TableCell className="text-right">{formatAmount(item.totalLoanRepaid)}</TableCell>
+                                    <TableCell className="text-right font-medium">{formatAmount(item.latestClosingLoan)}</TableCell>
+                                    <TableCell className="text-right">{formatAmount(item.totalInterest)}</TableCell>
+                                </TableRow>
+                            ))}
+                            {allTimeTotals && (
+                                <TableRow className="font-bold bg-muted/50 text-right">
+                                    <TableCell colSpan={2} className="text-left">Grand Total</TableCell>
+                                    <TableCell>{formatAmount(allTimeTotals.totalDeposit)}</TableCell>
+                                    <TableCell>{formatAmount(allTimeTotals.totalLoanGiven)}</TableCell>
+                                    <TableCell>{formatAmount(allTimeTotals.totalLoanRepaid)}</TableCell>
+                                    <TableCell>{formatAmount(allTimeTotals.latestClosingLoan)}</TableCell>
+                                    <TableCell>{formatAmount(allTimeTotals.totalInterest)}</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                  )}
                 </div>
               </CardContent>
               
+              {reportType === 'monthly' && (
               <div className="px-6 pt-4">
                   <div className="grid grid-cols-3 gap-4">
                       
@@ -514,6 +642,7 @@ function Reports() {
                         </div>
                   </div>
               </div>
+              )}
                <CardFooter className="flex justify-end gap-2 no-print">
                 <Button variant="outline" onClick={() => window.print()}>
                   <Printer className="mr-2 h-4 w-4" /> Print
@@ -527,7 +656,7 @@ function Reports() {
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>No Report Generated</AlertTitle>
                     <AlertDescription>
-                      Select a month and click "Generate Report" to view data.
+                      Select a report type and click "Generate Report" to view data.
                     </AlertDescription>
                 </Alert>
               </CardContent>
