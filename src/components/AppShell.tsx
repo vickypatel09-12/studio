@@ -21,7 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { SidebarNav } from '@/components/SidebarNav';
 import { usePathname, useRouter } from 'next/navigation';
-import { Landmark, LogOut, User, ChevronDown, Loader2 } from 'lucide-react';
+import { Landmark, LogOut, User, ChevronDown, Loader2, Building } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
@@ -75,8 +75,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { data: session } = useDoc<Session>(sessionDocRef);
 
   useEffect(() => {
-    // This is the single source of truth for auth redirection.
-    // It waits until Firebase has confirmed the auth state.
     if (!isUserLoading && !user) {
       router.push('/login');
     }
@@ -84,10 +82,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const handleLogout = async () => {
     await signOut(auth);
-    // The useEffect above will handle the redirect to /login
   };
 
-  // While Firebase is checking the auth state, show a loader to prevent flashes of content.
   if (isUserLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -96,8 +92,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     );
   }
 
-  // After loading, if there's no user, children (the page) will be unmounted
-  // by the redirect, so we can return null or a loader to avoid rendering the shell.
   if (!user) {
      return (
       <div className="flex h-screen items-center justify-center">
@@ -108,28 +102,67 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <SidebarProvider>
-      <Sidebar collapsible="icon">
+      <Sidebar>
         <SidebarHeader>
-          <div className="flex items-center gap-2 p-2">
-            <Button variant="ghost" size="icon" asChild>
-              <Link href="/">
-                <Landmark className="size-6 text-primary" />
-              </Link>
-            </Button>
-            <span className="font-headline text-lg font-semibold group-data-[collapsible=icon]:hidden">
-              Bachat Bank
-            </span>
-          </div>
+          <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex h-12 w-full items-center justify-start gap-3 p-2.5 text-left group-data-[collapsible=icon]:h-11 group-data-[collapsible=icon]:w-11 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/20 text-primary group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9">
+                    <Landmark className="h-5 w-5"/>
+                  </div>
+                  <div className="group-data-[collapsible=icon]:hidden">
+                    <p className="font-medium">Bachat Bank</p>
+                    <p className="text-xs text-muted-foreground">Workspace</p>
+                  </div>
+                   <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64">
+                <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
+                <DropdownMenuItem className="flex items-center gap-2">
+                   <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/20 text-primary">
+                      <Landmark className="h-5 w-5"/>
+                    </div>
+                    <div>
+                      <p className="font-medium">Bachat Bank</p>
+                      <p className="text-xs text-muted-foreground">Workspace</p>
+                    </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
         </SidebarHeader>
         <SidebarContent>
           <SidebarNav />
         </SidebarContent>
-        <SidebarFooter>{/* User menu moved to header */}</SidebarFooter>
-        <SidebarRail />
+        <SidebarFooter className="p-2 group-data-[collapsible=icon]:p-2.5">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                 <Button variant="ghost" className="flex h-12 w-full items-center justify-start gap-3 p-2 text-left group-data-[collapsible=icon]:h-11 group-data-[collapsible=icon]:w-11 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0">
+                    <User className="size-8 rounded-full border p-1 group-data-[collapsible=icon]:size-9" />
+                    <div className="group-data-[collapsible=icon]:hidden">
+                       <p className="font-medium text-sm">{user.email}</p>
+                    </div>
+                 </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64 mb-2">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>Profile</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                >
+                  <LogOut className="mr-2 size-4" />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+        </SidebarFooter>
       </Sidebar>
       <SidebarInset>
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm lg:px-6 no-print">
-          <SidebarTrigger />
+          <SidebarTrigger className="group-data-[collapsible=icon]:hidden" />
           <div className="flex-1">
             <h1 className="font-headline text-lg font-semibold">{title}</h1>
           </div>
@@ -151,32 +184,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                     ? 'Closed'
                     : 'Not Started'}
                 </Badge>
-          </div>
-          <div className="ml-auto">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-2">
-                  <User className="size-5 rounded-full" />
-                  <div className="flex flex-col items-start text-sm">
-                    <span className="font-semibold">{user.email}</span>
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>Profile</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                >
-                  <LogOut className="mr-2 size-4" />
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </header>
         <main className="p-4 sm:p-6">{children}</main>
