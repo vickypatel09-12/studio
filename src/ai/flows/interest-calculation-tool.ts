@@ -13,7 +13,8 @@ import {z} from 'genkit';
 
 const CalculateInterestInputSchema = z.object({
   carryFwdLoan: z.number().describe('The carry forward loan amount.'),
-  interestRate: z.number().describe('The annual interest rate (e.g., 0.05 for 5%).'),
+  interestRate: z.number().describe('The interest rate (e.g., 12 for 12%).'),
+  rateType: z.enum(['monthly', 'annual']).describe("The type of interest rate provided, either 'monthly' or 'annual'."),
   periodInMonths: z.number().describe('The period for which interest is to be calculated, in months.'),
 });
 export type CalculateInterestInput = z.infer<typeof CalculateInterestInputSchema>;
@@ -36,10 +37,14 @@ const calculateInterestPrompt = ai.definePrompt({
   Given the following loan details, calculate the interest owed for the specified period.
 
   Carry Forward Loan Amount: {{{carryFwdLoan}}}
-  Annual Interest Rate: {{{interestRate}}}
+  Interest Rate: {{{interestRate}}}%
+  Rate Type: {{{rateType}}}
   Period (in months): {{{periodInMonths}}}
 
-  Calculate the interest owed using the formula: (Carry Forward Loan Amount) * (Annual Interest Rate / 12) * (Period in months)
+  First, determine the monthly interest rate. If the rateType is 'annual', divide the interestRate by 12. If it is 'monthly', use the interestRate as is.
+  The interest rate should be represented as a decimal (e.g., 12% is 0.12).
+  
+  Then, calculate the interest owed using the formula: (Carry Forward Loan Amount) * (monthly interest rate as a decimal) * (Period in months)
   Return only the calculated interest amount.
   `,
 });

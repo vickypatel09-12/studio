@@ -1,12 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-/*
 import {
   calculateInterest,
   type CalculateInterestOutput,
 } from '@/ai/flows/interest-calculation-tool';
-*/
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
@@ -22,6 +20,13 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Card,
   CardHeader,
   CardTitle,
@@ -32,13 +37,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { AppShell } from '@/components/AppShell';
 
-// Re-defining the output type here to avoid the import
-type CalculateInterestOutput = {
-    interestOwed: number;
-};
 
 const formSchema = z.object({
   carryFwdLoan: z.coerce.number().min(0, 'Loan must be a positive number.'),
+  rateType: z.enum(['monthly', 'annual']),
   interestRate: z.coerce
     .number()
     .min(0, 'Rate must be a positive number.')
@@ -63,6 +65,7 @@ function InterestCalculator() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       carryFwdLoan: 10000,
+      rateType: 'annual',
       interestRate: 12,
       periodInMonths: 1,
     },
@@ -71,12 +74,22 @@ function InterestCalculator() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     setResult(null);
-    toast({
-        variant: 'destructive',
-        title: 'Functionality Disabled',
-        description:
-          'The AI interest calculation is temporarily disabled.',
-      });
+    
+    try {
+        const aiResult = await calculateInterest({
+            ...values,
+            interestRate: values.interestRate
+        });
+        setResult(aiResult);
+    } catch(e) {
+        toast({
+            variant: 'destructive',
+            title: 'AI Error',
+            description: 'The AI model could not be reached. Please try again later.',
+        });
+        console.error(e);
+    }
+
     setIsLoading(false);
   }
 
@@ -107,19 +120,45 @@ function InterestCalculator() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="interestRate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Annual Interest Rate (%)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="e.g., 12" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+
+                <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+                   <FormField
+                      control={form.control}
+                      name="rateType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Interest Rate Type</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a rate type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="annual">Annual</SelectItem>
+                              <SelectItem value="monthly">Monthly</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="interestRate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Interest Rate (%)</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="e.g., 12" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                </div>
+
+
                 <FormField
                   control={form.control}
                   name="periodInMonths"
