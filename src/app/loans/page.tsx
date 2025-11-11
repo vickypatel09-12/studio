@@ -1016,12 +1016,6 @@ export default function LoansPage() {
       </AppShell>
       <style jsx global>{`
         @media print {
-          @page {
-            margin: 0.5in;
-          }
-          .printable {
-            display: block !important;
-          }
           .printable .overflow-x-auto {
             overflow-x: visible !important;
           }
@@ -1036,14 +1030,6 @@ export default function LoansPage() {
             white-space: normal;
             word-break: break-word;
           }
-          #loans-table thead > tr:nth-child(1) > th {
-            padding-bottom: 4px !important;
-          }
-          #loans-table thead > tr:nth-child(2) > th {
-            font-size: 7px !important;
-            padding-top: 2px !important;
-            padding-bottom: 2px !important;
-          }
           #loans-table th, #loans-table td {
             text-align: right !important;
           }
@@ -1051,21 +1037,21 @@ export default function LoansPage() {
           #loans-table th:nth-child(2), #loans-table td:nth-child(2) {
             text-align: left !important;
           }
-          #loans-table td:nth-child(4) {
-             text-align: center !important;
+        }
+        @media print and (orientation: landscape) {
+          #loans-table {
+            font-size: 10px !important;
           }
-          
-          /* Column Widths */
           #loans-table th:nth-child(1), #loans-table td:nth-child(1) { width: 4%; }
           #loans-table th:nth-child(2), #loans-table td:nth-child(2) { width: 17%; }
-          #loans-table th:nth-child(3), #loans-table td:nth-child(3) { width: 10%; }
-          #loans-table th:nth-child(4), #loans-table td:nth-child(4) { width: 9%; }
+          #loans-table th:nth-child(3), #loans-table td:nth-child(3) { width: 9%; }
+          #loans-table th:nth-child(4), #loans-table td:nth-child(4) { width: 8%; }
           #loans-table th:nth-child(5), #loans-table td:nth-child(5) { width: 9%; }
           #loans-table th:nth-child(6), #loans-table td:nth-child(6) { width: 9%; }
-          #loans-table th:nth-child(7), #loans-table td:nth-child(7) { width: 10%; }
+          #loans-table th:nth-child(7), #loans-table td:nth-child(7) { width: 9%; }
           #loans-table th:nth-child(8), #loans-table td:nth-child(8) { width: 9%; }
           #loans-table th:nth-child(9), #loans-table td:nth-child(9) { width: 9%; }
-          #loans-table th:nth-child(10), #loans-table td:nth-child(10) { width: 10%; }
+          #loans-table th:nth-child(10), #loans-table td:nth-child(10) { width: 9%; }
         }
       `}</style>
     </>

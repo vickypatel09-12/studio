@@ -80,45 +80,61 @@
   @page {
     margin: 0.5in;
   }
+
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide everything by default */
   body * {
     visibility: hidden;
   }
+
+  /* Only show the printable area */
   .printable, .printable * {
     visibility: visible;
-    background: transparent !important;
-    box-shadow: none !important;
-    border: none !important;
   }
+
   .printable {
-    position: absolute;
-    left: 0;
+    position: fixed;
     top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     padding: 0;
+    margin: 0;
+    display: block;
+    background: white !important;
+    box-shadow: none !important;
+    border: none !important;
   }
-  .printable td, .printable th {
-    padding-top: 4px !important;
-    padding-bottom: 4px !important;
-  }
+
   .no-print {
     display: none !important;
   }
-   .print-only {
+
+  .print-only {
     display: block !important;
     visibility: visible !important;
   }
+
+  /* Ensure table footers are printed */
   tfoot {
     display: table-row-group;
   }
-  main {
+  
+  /* CRITICAL: This rule overrides the sidebar layout for printing */
+  main[class*="peer-"] {
     margin-left: 0 !important;
+    padding: 0 !important;
   }
-  /* This is the new targeted rule */
-  main[class*="peer-data-[collapsible=icon]"] {
-    margin-left: 0 !important;
+  
+  [data-sidebar="sidebar"], [data-sidebar="rail"] {
+    display: none !important;
   }
 }
+
 
 .print-only {
   display: none;

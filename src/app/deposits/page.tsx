@@ -761,9 +761,6 @@ export default function DepositsPage() {
       </AppShell>
       <style jsx global>{`
         @media print {
-          @page {
-            margin: 0.5in;
-          }
           .printable .overflow-x-auto {
             overflow-x: visible !important;
           }
@@ -775,8 +772,14 @@ export default function DepositsPage() {
           #deposits-table td {
             font-size: 10px !important;
             padding: 4px 6px !important;
-            white-space: normal !important; 
+            white-space: normal; 
             word-break: break-word;
+          }
+        }
+        @media print and (orientation: landscape) {
+          #deposits-table th:nth-child(2),
+          #deposits-table td:nth-child(2) {
+            width: 35%;
           }
         }
       `}</style>
