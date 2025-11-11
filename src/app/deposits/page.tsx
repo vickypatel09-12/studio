@@ -464,12 +464,12 @@ function Deposits() {
   return (
     <>
       <div className="space-y-6">
-        <div>
+        <div className="no-print">
           <BalanceSummary selectedDate={selectedDate} currentDeposits={deposits} />
         </div>
         
-        <Card>
-          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <Card className="printable">
+          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between no-print">
             <div>
               <CardTitle>Monthly Deposits</CardTitle>
               <CardDescription>
@@ -508,6 +508,11 @@ function Deposits() {
               </Popover>
             </div>
           </CardHeader>
+           <div className="hidden print-only p-6">
+                <h1 className="text-2xl font-bold text-center">
+                    Monthly Deposits for {selectedDate ? format(selectedDate, 'MMMM yyyy') : 'N/A'}
+                </h1>
+            </div>
           <CardContent>
             {isLoading ? (
               <div className="flex items-center justify-center p-8">
@@ -560,8 +565,9 @@ function Deposits() {
                                   e.target.value
                                 )
                               }
-                              className="w-full text-right"
+                              className="w-full text-right print-hide"
                             />
+                             <span className="hidden print-only float-right">{deposit.cash.toFixed(2)}</span>
                           </TableCell>
                           <TableCell>
                             <Input
@@ -576,8 +582,9 @@ function Deposits() {
                                   e.target.value
                                 )
                               }
-                              className="w-full text-right"
+                              className="w-full text-right print-hide"
                             />
+                            <span className="hidden print-only float-right">{deposit.bank.toFixed(2)}</span>
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             ₹{depositTotal.toFixed(2)}
@@ -597,7 +604,7 @@ function Deposits() {
                 </Table>
               </div>
             ) : (
-              <Alert>
+              <Alert className="no-print">
                 <Info className="h-4 w-4" />
                 <AlertTitle>Select a Date</AlertTitle>
                 <AlertDescription>
@@ -609,7 +616,7 @@ function Deposits() {
             )}
           </CardContent>
           {selectedDate && (
-            <CardFooter className="flex justify-end gap-2">
+            <CardFooter className="flex justify-end gap-2 no-print">
               <Button
                 variant="outline"
                 onClick={() => window.print()}
@@ -645,7 +652,7 @@ function Deposits() {
           )}
         </Card>
         
-        <Card>
+        <Card className="no-print">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <History className="h-5 w-5" />

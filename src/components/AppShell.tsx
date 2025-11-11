@@ -108,7 +108,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <SidebarProvider>
-      <Sidebar collapsible="icon">
+      <Sidebar collapsible="icon" className="no-print">
         <SidebarHeader>
           <div className="flex items-center gap-2 p-2">
             <Button variant="ghost" size="icon" asChild>
@@ -128,7 +128,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <SidebarRail />
       </Sidebar>
       <SidebarInset>
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm lg:px-6">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm lg:px-6 no-print">
           <SidebarTrigger />
           <div className="flex-1">
             <h1 className="font-headline text-lg font-semibold">{title}</h1>
