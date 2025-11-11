@@ -88,15 +88,11 @@
   
   .printable {
     display: block !important;
-    visibility: visible !important;
     width: 100%;
-    height: auto;
-    position: static;
   }
 
   .print-only {
     display: block !important;
-    visibility: visible !important;
   }
 
   .print-hide {
@@ -107,7 +103,6 @@
     margin-left: 0 !important;
   }
   
-  /* Ensure the printable area takes full width */
   body > div > div, body > div > main {
     display: block !important;
     width: 100% !important;
@@ -116,11 +111,12 @@
     margin: 0 !important;
   }
 
-  .printable .card-content {
-      padding: 0;
+  .printable > div:not([class*="print-only"]) {
+    border: none;
+    box-shadow: none;
   }
   
-  .printable, .printable * {
-      visibility: visible;
+   .printable .card-content {
+      padding: 0;
   }
 }
