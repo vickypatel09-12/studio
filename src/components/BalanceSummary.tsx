@@ -62,7 +62,7 @@ export function BalanceSummary() {
     
     // Start with DB data
     const combinedDeposits: MonthlyDepositDoc[] = allDbDeposits ? JSON.parse(JSON.stringify(allDbDeposits)) : [];
-    if (liveMonthId && liveDeposits) {
+    if (liveMonthId && liveDeposits.length > 0) {
         const existingIndex = combinedDeposits.findIndex(d => d.id === liveMonthId);
         const liveData = { id: liveMonthId, deposits: liveDeposits, draft: liveDeposits };
         if (existingIndex > -1) {
@@ -75,7 +75,7 @@ export function BalanceSummary() {
     }
     
     const combinedLoans: MonthlyLoanDoc[] = allDbLoans ? JSON.parse(JSON.stringify(allDbLoans)) : [];
-    if (liveMonthId && liveLoans) {
+    if (liveMonthId && liveLoans.length > 0) {
         const existingIndex = combinedLoans.findIndex(l => l.id === liveMonthId);
         const liveData = { id: liveMonthId, loans: liveLoans, draft: liveLoans };
          if (existingIndex > -1) {
@@ -87,28 +87,37 @@ export function BalanceSummary() {
 
 
     const allTimeTotals = {
-      deposits: { cash: 0, bank: 0 },
-      interest: { cash: 0, bank: 0 },
+      deposits: { cash: 0, bank: 0, total: 0 },
+      interest: { cash: 0, bank: 0, total: 0 },
+      repayments: { cash: 0, bank: 0, total: 0 },
     };
 
-    // Calculate historical totals for deposits and interest
+    // Calculate historical totals for deposits
     combinedDeposits.forEach((month) => {
-      // Use submitted `deposits` if available, otherwise fall back to `draft`.
       const data = month.deposits || month.draft || [];
       data.forEach((deposit) => {
         allTimeTotals.deposits.cash += deposit.cash || 0;
         allTimeTotals.deposits.bank += deposit.bank || 0;
       });
     });
+    allTimeTotals.deposits.total = allTimeTotals.deposits.cash + allTimeTotals.deposits.bank;
 
+    // Calculate historical totals for interest and repayments
     combinedLoans.forEach((month) => {
-      // Use submitted `loans` if available, otherwise fall back to `draft`.
       const data = month.loans || month.draft || [];
       data.forEach((loan) => {
         allTimeTotals.interest.cash += loan.interestCash || 0;
         allTimeTotals.interest.bank += loan.interestBank || 0;
+        
+        if (loan.changeType === 'decrease') {
+            allTimeTotals.repayments.cash += loan.changeCash || 0;
+            allTimeTotals.repayments.bank += loan.changeBank || 0;
+        }
       });
     });
+    allTimeTotals.interest.total = allTimeTotals.interest.cash + allTimeTotals.interest.bank;
+    allTimeTotals.repayments.total = allTimeTotals.repayments.cash + allTimeTotals.repayments.bank;
+
     
     // Calculate total outstanding loans from the latest month available
     const latestMonth = combinedLoans?.sort((a, b) => b.id.localeCompare(a.id))[0];
@@ -125,10 +134,10 @@ export function BalanceSummary() {
     }, 0);
 
 
-    // Final calculation for total credited (all deposits + all interest)
+    // Final calculation for total credited (all deposits + all repayments + all interest)
     const totalCredited = {
-      cash: allTimeTotals.deposits.cash + allTimeTotals.interest.cash,
-      bank: allTimeTotals.deposits.bank + allTimeTotals.interest.bank,
+      cash: allTimeTotals.deposits.cash + allTimeTotals.repayments.cash + allTimeTotals.interest.cash,
+      bank: allTimeTotals.deposits.bank + allTimeTotals.repayments.bank + allTimeTotals.interest.bank,
       total: 0,
     };
     totalCredited.total = totalCredited.cash + totalCredited.bank;
