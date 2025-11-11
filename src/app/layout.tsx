@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import { ClientToaster } from '@/components/ClientToaster';
 
 export const metadata: Metadata = {
   title: 'Bachat Bank ERP',
@@ -38,7 +39,7 @@ export default function RootLayout({
           <FirebaseErrorListener />
           {children}
         </FirebaseClientProvider>
-        <Toaster />
+        <ClientToaster />
       </body>
     </html>
   );
