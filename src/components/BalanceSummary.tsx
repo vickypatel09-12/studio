@@ -57,15 +57,36 @@ export function BalanceSummary({ selectedMonthId, liveDeposits, liveLoans }: Bal
     [firestore]
   );
 
-  const { data: allDeposits, isLoading: depositsLoading } =
+  const { data: allDbDeposits, isLoading: depositsLoading } =
     useCollection<MonthlyDepositDoc>(depositsQuery);
-  const { data: allLoans, isLoading: loansLoading } =
+  const { data: allDbLoans, isLoading: loansLoading } =
     useCollection<MonthlyLoanDoc>(loansQuery);
 
   const { totalCredited, totalDebit, availableBalance, monthLabel } = useMemo(() => {
-    // Get all historical data, excluding the currently selected month
-    const historicalDeposits = (allDeposits || []).filter(d => d.id !== selectedMonthId);
-    const historicalLoans = (allLoans || []).filter(l => l.id !== selectedMonthId);
+    
+    // Combine DB data with live data for a real-time view
+    const combinedDeposits: MonthlyDepositDoc[] = [...(allDbDeposits || [])];
+    if (selectedMonthId && liveDeposits) {
+        const existingIndex = combinedDeposits.findIndex(d => d.id === selectedMonthId);
+        const liveData = { id: selectedMonthId, deposits: liveDeposits };
+        if (existingIndex > -1) {
+            combinedDeposits[existingIndex] = liveData;
+        } else {
+            combinedDeposits.push(liveData);
+        }
+    }
+    
+    const combinedLoans: MonthlyLoanDoc[] = [...(allDbLoans || [])];
+    if (selectedMonthId && liveLoans) {
+        const existingIndex = combinedLoans.findIndex(l => l.id === selectedMonthId);
+        const liveData = { id: selectedMonthId, loans: liveLoans };
+         if (existingIndex > -1) {
+            combinedLoans[existingIndex] = liveData;
+        } else {
+            combinedLoans.push(liveData);
+        }
+    }
+
 
     const allTimeTotals = {
       deposits: { cash: 0, bank: 0 },
@@ -75,7 +96,7 @@ export function BalanceSummary({ selectedMonthId, liveDeposits, liveLoans }: Bal
     };
 
     // Calculate historical totals
-    historicalDeposits.forEach((month) => {
+    combinedDeposits.forEach((month) => {
       const data = month.deposits || month.draft || [];
       data.forEach((deposit) => {
         allTimeTotals.deposits.cash += deposit.cash || 0;
@@ -83,7 +104,7 @@ export function BalanceSummary({ selectedMonthId, liveDeposits, liveLoans }: Bal
       });
     });
 
-    historicalLoans.forEach((month) => {
+    combinedLoans.forEach((month) => {
       const data = month.loans || month.draft || [];
       data.forEach((loan) => {
         allTimeTotals.interest.cash += loan.interestCash || 0;
@@ -96,24 +117,6 @@ export function BalanceSummary({ selectedMonthId, liveDeposits, liveLoans }: Bal
           allTimeTotals.loansGiven.bank += loan.changeBank || 0;
         }
       });
-    });
-    
-    // Add live data from the current page
-    (liveDeposits || []).forEach(d => {
-        allTimeTotals.deposits.cash += d.cash || 0;
-        allTimeTotals.deposits.bank += d.bank || 0;
-    });
-
-    (liveLoans || []).forEach(l => {
-        allTimeTotals.interest.cash += l.interestCash || 0;
-        allTimeTotals.interest.bank += l.interestBank || 0;
-        if (l.changeType === 'decrease') {
-          allTimeTotals.repayments.cash += l.changeCash || 0;
-          allTimeTotals.repayments.bank += l.changeBank || 0;
-        } else if (l.changeType === 'new' || l.changeType === 'increase') {
-          allTimeTotals.loansGiven.cash += l.changeCash || 0;
-          allTimeTotals.loansGiven.bank += l.changeBank || 0;
-        }
     });
 
     // Final calculation
@@ -145,14 +148,17 @@ export function BalanceSummary({ selectedMonthId, liveDeposits, liveLoans }: Bal
     let monthLabel = 'All-time financial overview';
     if(selectedMonthId) {
         try {
-            const date = new Date(`${selectedMonthId}-01T00:00:00`);
-            monthLabel = `Live balance for ${format(date, 'MMMM yyyy')}`;
-        } catch(e) { /* ignore invalid date */ }
+            // Ensure the date is parsed correctly, assuming UTC to avoid timezone issues
+            const date = new Date(selectedMonthId);
+            monthLabel = `Live balance including ${format(date, 'MMMM yyyy')}`;
+        } catch(e) { 
+           monthLabel = 'Live balance including current month';
+        }
     }
 
 
     return { totalCredited, totalDebit, availableBalance, monthLabel };
-  }, [allDeposits, allLoans, selectedMonthId, liveDeposits, liveLoans]);
+  }, [allDbDeposits, allDbLoans, selectedMonthId, liveDeposits, liveLoans]);
   
   const isLoading = depositsLoading || loansLoading;
 
