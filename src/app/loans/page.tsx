@@ -607,7 +607,7 @@ function Loans() {
     <>
       <div className="space-y-6">
         <div className="no-print">
-          {selectedDate && <BalanceSummary selectedDate={selectedDate} currentLoans={loans} />}
+          <BalanceSummary selectedDate={selectedDate} currentLoans={loans} />
         </div>
 
         <Card className="printable">
