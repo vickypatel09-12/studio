@@ -469,11 +469,6 @@ function Reports() {
                   </Table>
                 </div>
               </CardContent>
-              <CardFooter className="flex justify-end gap-2 no-print">
-                <Button variant="outline" onClick={() => window.print()}>
-                  <Printer className="mr-2 h-4 w-4" /> Print
-                </Button>
-              </CardFooter>
               
               <div className="px-6 pt-4 no-print">
                   <div className="grid grid-cols-3 gap-4">
@@ -519,6 +514,11 @@ function Reports() {
                         </div>
                   </div>
               </div>
+               <CardFooter className="flex justify-end gap-2 no-print">
+                <Button variant="outline" onClick={() => window.print()}>
+                  <Printer className="mr-2 h-4 w-4" /> Print
+                </Button>
+              </CardFooter>
 
             </>
           ) : (
