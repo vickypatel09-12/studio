@@ -77,6 +77,13 @@ import { AppShell } from '@/components/AppShell';
 import { BalanceSummary } from '@/components/BalanceSummary';
 import { Label } from '@/components/ui/label';
 import { useLiveData, type Deposit } from '@/context/LiveDataContext';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 type Session = {
   id: 'status';
@@ -110,6 +117,7 @@ function Deposits() {
   const [deletingEntry, setDeletingEntry] = useState<MonthlyDepositDoc | null>(null);
   const [deletePassword, setDeletePassword] = useState('');
   const { toast } = useToast();
+  const [entriesToShow, setEntriesToShow] = useState<number | 'all'>(20);
 
   const sessionDocRef = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -272,7 +280,12 @@ function Deposits() {
   };
 
   const totals = useMemo(() => {
-    return deposits.reduce(
+    const itemsToTotal = entriesToShow === 'all' ? customers : customers?.slice(0, entriesToShow);
+    const customerIdsToTotal = itemsToTotal?.map(c => c.id) || [];
+    
+    return deposits
+      .filter(d => customerIdsToTotal.includes(d.customerId))
+      .reduce(
       (acc, deposit) => {
         acc.cash += Number(deposit.cash) || 0;
         acc.bank += Number(deposit.bank) || 0;
@@ -285,7 +298,7 @@ function Deposits() {
         total: 0,
       }
     );
-  }, [deposits]);
+  }, [deposits, customers, entriesToShow]);
 
   const handleSaveDraft = async () => {
     if (!selectedDate || !firestore) {
@@ -461,8 +474,14 @@ function Deposits() {
     }
   };
 
-
   const pageLoading = customersLoading;
+  
+  const displayedCustomers = useMemo(() => {
+    if (!customers) return [];
+    if (entriesToShow === 'all') return customers;
+    return customers.slice(0, entriesToShow);
+  }, [customers, entriesToShow]);
+
 
   if (pageLoading) {
     return (
@@ -517,6 +536,23 @@ function Deposits() {
                   />
                 </PopoverContent>
               </Popover>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="entries-to-show" className="text-sm font-medium">Show</Label>
+                <Select
+                  value={String(entriesToShow)}
+                  onValueChange={(value) => setEntriesToShow(value === 'all' ? 'all' : Number(value))}
+                >
+                  <SelectTrigger className="w-[80px]" id="entries-to-show">
+                    <SelectValue placeholder="Show" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="40">40</SelectItem>
+                    <SelectItem value="60">60</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardHeader>
            <div className="hidden print-only p-6">
@@ -547,7 +583,7 @@ function Deposits() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {customers.map((customer, index) => {
+                    {displayedCustomers.map((customer, index) => {
                       const deposit =
                         deposits.find((d) => d.customerId === customer.id) ?? {
                           customerId: customer.id,
@@ -768,3 +804,5 @@ export default function DepositsPage() {
     </>
   );
 }
+
+    

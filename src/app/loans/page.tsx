@@ -140,6 +140,7 @@ function Loans() {
   const [deletePassword, setDeletePassword] = useState('');
   const [isDepositSubmitted, setIsDepositSubmitted] = useState(false);
   const { toast } = useToast();
+  const [entriesToShow, setEntriesToShow] = useState<number | 'all'>(20);
 
   const sessionDocRef = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -570,7 +571,12 @@ function Loans() {
 
 
   const totals = useMemo(() => {
-    return loans.reduce(
+    const itemsToTotal = entriesToShow === 'all' ? customers : customers?.slice(0, entriesToShow);
+    const customerIdsToTotal = itemsToTotal?.map(c => c.id) || [];
+
+    return loans
+      .filter(l => customerIdsToTotal.includes(l.customerId))
+      .reduce(
       (acc, loan) => {
         acc.carryFwd += Number(loan.carryFwd) || 0;
         acc.changeCash += Number(loan.changeCash) || 0;
@@ -589,7 +595,7 @@ function Loans() {
         interestTotal: 0,
       }
     );
-  }, [loans]);
+  }, [loans, customers, entriesToShow]);
 
   const handlePastEntryClick = (date: Date) => {
     const newMonthId = getMonthId(date);
@@ -599,6 +605,13 @@ function Loans() {
   const totalChange = totals.changeCash + totals.changeBank;
 
   const pageLoading = customersLoading;
+  
+  const displayedCustomers = useMemo(() => {
+    if (!customers) return [];
+    if (entriesToShow === 'all') return customers;
+    return customers.slice(0, entriesToShow);
+  }, [customers, entriesToShow]);
+
 
   if (pageLoading) {
     return (
@@ -657,6 +670,23 @@ function Loans() {
                   />
                 </PopoverContent>
               </Popover>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="entries-to-show" className="text-sm font-medium">Show</Label>
+                <Select
+                  value={String(entriesToShow)}
+                  onValueChange={(value) => setEntriesToShow(value === 'all' ? 'all' : Number(value))}
+                >
+                  <SelectTrigger className="w-[80px]" id="entries-to-show">
+                    <SelectValue placeholder="Show" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="40">40</SelectItem>
+                    <SelectItem value="60">60</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardHeader>
            <div className="hidden print-only p-6">
@@ -723,7 +753,7 @@ function Loans() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {customers.map((customer, index) => {
+                    {displayedCustomers.map((customer, index) => {
                       const loan = loans.find(
                         (l) => l.customerId === customer.id
                       );
@@ -1036,3 +1066,5 @@ export default function LoansPage() {
     </>
   );
 }
+
+    
