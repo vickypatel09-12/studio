@@ -17,7 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Users, Landmark, CircleDollarSign, Activity, Loader2, Percent, Wallet, PiggyBank, University } from 'lucide-react';
+import { Users, Landmark, CircleDollarSign, Activity, Loader2, Percent, Wallet, PiggyBank, University, ArrowDownToDot } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import type { Customer } from '@/lib/data';
@@ -81,8 +81,21 @@ function Dashboard() {
   
   const isLoading = customersLoading || depositsLoading || loansLoading;
 
-  const { totalDeposits, totalDepositsByCash, totalDepositsByBank } = useMemo(() => {
-    const totals = {
+  const { 
+    totalInflow,
+    totalDeposits,
+    totalDepositsByCash, 
+    totalDepositsByBank,
+    outstandingLoans,
+    totalInterest, 
+    totalInterestByCash, 
+    totalInterestByBank, 
+    loanGivenByCash, 
+    loanGivenByBank, 
+    loanRepaidByCash, 
+    loanRepaidByBank 
+  } = useMemo(() => {
+    const depTotals = {
       total: 0,
       cash: 0,
       bank: 0,
@@ -90,39 +103,13 @@ function Dashboard() {
     monthlyDeposits?.forEach(month => {
       const monthData = month.deposits || [];
       monthData.forEach(deposit => {
-        totals.cash += deposit.cash || 0;
-        totals.bank += deposit.bank || 0;
+        depTotals.cash += deposit.cash || 0;
+        depTotals.bank += deposit.bank || 0;
       });
     });
-    totals.total = totals.cash + totals.bank;
-    return {
-      totalDeposits: totals.total,
-      totalDepositsByCash: totals.cash,
-      totalDepositsByBank: totals.bank
-    };
-  }, [monthlyDeposits]);
+    depTotals.total = depTotals.cash + depTotals.bank;
 
-  const outstandingLoans = useMemo(() => {
-     if (!monthlyLoans || monthlyLoans.length === 0) return 0;
-    // Find the most recent loan entry to calculate the latest outstanding balance
-    const latestMonth = monthlyLoans.sort((a,b) => b.id.localeCompare(a.id))[0];
-    const latestLoans = latestMonth.loans || [];
-
-    return latestLoans.reduce((total, loan) => {
-      const changeTotal = (loan.changeCash || 0) + (loan.changeBank || 0);
-      let adjustment = 0;
-      if (loan.changeType === 'new' || loan.changeType === 'increase') {
-        adjustment = changeTotal;
-      } else if (loan.changeType === 'decrease') {
-        adjustment = -changeTotal;
-      }
-      return total + (loan.carryFwd || 0) + adjustment;
-    }, 0)
-
-  }, [monthlyLoans]);
-
-  const { totalInterest, totalInterestByCash, totalInterestByBank, loanGivenByCash, loanGivenByBank, loanRepaidByCash, loanRepaidByBank } = useMemo(() => {
-    const totals = {
+    const loanTotals = {
         interest: 0,
         interestCash: 0,
         interestBank: 0,
@@ -131,32 +118,52 @@ function Dashboard() {
         loanRepaidCash: 0,
         loanRepaidBank: 0,
     };
-
     monthlyLoans?.forEach(month => {
       const monthData = month.loans || [];
       monthData.forEach(loan => {
-        totals.interestCash += loan.interestCash || 0;
-        totals.interestBank += loan.interestBank || 0;
+        loanTotals.interestCash += loan.interestCash || 0;
+        loanTotals.interestBank += loan.interestBank || 0;
         if (loan.changeType === 'new' || loan.changeType === 'increase') {
-            totals.loanGivenCash += loan.changeCash || 0;
-            totals.loanGivenBank += loan.changeBank || 0;
+            loanTotals.loanGivenCash += loan.changeCash || 0;
+            loanTotals.loanGivenBank += loan.changeBank || 0;
         } else if (loan.changeType === 'decrease') {
-            totals.loanRepaidCash += loan.changeCash || 0;
-            totals.loanRepaidBank += loan.changeBank || 0;
+            loanTotals.loanRepaidCash += loan.changeCash || 0;
+            loanTotals.loanRepaidBank += loan.changeBank || 0;
         }
       });
     });
-    totals.interest = totals.interestCash + totals.interestBank;
-    return { 
-        totalInterest: totals.interest,
-        totalInterestByCash: totals.interestCash,
-        totalInterestByBank: totals.interestBank,
-        loanGivenByCash: totals.loanGivenCash,
-        loanGivenByBank: totals.loanGivenBank,
-        loanRepaidByCash: totals.loanRepaidCash,
-        loanRepaidByBank: totals.loanRepaidBank,
+    loanTotals.interest = loanTotals.interestCash + loanTotals.interestBank;
+
+    const latestMonth = monthlyLoans?.sort((a,b) => b.id.localeCompare(a.id))[0];
+    const latestLoans = latestMonth?.loans || [];
+    const outstanding = latestLoans.reduce((total, loan) => {
+      const changeTotal = (loan.changeCash || 0) + (loan.changeBank || 0);
+      let adjustment = 0;
+      if (loan.changeType === 'new' || loan.changeType === 'increase') {
+        adjustment = changeTotal;
+      } else if (loan.changeType === 'decrease') {
+        adjustment = -changeTotal;
+      }
+      return total + (loan.carryFwd || 0) + adjustment;
+    }, 0);
+
+    const totalInflow = depTotals.total + loanTotals.loanRepaidCash + loanTotals.loanRepaidBank;
+
+    return {
+      totalInflow,
+      totalDeposits: depTotals.total,
+      totalDepositsByCash: depTotals.cash,
+      totalDepositsByBank: depTotals.bank,
+      outstandingLoans: outstanding,
+      totalInterest: loanTotals.interest,
+      totalInterestByCash: loanTotals.interestCash,
+      totalInterestByBank: loanTotals.interestBank,
+      loanGivenByCash: loanTotals.loanGivenCash,
+      loanGivenByBank: loanTotals.loanGivenBank,
+      loanRepaidByCash: loanTotals.loanRepaidCash,
+      loanRepaidByBank: loanTotals.loanRepaidBank,
     };
-  }, [monthlyLoans]);
+  }, [monthlyDeposits, monthlyLoans]);
 
 
   const availableBalance = totalDeposits + totalInterest - outstandingLoans;
@@ -173,13 +180,13 @@ function Dashboard() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Deposits</CardTitle>
-            <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Inflow</CardTitle>
+            <ArrowDownToDot className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{totalDeposits.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
+            <div className="text-2xl font-bold">₹{totalInflow.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">
-              Across all months
+              Deposits + Repayments
             </p>
           </CardContent>
         </Card>
