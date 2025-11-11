@@ -111,6 +111,9 @@
   tfoot {
     display: table-row-group;
   }
+  main {
+    margin-left: 0 !important;
+  }
 }
 
 .print-only {
