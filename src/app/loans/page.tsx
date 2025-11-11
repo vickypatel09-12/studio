@@ -346,10 +346,10 @@ function Loans() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (selectedDate) {
+    if (selectedDate && customers) {
       loadSubmittedDataForMonth(selectedDate);
     }
-  }, [selectedDate, loadSubmittedDataForMonth]);
+  }, [selectedDate, customers, loadSubmittedDataForMonth]);
   
   // Clear live data on unmount
   useEffect(() => {
