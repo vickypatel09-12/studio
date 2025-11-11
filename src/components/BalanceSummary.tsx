@@ -58,7 +58,7 @@ export function BalanceSummary() {
   const { data: allDbLoans, isLoading: loansLoading } =
     useCollection<MonthlyLoanDoc>(loansQuery);
 
-  const { totalCredited, totalDebit, availableBalance, monthLabel } = useMemo(() => {
+  const { totalCredited, outstandingLoans, availableBalance, monthLabel } = useMemo(() => {
     
     // Start with DB data
     const combinedDeposits: MonthlyDepositDoc[] = allDbDeposits ? JSON.parse(JSON.stringify(allDbDeposits)) : [];
@@ -88,12 +88,10 @@ export function BalanceSummary() {
 
     const allTimeTotals = {
       deposits: { cash: 0, bank: 0 },
-      repayments: { cash: 0, bank: 0 },
       interest: { cash: 0, bank: 0 },
-      loansGiven: { cash: 0, bank: 0 },
     };
 
-    // Calculate historical totals
+    // Calculate historical totals for deposits and interest
     combinedDeposits.forEach((month) => {
       // Use submitted `deposits` if available, otherwise fall back to `draft`.
       const data = month.deposits || month.draft || [];
@@ -109,41 +107,34 @@ export function BalanceSummary() {
       data.forEach((loan) => {
         allTimeTotals.interest.cash += loan.interestCash || 0;
         allTimeTotals.interest.bank += loan.interestBank || 0;
-        if (loan.changeType === 'decrease') {
-          allTimeTotals.repayments.cash += loan.changeCash || 0;
-          allTimeTotals.repayments.bank += loan.changeBank || 0;
-        } else if (loan.changeType === 'new' || loan.changeType === 'increase') {
-          allTimeTotals.loansGiven.cash += loan.changeCash || 0;
-          allTimeTotals.loansGiven.bank += loan.changeBank || 0;
-        }
       });
     });
+    
+    // Calculate total outstanding loans from the latest month available
+    const latestMonth = combinedLoans?.sort((a, b) => b.id.localeCompare(a.id))[0];
+    const latestLoans = latestMonth?.loans || latestMonth?.draft || [];
+    const outstandingLoansValue = latestLoans.reduce((total, loan) => {
+      const changeTotal = (loan.changeCash || 0) + (loan.changeBank || 0);
+      let adjustment = 0;
+      if (loan.changeType === 'new' || loan.changeType === 'increase') {
+        adjustment = changeTotal;
+      } else if (loan.changeType === 'decrease') {
+        adjustment = -changeTotal;
+      }
+      return total + (loan.carryFwd || 0) + adjustment;
+    }, 0);
 
-    // Final calculation
+
+    // Final calculation for total credited (all deposits + all interest)
     const totalCredited = {
-      cash:
-        allTimeTotals.deposits.cash +
-        allTimeTotals.repayments.cash +
-        allTimeTotals.interest.cash,
-      bank:
-        allTimeTotals.deposits.bank +
-        allTimeTotals.repayments.bank +
-        allTimeTotals.interest.bank,
+      cash: allTimeTotals.deposits.cash + allTimeTotals.interest.cash,
+      bank: allTimeTotals.deposits.bank + allTimeTotals.interest.bank,
       total: 0,
     };
     totalCredited.total = totalCredited.cash + totalCredited.bank;
 
-    const totalDebit = {
-      cash: allTimeTotals.loansGiven.cash,
-      bank: allTimeTotals.loansGiven.bank,
-      total: allTimeTotals.loansGiven.cash + allTimeTotals.loansGiven.bank,
-    };
     
-    const availableBalance = {
-        cash: totalCredited.cash - totalDebit.cash,
-        bank: totalCredited.bank - totalDebit.bank,
-        total: totalCredited.total - totalDebit.total
-    };
+    const availableBalanceValue = totalCredited.total - outstandingLoansValue;
     
     let monthLabel = 'All-time financial overview';
     if(liveMonthId) {
@@ -158,7 +149,12 @@ export function BalanceSummary() {
     }
 
 
-    return { totalCredited, totalDebit, availableBalance, monthLabel };
+    return { 
+        totalCredited, 
+        outstandingLoans: outstandingLoansValue, 
+        availableBalance: availableBalanceValue, 
+        monthLabel 
+    };
   }, [allDbDeposits, allDbLoans, liveMonthId, liveDeposits, liveLoans]);
   
   const isLoading = depositsLoading || loansLoading;
@@ -205,30 +201,24 @@ export function BalanceSummary() {
           </div>
           <div className="rounded-lg border p-4">
             <h3 className="font-semibold text-muted-foreground">
-              Total Debit
+              Outstanding Loans
             </h3>
             <p className="mt-1 text-2xl font-bold text-red-600">
-              {formatCurrency(totalDebit.total)}
+              {formatCurrency(outstandingLoans)}
             </p>
-            <p className="text-sm text-muted-foreground">
-              Cash: {formatCurrency(totalDebit.cash)}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Bank: {formatCurrency(totalDebit.bank)}
+             <p className="text-sm text-muted-foreground">
+              Total amount currently on loan
             </p>
           </div>
           <div className="rounded-lg border bg-primary/10 p-4">
             <h3 className="font-semibold text-primary">
-              Available Balance for Loan
+              Available Balance
             </h3>
             <p className="mt-1 text-2xl font-bold text-primary">
-              {formatCurrency(availableBalance.total)}
+              {formatCurrency(availableBalance)}
             </p>
             <p className="text-sm text-primary/80">
-              Cash: {formatCurrency(availableBalance.cash)}
-            </p>
-            <p className="text-sm text-primary/80">
-              Bank: {formatCurrency(availableBalance.bank)}
+             Total Credited - Outstanding Loans
             </p>
           </div>
         </div>
