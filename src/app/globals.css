@@ -111,8 +111,19 @@
     box-shadow: none !important;
   }
   
-  .printable .customer-name-cell {
+  .customer-name-cell {
     white-space: nowrap !important;
     width: auto !important;
+  }
+  
+  .printable th, .printable td {
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+  
+  .printable tr[class*="bg-muted"] {
+    background-color: transparent !important;
   }
 }

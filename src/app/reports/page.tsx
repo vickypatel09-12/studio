@@ -382,13 +382,13 @@ function Reports() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                          <TableHead className='w-[50px] py-1'>Sr.</TableHead>
-                          <TableHead className='py-1'>Customer</TableHead>
-                          <TableHead className="text-right py-1">Deposit</TableHead>
-                          <TableHead className="text-right py-1">Carry Fwd Loan</TableHead>
-                          <TableHead className="text-right py-1">New / Changed Loan</TableHead>
-                          <TableHead className="text-right py-1">Closing Loan</TableHead>
-                          <TableHead className="text-right py-1">Interest</TableHead>
+                          <TableHead>Sr.</TableHead>
+                          <TableHead>Customer</TableHead>
+                          <TableHead className="text-right">Deposit</TableHead>
+                          <TableHead className="text-right">Carry Fwd Loan</TableHead>
+                          <TableHead className="text-right">New / Changed Loan</TableHead>
+                          <TableHead className="text-right">Closing Loan</TableHead>
+                          <TableHead className="text-right">Interest</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -426,39 +426,39 @@ function Reports() {
 
                          return (
                             <TableRow key={item.customerId}>
-                              <TableCell className="py-1">{index + 1}</TableCell>
-                              <TableCell className="font-medium whitespace-nowrap py-1 customer-name-cell">{item.customerName}</TableCell>
-                              <TableCell className="text-right py-1">
+                              <TableCell>{index + 1}</TableCell>
+                              <TableCell className="font-medium whitespace-nowrap customer-name-cell">{item.customerName}</TableCell>
+                              <TableCell className="text-right">
                                   {renderTwoLevel(depositTotal, [{label: 'c', value: item.depositCash}, {label: 'b', value: item.depositBank}])}
                               </TableCell>
-                              <TableCell className="text-right py-1">{item.carryFwdLoan === 0 ? '-' : formatAmount(item.carryFwdLoan)}</TableCell>
-                               <TableCell className="text-right py-1">
+                              <TableCell className="text-right">{item.carryFwdLoan === 0 ? '-' : formatAmount(item.carryFwdLoan)}</TableCell>
+                               <TableCell className="text-right">
                                  {renderLoanChange()}
                               </TableCell>
-                              <TableCell className="text-right font-medium py-1">{item.closingLoan === 0 ? '-' : formatAmount(item.closingLoan)}</TableCell>
-                               <TableCell className="text-right py-1">
+                              <TableCell className="text-right font-medium">{item.closingLoan === 0 ? '-' : formatAmount(item.closingLoan)}</TableCell>
+                               <TableCell className="text-right">
                                 {renderTwoLevel(interestTotal, [{label: 'c', value: item.interestCash}, {label: 'b', value: item.interestBank}])}
                               </TableCell>
                             </TableRow>
                           )
                       })}
                        <TableRow className="font-bold bg-muted/50 text-right">
-                          <TableCell colSpan={2} className="text-left py-1">Total</TableCell>
-                          <TableCell className="py-1">
+                          <TableCell colSpan={2} className="text-left">Total</TableCell>
+                          <TableCell>
                               <div className="flex flex-col items-end">
                                   <div>{formatAmount(totals.depositCash + totals.depositBank)}</div>
                                   {renderBreakdown([{label: 'c', value: totals.depositCash}, {label: 'b', value: totals.depositBank}])}
                               </div>
                           </TableCell>
-                          <TableCell className="py-1">{totals.carryFwdLoan === 0 ? '-' : formatAmount(totals.carryFwdLoan)}</TableCell>
-                          <TableCell className="text-right py-1">
+                          <TableCell>{totals.carryFwdLoan === 0 ? '-' : formatAmount(totals.carryFwdLoan)}</TableCell>
+                          <TableCell className="text-right">
                                <div className="flex flex-col items-end">
                                   <div>{`${totals.loanChangeCash + totals.loanChangeBank >= 0 ? '+' : '-'}${formatAmount(totals.loanChangeCash + totals.loanChangeBank)}`}</div>
                                   {renderBreakdown([{label: 'c', value: totals.loanChangeCash}, {label: 'b', value: totals.loanChangeBank}])}
                               </div>
                           </TableCell>
-                          <TableCell className="py-1">{totals.closingLoan === 0 ? '-' : formatAmount(totals.closingLoan)}</TableCell>
-                          <TableCell className="py-1">
+                          <TableCell>{totals.closingLoan === 0 ? '-' : formatAmount(totals.closingLoan)}</TableCell>
+                          <TableCell>
                              <div className="flex flex-col items-end">
                                 <div>{formatAmount(totals.interestCash + totals.interestBank)}</div>
                                 {renderBreakdown([{label: 'c', value: totals.interestCash}, {label: 'b', value: totals.interestBank}])}
