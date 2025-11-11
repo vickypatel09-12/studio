@@ -83,43 +83,33 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="w-full lg:grid lg:min-h-screen lg:grid-cols-2 xl:min-h-screen">
-      <div className="hidden bg-muted lg:flex lg:flex-col lg:items-center lg:justify-center p-8">
-        <div className="mx-auto grid w-[350px] gap-6 animate-fade-in-up">
-           <div className="flex items-center gap-4 text-primary">
+    <div className="flex min-h-screen items-center justify-center py-12">
+      <div className="mx-auto grid w-[350px] gap-6">
+        <div className="grid gap-2 text-center animate-fade-in-up">
+           <div className="flex items-center justify-center gap-4 text-primary">
               <Landmark className="h-12 w-12" />
               <h1 className="text-4xl font-bold">Bachat Bank</h1>
            </div>
-          <p className="text-xl text-muted-foreground">
-            Your trusted partner in financial management. Access your ERP dashboard securely.
+          <p className="text-balance text-muted-foreground">
+            Enter your email below to login to your account
           </p>
         </div>
-      </div>
-      <div className="flex items-center justify-center py-12">
-        <div className="mx-auto grid w-[350px] gap-6">
-          <div className="grid gap-2 text-center animate-fade-in-up">
-            <h1 className="text-3xl font-bold">Login</h1>
-            <p className="text-balance text-muted-foreground">
-              Enter your email below to login to your account
-            </p>
+        <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="grid gap-4 animate-fade-in-up" style={{animationDelay: '100ms'}}>
+          <div className="grid gap-2">
+            <Label htmlFor="login-email">Email</Label>
+            <Input id="login-email" type="email" placeholder="m@example.com" {...loginForm.register('email')} />
+            {loginForm.formState.errors.email && <p className="text-sm text-destructive">{loginForm.formState.errors.email.message}</p>}
           </div>
-          <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="grid gap-4 animate-fade-in-up" style={{animationDelay: '100ms'}}>
-            <div className="grid gap-2">
-              <Label htmlFor="login-email">Email</Label>
-              <Input id="login-email" type="email" placeholder="m@example.com" {...loginForm.register('email')} />
-              {loginForm.formState.errors.email && <p className="text-sm text-destructive">{loginForm.formState.errors.email.message}</p>}
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="login-password">Password</Label>
-              <Input id="login-password" type="password" {...loginForm.register('password')} />
-              {loginForm.formState.errors.password && <p className="text-sm text-destructive">{loginForm.formState.errors.password.message}</p>}
-            </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Login
-            </Button>
-          </form>
-        </div>
+          <div className="grid gap-2">
+            <Label htmlFor="login-password">Password</Label>
+            <Input id="login-password" type="password" {...loginForm.register('password')} />
+            {loginForm.formState.errors.password && <p className="text-sm text-destructive">{loginForm.formState.errors.password.message}</p>}
+          </div>
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Login
+          </Button>
+        </form>
       </div>
     </div>
   );
