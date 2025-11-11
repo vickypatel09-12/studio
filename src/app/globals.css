@@ -114,6 +114,10 @@
   main {
     margin-left: 0 !important;
   }
+  /* This is the new targeted rule */
+  main[class*="peer-data-[collapsible=icon]"] {
+    margin-left: 0 !important;
+  }
 }
 
 .print-only {
