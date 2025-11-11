@@ -219,17 +219,16 @@ function Deposits() {
     
     if (!isNaN(initialDate.getTime())) {
       setSelectedDate(initialDate);
-      if (getMonthId(initialDate) !== getMonthId(selectedDate || new Date(0))) {
-        loadSubmittedDataForMonth(initialDate);
-      }
     } else {
-       const today = startOfMonth(new Date());
-       setSelectedDate(today);
-       if (getMonthId(today) !== getMonthId(selectedDate || new Date(0))) {
-        loadSubmittedDataForMonth(today);
-       }
+       setSelectedDate(startOfMonth(new Date()));
     }
-  }, [searchParams, loadSubmittedDataForMonth, selectedDate]);
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (selectedDate) {
+      loadSubmittedDataForMonth(selectedDate);
+    }
+  }, [selectedDate, loadSubmittedDataForMonth]);
 
   // Clear live data on unmount
   useEffect(() => {
@@ -248,7 +247,6 @@ function Deposits() {
       return;
     }
     const newDate = startOfMonth(date);
-    setSelectedDate(newDate);
     const newMonthId = getMonthId(newDate);
     router.push(`/deposits?month=${newMonthId}`);
   };
