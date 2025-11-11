@@ -127,4 +127,8 @@
   .printable tr[class*="bg-muted"] {
     background-color: transparent !important;
   }
+
+  body, .printable, .printable * {
+    background-color: transparent !important;
+  }
 }
