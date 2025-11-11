@@ -883,13 +883,6 @@ function Loans() {
           </CardContent>
           {selectedDate && isDepositSubmitted && (
             <CardFooter className="flex justify-end gap-2 no-print">
-              <Button
-                variant="outline"
-                onClick={() => window.print()}
-                disabled={isLoading}
-              >
-                <Printer className="mr-2 h-4 w-4" /> Print
-              </Button>
               {isSubmitted && isSessionActive && (
                   <Button variant="secondary" onClick={() => setIsReverting(true)} disabled={isLoading}>
                     <Pencil className="mr-2 h-4 w-4" /> Edit Submitted
@@ -913,6 +906,13 @@ function Loans() {
                   <Send className="mr-2 h-4 w-4" />
                 )}
                 Submit
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => window.print()}
+                disabled={isLoading}
+              >
+                <Printer className="mr-2 h-4 w-4" /> Print
               </Button>
             </CardFooter>
           )}
