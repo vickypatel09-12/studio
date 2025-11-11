@@ -25,7 +25,7 @@ const navItems = [
   { href: '/reports', label: 'Reports', icon: FileText },
   {
     href: '/interest-calculator',
-    label: 'Interest Calculator',
+    label: 'Interest Calculation',
     icon: Calculator,
   },
   { href: '/session', label: 'Session Management', icon: Clock },
