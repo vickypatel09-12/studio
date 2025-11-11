@@ -602,21 +602,13 @@ function Loans() {
 
   return (
     <>
-      <div className="space-y-6 printable">
-        <div className="print-only text-center my-4">
-          {selectedDate && (
-            <h2 className="text-lg font-semibold mb-2">
-              Loans & Interest for {format(selectedDate, 'MMMM yyyy')}
-            </h2>
-          )}
-        </div>
-
-        <div className='no-print'>
+      <div className="space-y-6">
+        <div>
           {selectedDate && <BalanceSummary selectedDate={selectedDate} currentLoans={loans} />}
         </div>
 
         <Card>
-          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between no-print">
+          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle>Loans &amp; Interest</CardTitle>
               <CardDescription>
@@ -725,9 +717,8 @@ function Loans() {
                               placeholder="₹0.00"
                               value={loan.carryFwd || ''}
                               disabled
-                              className="w-full text-right no-print"
+                              className="w-full text-right"
                             />
-                            <span className="print-only">₹{(loan.carryFwd || 0).toFixed(2)}</span>
                           </TableCell>
                           <TableCell>
                             <Select
@@ -741,7 +732,7 @@ function Loans() {
                                 )
                               }
                             >
-                              <SelectTrigger className="w-full no-print">
+                              <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Type" />
                               </SelectTrigger>
                               <SelectContent>
@@ -754,7 +745,6 @@ function Loans() {
                                 </SelectItem>
                               </SelectContent>
                             </Select>
-                            <span className="print-only">{loan.changeType}</span>
                           </TableCell>
                           <TableCell className="text-right">
                             <Input
@@ -769,9 +759,8 @@ function Loans() {
                                   e.target.value
                                 )
                               }
-                              className="w-full text-right no-print"
+                              className="w-full text-right"
                             />
-                            <span className="print-only">₹{(loan.changeCash || 0).toFixed(2)}</span>
                           </TableCell>
                           <TableCell className="text-right">
                             <Input
@@ -786,9 +775,8 @@ function Loans() {
                                   e.target.value
                                 )
                               }
-                              className="w-full text-right no-print"
+                              className="w-full text-right"
                             />
-                            <span className="print-only">₹{(loan.changeBank || 0).toFixed(2)}</span>
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             ₹{changeTotal.toFixed(2)}
@@ -806,9 +794,8 @@ function Loans() {
                                   e.target.value
                                 )
                               }
-                              className="w-full text-right no-print"
+                              className="w-full text-right"
                             />
-                            <span className="print-only">₹{(loan.interestCash || 0).toFixed(2)}</span>
                           </TableCell>
                           <TableCell className="text-right">
                             <Input
@@ -823,9 +810,8 @@ function Loans() {
                                   e.target.value
                                 )
                               }
-                              className="w-full text-right no-print"
+                              className="w-full text-right"
                             />
-                            <span className="print-only">₹{(loan.interestBank || 0).toFixed(2)}</span>
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             ₹{loan.interestTotal.toFixed(2)}
@@ -850,7 +836,7 @@ function Loans() {
                 </Table>
               </div>
             ) : selectedDate && !isDepositSubmitted ? (
-                <Alert variant="destructive" className="no-print">
+                <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>Deposit Entry Not Submitted</AlertTitle>
                     <AlertDescription>
@@ -861,7 +847,7 @@ function Loans() {
                     </AlertDescription>
                 </Alert>
             ) : (
-              <Alert className="no-print">
+              <Alert>
                 <Info className="h-4 w-4" />
                 <AlertTitle>Select a Date</AlertTitle>
                 <AlertDescription>
@@ -873,7 +859,7 @@ function Loans() {
             )}
           </CardContent>
           {selectedDate && isDepositSubmitted && (
-            <CardFooter className="flex justify-end gap-2 no-print">
+            <CardFooter className="flex justify-end gap-2">
               <Button
                 variant="outline"
                 onClick={() => window.print()}
@@ -909,7 +895,7 @@ function Loans() {
           )}
         </Card>
         
-        <Card className="no-print">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <History className="h-5 w-5" />
@@ -1014,46 +1000,6 @@ export default function LoansPage() {
       <AppShell>
         <Loans />
       </AppShell>
-      <style jsx global>{`
-        @media print {
-          .printable .overflow-x-auto {
-            overflow-x: visible !important;
-          }
-          #loans-table {
-            table-layout: fixed !important;
-            width: 100% !important;
-          }
-          #loans-table th,
-          #loans-table td {
-            font-size: 8px !important;
-            padding: 2px 4px !important;
-            white-space: normal;
-            word-break: break-word;
-          }
-          #loans-table th, #loans-table td {
-            text-align: right !important;
-          }
-          #loans-table th:nth-child(1), #loans-table td:nth-child(1),
-          #loans-table th:nth-child(2), #loans-table td:nth-child(2) {
-            text-align: left !important;
-          }
-        }
-        @media print and (orientation: landscape) {
-          #loans-table {
-            font-size: 10px !important;
-          }
-          #loans-table th:nth-child(1), #loans-table td:nth-child(1) { width: 4%; }
-          #loans-table th:nth-child(2), #loans-table td:nth-child(2) { width: 17%; }
-          #loans-table th:nth-child(3), #loans-table td:nth-child(3) { width: 9%; }
-          #loans-table th:nth-child(4), #loans-table td:nth-child(4) { width: 8%; }
-          #loans-table th:nth-child(5), #loans-table td:nth-child(5) { width: 9%; }
-          #loans-table th:nth-child(6), #loans-table td:nth-child(6) { width: 9%; }
-          #loans-table th:nth-child(7), #loans-table td:nth-child(7) { width: 9%; }
-          #loans-table th:nth-child(8), #loans-table td:nth-child(8) { width: 9%; }
-          #loans-table th:nth-child(9), #loans-table td:nth-child(9) { width: 9%; }
-          #loans-table th:nth-child(10), #loans-table td:nth-child(10) { width: 9%; }
-        }
-      `}</style>
     </>
   );
 }

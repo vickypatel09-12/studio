@@ -464,20 +464,12 @@ function Deposits() {
   return (
     <>
       <div className="space-y-6">
-        <div className='no-print'>
+        <div>
           <BalanceSummary selectedDate={selectedDate} currentDeposits={deposits} />
         </div>
         
-        <Card className="printable">
-          <div className="print-only text-center my-4">
-              {selectedDate && (
-              <h2 className="text-lg font-semibold mb-2">
-                  Monthly Deposits for {format(selectedDate, 'MMMM yyyy')}
-              </h2>
-              )}
-          </div>
-
-          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between no-print">
+        <Card>
+          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle>Monthly Deposits</CardTitle>
               <CardDescription>
@@ -518,7 +510,7 @@ function Deposits() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="flex items-center justify-center p-8 no-print">
+              <div className="flex items-center justify-center p-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : selectedDate && customers ? (
@@ -568,9 +560,8 @@ function Deposits() {
                                   e.target.value
                                 )
                               }
-                              className="w-full text-right no-print"
+                              className="w-full text-right"
                             />
-                            <span className="print-only">{deposit.cash.toFixed(2)}</span>
                           </TableCell>
                           <TableCell>
                             <Input
@@ -585,9 +576,8 @@ function Deposits() {
                                   e.target.value
                                 )
                               }
-                              className="w-full text-right no-print"
+                              className="w-full text-right"
                             />
-                            <span className="print-only">{deposit.bank.toFixed(2)}</span>
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             ₹{depositTotal.toFixed(2)}
@@ -607,7 +597,7 @@ function Deposits() {
                 </Table>
               </div>
             ) : (
-              <Alert className='no-print'>
+              <Alert>
                 <Info className="h-4 w-4" />
                 <AlertTitle>Select a Date</AlertTitle>
                 <AlertDescription>
@@ -619,7 +609,7 @@ function Deposits() {
             )}
           </CardContent>
           {selectedDate && (
-            <CardFooter className="flex justify-end gap-2 no-print">
+            <CardFooter className="flex justify-end gap-2">
               <Button
                 variant="outline"
                 onClick={() => window.print()}
@@ -655,7 +645,7 @@ function Deposits() {
           )}
         </Card>
         
-        <Card className='no-print'>
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <History className="h-5 w-5" />
@@ -759,30 +749,6 @@ export default function DepositsPage() {
       <AppShell>
         <Deposits />
       </AppShell>
-      <style jsx global>{`
-        @media print {
-          .printable .overflow-x-auto {
-            overflow-x: visible !important;
-          }
-          #deposits-table {
-            table-layout: auto !important;
-            width: 100% !important;
-          }
-          #deposits-table th,
-          #deposits-table td {
-            font-size: 10px !important;
-            padding: 4px 6px !important;
-            white-space: normal; 
-            word-break: break-word;
-          }
-        }
-        @media print and (orientation: landscape) {
-          #deposits-table th:nth-child(2),
-          #deposits-table td:nth-child(2) {
-            width: 35%;
-          }
-        }
-      `}</style>
     </>
   );
 }

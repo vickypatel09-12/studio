@@ -298,16 +298,9 @@ function Reports() {
     
   return (
     <>
-      <div className="printable">
-         <div className="print-only text-center my-4">
-           {generatedReport && (
-            <h2 className="text-lg font-semibold mb-2">
-              Report for {format(selectedDate, 'MMMM yyyy')}
-            </h2>
-          )}
-        </div>
+      <div>
         <Card className="card">
-          <div className="no-print">
+          <div>
             <CardHeader>
               <CardTitle>Generate Reports</CardTitle>
               <CardDescription>
@@ -374,7 +367,7 @@ function Reports() {
           </div>
 
           {isLoading ? (
-              <div className="flex justify-center p-8 no-print">
+              <div className="flex justify-center p-8">
                   <Loader2 className="h-8 w-8 animate-spin"/>
               </div>
           ) : generatedReport ? (
@@ -471,13 +464,13 @@ function Reports() {
                   </Table>
                 </div>
               </CardContent>
-              <CardFooter className="flex justify-end gap-2 no-print">
+              <CardFooter className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => window.print()}>
                   <Printer className="mr-2 h-4 w-4" /> Print
                 </Button>
               </CardFooter>
               
-              <div className="print-only px-6 pt-4">
+              <div className="px-6 pt-4">
                   <div className="grid grid-cols-3 gap-4">
                       
                       <div className="border p-2 rounded-lg">
@@ -524,7 +517,7 @@ function Reports() {
 
             </>
           ) : (
-              <CardContent className="no-print">
+              <CardContent>
                 <Alert>
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>No Report Generated</AlertTitle>
