@@ -470,7 +470,7 @@ function Reports() {
                 </div>
               </CardContent>
               
-              <div className="px-6 pt-4 no-print">
+              <div className="px-6 pt-4">
                   <div className="grid grid-cols-3 gap-4">
                       
                       <div className="border p-2 rounded-lg">
