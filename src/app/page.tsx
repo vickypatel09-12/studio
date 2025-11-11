@@ -147,7 +147,7 @@ function Dashboard() {
       return total + (loan.carryFwd || 0) + adjustment;
     }, 0);
 
-    const totalInflow = depTotals.total + loanTotals.loanRepaidCash + loanTotals.loanRepaidBank;
+    const totalInflow = depTotals.total + loanTotals.loanRepaidCash + loanTotals.loanRepaidBank + loanTotals.interest;
 
     return {
       totalInflow,
@@ -186,7 +186,7 @@ function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold">₹{totalInflow.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">
-              Deposits + Repayments
+              Deposits + Repayments + Interest
             </p>
           </CardContent>
         </Card>
