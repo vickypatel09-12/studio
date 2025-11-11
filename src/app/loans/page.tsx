@@ -15,9 +15,11 @@ import {
 import {
   EmailAuthProvider,
   reauthenticateWithCredential,
+  setPersistence,
+  browserSessionPersistence,
 } from 'firebase/auth';
-import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from '@/firebase';
-import { useSearchParams } from 'next/navigation';
+import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser, useAuth } from '@/firebase';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Card,
   CardHeader,
@@ -83,19 +85,7 @@ import type { Customer } from '@/lib/data';
 import { AppShell } from '@/components/AppShell';
 import { BalanceSummary } from '@/components/BalanceSummary';
 import { Label } from '@/components/ui/label';
-
-type LoanChangeType = 'new' | 'increase' | 'decrease';
-
-type Loan = {
-  customerId: string;
-  carryFwd: number;
-  changeType: LoanChangeType;
-  changeCash: number;
-  changeBank: number;
-  interestCash: number;
-  interestBank: number;
-  interestTotal: number;
-};
+import { useLiveData, type Loan, type LoanChangeType } from '@/context/LiveDataContext';
 
 type MonthlyLoanDoc = {
   id: string;
@@ -135,10 +125,13 @@ const calculateClosingBalance = (loan: Loan) => {
 
 function Loans() {
   const firestore = useFirestore();
+  const auth = useAuth();
   const { user } = useUser();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const { loans, setLoans, setLiveMonthId } = useLiveData();
+  
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-  const [loans, setLoans] = useState<Loan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDraftSaved, setIsDraftSaved] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -241,7 +234,7 @@ function Loans() {
         setIsLoading(false);
       }
     },
-    [firestore, toast, customers, session]
+    [firestore, toast, customers, session, setLoans]
   );
   
   const loadSubmittedDataForMonth = useCallback(
@@ -254,6 +247,7 @@ function Loans() {
       setLoans([]);
 
       const monthId = getMonthId(date);
+      setLiveMonthId(monthId);
       
       // Step 1: Check if the deposit for this month has been submitted
       const depositDocRef = doc(firestore, 'monthlyDeposits', monthId);
@@ -337,7 +331,7 @@ function Loans() {
         setIsLoading(false);
       }
     },
-    [firestore, toast, customers, isSessionActive, initializeNewMonth]
+    [firestore, toast, customers, isSessionActive, initializeNewMonth, setLoans, setLiveMonthId]
   );
 
   useEffect(() => {
@@ -346,24 +340,39 @@ function Loans() {
 
     if (!isNaN(initialDate.getTime())) {
       setSelectedDate(initialDate);
-      loadSubmittedDataForMonth(initialDate);
+      if (getMonthId(initialDate) !== getMonthId(selectedDate || new Date(0))) {
+        loadSubmittedDataForMonth(initialDate);
+      }
     } else {
        const today = startOfMonth(new Date());
        setSelectedDate(today);
-       loadSubmittedDataForMonth(today);
+       if (getMonthId(today) !== getMonthId(selectedDate || new Date(0))) {
+        loadSubmittedDataForMonth(today);
+       }
     }
-  }, [searchParams, loadSubmittedDataForMonth]);
+  }, [searchParams, loadSubmittedDataForMonth, selectedDate]);
+  
+  // Clear live data on unmount
+  useEffect(() => {
+    return () => {
+        setLoans([]);
+        setLiveMonthId(null);
+    }
+  }, [setLoans, setLiveMonthId]);
+
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) {
       setSelectedDate(undefined);
       setLoans([]);
+      setLiveMonthId(null);
       setIsDepositSubmitted(false);
       return;
     }
     const newDate = startOfMonth(date);
     setSelectedDate(newDate);
-    loadSubmittedDataForMonth(newDate);
+    const newMonthId = getMonthId(newDate);
+    router.push(`/loans?month=${newMonthId}`);
   };
 
   const handleLoanChange = (
@@ -534,10 +543,11 @@ function Loans() {
       toast({ variant: 'destructive', title: 'Error', description: 'Password is required to delete.' });
       return;
     }
-    if (!user) return;
+    if (!user || !auth) return;
     setIsLoading(true);
 
     try {
+      await setPersistence(auth, browserSessionPersistence);
       const credential = EmailAuthProvider.credential(user.email, deletePassword);
       await reauthenticateWithCredential(user, credential);
       
@@ -551,8 +561,7 @@ function Loans() {
       setDeletePassword('');
 
       if (selectedDate && getMonthId(selectedDate) === deletingEntry.id) {
-        setSelectedDate(undefined);
-        setLoans([]);
+        router.push('/loans');
       }
     } catch (error) {
       toast({ variant: 'destructive', title: 'Authentication Failed', description: 'Incorrect password. Deletion cancelled.' });
@@ -585,8 +594,8 @@ function Loans() {
   }, [loans]);
 
   const handlePastEntryClick = (date: Date) => {
-    setSelectedDate(date);
-    loadSubmittedDataForMonth(date);
+    const newMonthId = getMonthId(date);
+    router.push(`/loans?month=${newMonthId}`);
   };
 
   const totalChange = totals.changeCash + totals.changeBank;
@@ -605,10 +614,7 @@ function Loans() {
     <>
       <div className="space-y-6">
         <div className="no-print">
-          <BalanceSummary
-            selectedMonthId={selectedDate ? getMonthId(selectedDate) : null}
-            liveLoans={loans}
-          />
+          <BalanceSummary />
         </div>
 
         <Card className="printable">
@@ -945,8 +951,8 @@ function Loans() {
                     <Button
                       size="sm"
                       variant={
-                        getMonthId(entry.date.toDate()) ===
-                        (selectedDate && getMonthId(selectedDate))
+                        selectedDate && getMonthId(entry.date.toDate()) ===
+                        getMonthId(selectedDate)
                           ? 'default'
                           : 'outline'
                       }

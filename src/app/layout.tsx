@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { ClientToaster } from '@/components/ClientToaster';
+import { LiveDataProvider } from '@/context/LiveDataContext';
 
 export const metadata: Metadata = {
   title: 'Bachat Bank ERP',
@@ -36,8 +37,10 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <FirebaseClientProvider>
-          <FirebaseErrorListener />
-          {children}
+          <LiveDataProvider>
+            <FirebaseErrorListener />
+            {children}
+          </LiveDataProvider>
         </FirebaseClientProvider>
         <ClientToaster />
       </body>

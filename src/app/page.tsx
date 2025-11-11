@@ -23,6 +23,7 @@ import { collection, query, orderBy, limit } from 'firebase/firestore';
 import type { Customer } from '@/lib/data';
 import { format } from 'date-fns';
 import { AppShell } from '@/components/AppShell';
+import { useLiveData } from '@/context/LiveDataContext';
 
 
 type MonthlyDepositDoc = {
@@ -32,11 +33,26 @@ type MonthlyDepositDoc = {
     cash: number;
     bank: number;
   }[];
+   draft?: {
+    customerId: string;
+    cash: number;
+    bank: number;
+  }[];
 };
 
 type MonthlyLoanDoc = {
   id: string;
   loans?: {
+    customerId: string;
+    carryFwd: number;
+    changeType: 'new' | 'increase' | 'decrease';
+    changeCash: number;
+    changeBank: number;
+    interestCash: number;
+    interestBank: number;
+    interestTotal: number;
+  }[];
+   draft?: {
     customerId: string;
     carryFwd: number;
     changeType: 'new' | 'increase' | 'decrease';
@@ -59,6 +75,7 @@ type Transaction = {
 
 function Dashboard() {
   const firestore = useFirestore();
+  const { liveMonthId, liveDeposits, liveLoans } = useLiveData();
 
   const customersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -76,8 +93,8 @@ function Dashboard() {
   }, [firestore]);
 
   const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersQuery);
-  const { data: monthlyDeposits, isLoading: depositsLoading } = useCollection<MonthlyDepositDoc>(depositsQuery);
-  const { data: monthlyLoans, isLoading: loansLoading } = useCollection<MonthlyLoanDoc>(loansQuery);
+  const { data: allDbDeposits, isLoading: depositsLoading } = useCollection<MonthlyDepositDoc>(depositsQuery);
+  const { data: allDbLoans, isLoading: loansLoading } = useCollection<MonthlyLoanDoc>(loansQuery);
   
   const isLoading = customersLoading || depositsLoading || loansLoading;
 
@@ -95,13 +112,36 @@ function Dashboard() {
     loanRepaidByCash, 
     loanRepaidByBank 
   } = useMemo(() => {
+
+    const combinedDeposits: MonthlyDepositDoc[] = [...(allDbDeposits || [])];
+    if (liveMonthId && liveDeposits) {
+        const existingIndex = combinedDeposits.findIndex(d => d.id === liveMonthId);
+        const liveData = { id: liveMonthId, deposits: liveDeposits, draft: liveDeposits };
+        if (existingIndex > -1) {
+            combinedDeposits[existingIndex] = liveData;
+        } else {
+            combinedDeposits.push(liveData);
+        }
+    }
+    
+    const combinedLoans: MonthlyLoanDoc[] = [...(allDbLoans || [])];
+    if (liveMonthId && liveLoans) {
+        const existingIndex = combinedLoans.findIndex(l => l.id === liveMonthId);
+        const liveData = { id: liveMonthId, loans: liveLoans, draft: liveLoans };
+         if (existingIndex > -1) {
+            combinedLoans[existingIndex] = liveData;
+        } else {
+            combinedLoans.push(liveData);
+        }
+    }
+
     const depTotals = {
       total: 0,
       cash: 0,
       bank: 0,
     };
-    monthlyDeposits?.forEach(month => {
-      const monthData = month.deposits || [];
+    combinedDeposits?.forEach(month => {
+      const monthData = month.deposits || month.draft || [];
       monthData.forEach(deposit => {
         depTotals.cash += deposit.cash || 0;
         depTotals.bank += deposit.bank || 0;
@@ -118,8 +158,8 @@ function Dashboard() {
         loanRepaidCash: 0,
         loanRepaidBank: 0,
     };
-    monthlyLoans?.forEach(month => {
-      const monthData = month.loans || [];
+    combinedLoans?.forEach(month => {
+      const monthData = month.loans || month.draft || [];
       monthData.forEach(loan => {
         loanTotals.interestCash += loan.interestCash || 0;
         loanTotals.interestBank += loan.interestBank || 0;
@@ -134,8 +174,8 @@ function Dashboard() {
     });
     loanTotals.interest = loanTotals.interestCash + loanTotals.interestBank;
 
-    const latestMonth = monthlyLoans?.sort((a,b) => b.id.localeCompare(a.id))[0];
-    const latestLoans = latestMonth?.loans || [];
+    const latestMonth = combinedLoans?.sort((a,b) => b.id.localeCompare(a.id))[0];
+    const latestLoans = latestMonth?.loans || latestMonth?.draft || [];
     const outstanding = latestLoans.reduce((total, loan) => {
       const changeTotal = (loan.changeCash || 0) + (loan.changeBank || 0);
       let adjustment = 0;
@@ -163,7 +203,7 @@ function Dashboard() {
       loanRepaidByCash: loanTotals.loanRepaidCash,
       loanRepaidByBank: loanTotals.loanRepaidBank,
     };
-  }, [monthlyDeposits, monthlyLoans]);
+  }, [allDbDeposits, allDbLoans, liveMonthId, liveDeposits, liveLoans]);
 
 
   const availableBalance = totalDeposits + totalInterest - outstandingLoans;

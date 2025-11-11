@@ -15,6 +15,8 @@ import {
 import {
   EmailAuthProvider,
   reauthenticateWithCredential,
+  setPersistence,
+  browserSessionPersistence,
 } from 'firebase/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser } from '@/firebase';
@@ -74,12 +76,7 @@ import type { Customer } from '@/lib/data';
 import { AppShell } from '@/components/AppShell';
 import { BalanceSummary } from '@/components/BalanceSummary';
 import { Label } from '@/components/ui/label';
-
-type Deposit = {
-  customerId: string;
-  cash: number;
-  bank: number;
-};
+import { useLiveData, type Deposit } from '@/context/LiveDataContext';
 
 type Session = {
   id: 'status';
@@ -103,8 +100,9 @@ function Deposits() {
   const { user } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { deposits, setDeposits, setLiveMonthId } = useLiveData();
+  
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-  const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDraftSaved, setIsDraftSaved] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -143,15 +141,15 @@ function Deposits() {
   const initializeNewMonth = useCallback(
     (date: Date) => {
       if (!customers) return;
-      setDeposits(
-        customers.map((c) => ({
+      const newDeposits = customers.map((c) => ({
           customerId: c.id,
           cash: 0,
           bank: 0,
-        }))
-      );
+        }));
+      setDeposits(newDeposits);
+      setLiveMonthId(getMonthId(date));
     },
-    [customers]
+    [customers, setDeposits, setLiveMonthId]
   );
   
   const loadSubmittedDataForMonth = useCallback(
@@ -161,6 +159,7 @@ function Deposits() {
       setIsDraftSaved(false);
       setIsSubmitted(false);
       const monthId = getMonthId(date);
+      setLiveMonthId(monthId);
       const docRef = doc(firestore, 'monthlyDeposits', monthId);
       try {
         const docSnap = await getDoc(docRef);
@@ -211,7 +210,7 @@ function Deposits() {
         setIsLoading(false);
       }
     },
-    [firestore, toast, customers, isSessionActive, initializeNewMonth]
+    [firestore, toast, customers, isSessionActive, initializeNewMonth, setDeposits, setLiveMonthId]
   );
 
   useEffect(() => {
@@ -220,23 +219,38 @@ function Deposits() {
     
     if (!isNaN(initialDate.getTime())) {
       setSelectedDate(initialDate);
-      loadSubmittedDataForMonth(initialDate);
+      if (getMonthId(initialDate) !== getMonthId(selectedDate || new Date(0))) {
+        loadSubmittedDataForMonth(initialDate);
+      }
     } else {
        const today = startOfMonth(new Date());
        setSelectedDate(today);
-       loadSubmittedDataForMonth(today);
+       if (getMonthId(today) !== getMonthId(selectedDate || new Date(0))) {
+        loadSubmittedDataForMonth(today);
+       }
     }
-  }, [searchParams, loadSubmittedDataForMonth]);
+  }, [searchParams, loadSubmittedDataForMonth, selectedDate]);
+
+  // Clear live data on unmount
+  useEffect(() => {
+    return () => {
+        setDeposits([]);
+        setLiveMonthId(null);
+    }
+  }, [setDeposits, setLiveMonthId]);
+
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) {
       setSelectedDate(undefined);
       setDeposits([]);
+      setLiveMonthId(null);
       return;
     }
     const newDate = startOfMonth(date);
     setSelectedDate(newDate);
-    loadSubmittedDataForMonth(newDate);
+    const newMonthId = getMonthId(newDate);
+    router.push(`/deposits?month=${newMonthId}`);
   };
 
   const handleDepositChange = (
@@ -411,8 +425,8 @@ function Deposits() {
 
 
   const handlePastEntryClick = (date: Date) => {
-    setSelectedDate(date);
-    loadSubmittedDataForMonth(date);
+    const newMonthId = getMonthId(date);
+    router.push(`/deposits?month=${newMonthId}`);
   };
   
   const confirmDeleteEntry = async () => {
@@ -424,6 +438,7 @@ function Deposits() {
     setIsLoading(true);
 
     try {
+        await setPersistence(auth, browserSessionPersistence);
         const credential = EmailAuthProvider.credential(user.email, deletePassword);
         await reauthenticateWithCredential(user, credential);
         
@@ -439,8 +454,7 @@ function Deposits() {
         setDeletePassword('');
         // If the deleted entry was the one being viewed, clear the view
         if (selectedDate && getMonthId(selectedDate) === deletingEntry.id) {
-            setSelectedDate(undefined);
-            setDeposits([]);
+            router.push('/deposits');
         }
     } catch (error) {
         toast({ variant: 'destructive', title: 'Authentication Failed', description: 'Incorrect password. Deletion cancelled.' });
@@ -464,10 +478,7 @@ function Deposits() {
     <>
       <div className="space-y-6">
         <div className="no-print">
-          <BalanceSummary
-            selectedMonthId={selectedDate ? getMonthId(selectedDate) : null}
-            liveDeposits={deposits}
-          />
+          <BalanceSummary />
         </div>
         
         <Card className="printable">
@@ -676,8 +687,8 @@ function Deposits() {
                     <Button
                       size="sm"
                       variant={
-                        getMonthId(entry.date.toDate()) ===
-                        (selectedDate && getMonthId(selectedDate))
+                        selectedDate && getMonthId(entry.date.toDate()) ===
+                        getMonthId(selectedDate)
                           ? 'default'
                           : 'outline'
                       }
