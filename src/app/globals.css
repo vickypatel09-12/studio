@@ -75,3 +75,44 @@
     -moz-appearance: textfield;
   }
 }
+
+@media print {
+  body {
+    background-color: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+  
+  .print-hide {
+    display: none !important;
+  }
+
+  main[class*="peer-"] {
+    margin-left: 0 !important;
+  }
+  
+  .printable {
+    display: block !important;
+    width: 100% !important;
+    position: relative !important;
+    left: 0 !important;
+    top: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  
+  .printable .customer-name-cell {
+    white-space: nowrap !important;
+    width: auto !important;
+  }
+}

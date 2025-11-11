@@ -551,7 +551,7 @@ function Deposits() {
                           <TableCell className="font-medium">
                             {index + 1}
                           </TableCell>
-                          <TableCell>{customer.name}</TableCell>
+                          <TableCell className="customer-name-cell">{customer.name}</TableCell>
                           <TableCell>
                             <Input
                               type="number"

@@ -92,16 +92,16 @@ const SortableCustomerRow = ({ customer, index, onEdit, onDelete }: { customer: 
         <TableRow ref={setNodeRef} style={style} {...attributes}>
             <TableCell>
                 <div className="flex items-center gap-2">
-                 <span {...listeners} className="cursor-grab p-1">
+                 <span {...listeners} className="cursor-grab p-1 no-print">
                     <GripVertical className="h-5 w-5 text-muted-foreground" />
                   </span>
                 <span>{index + 1}</span>
                 </div>
             </TableCell>
-            <TableCell className="font-medium">{customer.name}</TableCell>
+            <TableCell className="font-medium customer-name-cell">{customer.name}</TableCell>
             <TableCell>{customer.email}</TableCell>
             <TableCell>{customer.phone}</TableCell>
-            <TableCell className="text-right">
+            <TableCell className="text-right no-print">
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-8 w-8 p-0">
@@ -354,8 +354,8 @@ notes: editingCustomer.notes || '',
 
   return (
     <>
-      <Card>
-        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <Card className="printable">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between no-print">
           <div>
             <CardTitle>Customers</CardTitle>
             <CardDescription>
@@ -403,7 +403,7 @@ notes: editingCustomer.notes || '',
                     <TableHead>Customer Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Mobile</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="text-right no-print">Actions</TableHead>
                 </TableRow>
                 </TableHeader>
                 <SortableContext 

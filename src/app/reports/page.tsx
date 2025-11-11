@@ -299,8 +299,8 @@ function Reports() {
   return (
     <>
       <div>
-        <Card className="card">
-          <div>
+        <Card className="printable">
+          <div className="no-print">
             <CardHeader>
               <CardTitle>Generate Reports</CardTitle>
               <CardDescription>
@@ -372,6 +372,11 @@ function Reports() {
               </div>
           ) : generatedReport ? (
             <>
+               <div className="hidden print-only p-6">
+                <h1 className="text-2xl font-bold text-center">
+                    Monthly Report for {selectedDate ? format(selectedDate, 'MMMM yyyy') : 'N/A'}
+                </h1>
+              </div>
               <CardContent>
                 <div className="overflow-x-auto">
                   <Table>
@@ -422,7 +427,7 @@ function Reports() {
                          return (
                             <TableRow key={item.customerId}>
                               <TableCell className="py-1">{index + 1}</TableCell>
-                              <TableCell className="font-medium whitespace-nowrap py-1">{item.customerName}</TableCell>
+                              <TableCell className="font-medium whitespace-nowrap py-1 customer-name-cell">{item.customerName}</TableCell>
                               <TableCell className="text-right py-1">
                                   {renderTwoLevel(depositTotal, [{label: 'c', value: item.depositCash}, {label: 'b', value: item.depositBank}])}
                               </TableCell>
@@ -464,13 +469,13 @@ function Reports() {
                   </Table>
                 </div>
               </CardContent>
-              <CardFooter className="flex justify-end gap-2">
+              <CardFooter className="flex justify-end gap-2 no-print">
                 <Button variant="outline" onClick={() => window.print()}>
                   <Printer className="mr-2 h-4 w-4" /> Print
                 </Button>
               </CardFooter>
               
-              <div className="px-6 pt-4">
+              <div className="px-6 pt-4 no-print">
                   <div className="grid grid-cols-3 gap-4">
                       
                       <div className="border p-2 rounded-lg">
@@ -518,7 +523,7 @@ function Reports() {
             </>
           ) : (
               <CardContent>
-                <Alert>
+                <Alert className="no-print">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>No Report Generated</AlertTitle>
                     <AlertDescription>

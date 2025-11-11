@@ -603,12 +603,12 @@ function Loans() {
   return (
     <>
       <div className="space-y-6">
-        <div>
+        <div className="no-print">
           {selectedDate && <BalanceSummary selectedDate={selectedDate} currentLoans={loans} />}
         </div>
 
-        <Card>
-          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <Card className="printable">
+          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between no-print">
             <div>
               <CardTitle>Loans &amp; Interest</CardTitle>
               <CardDescription>
@@ -651,6 +651,11 @@ function Loans() {
               </Popover>
             </div>
           </CardHeader>
+           <div className="hidden print-only p-6">
+                <h1 className="text-2xl font-bold text-center">
+                    Loans & Interest for {selectedDate ? format(selectedDate, 'MMMM yyyy') : 'N/A'}
+                </h1>
+            </div>
           <CardContent>
             {isLoading ? (
               <div className="flex items-center justify-center p-8">
@@ -710,108 +715,126 @@ function Loans() {
                           <TableCell className="font-medium">
                             {index + 1}
                           </TableCell>
-                          <TableCell>{customer.name}</TableCell>
+                          <TableCell className="customer-name-cell">{customer.name}</TableCell>
                           <TableCell className="text-right">
-                            <Input
-                              type="number"
-                              placeholder="₹0.00"
-                              value={loan.carryFwd || ''}
-                              disabled
-                              className="w-full text-right"
-                            />
+                            <span className="print-hide">
+                                <Input
+                                type="number"
+                                placeholder="₹0.00"
+                                value={loan.carryFwd || ''}
+                                disabled
+                                className="w-full text-right"
+                                />
+                            </span>
+                            <span className="hidden print-only float-right">{loan.carryFwd.toFixed(2)}</span>
                           </TableCell>
                           <TableCell>
-                            <Select
-                              value={loan.changeType}
-                              disabled={!isSessionActive || isSubmitted}
-                              onValueChange={(value: LoanChangeType) =>
-                                handleLoanChange(
-                                  customer.id,
-                                  'changeType',
-                                  value
-                                )
-                              }
-                            >
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Type" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="new" disabled={(loan.carryFwd || 0) > 0}>New Loan</SelectItem>
-                                <SelectItem value="increase">
-                                  Increase
-                                </SelectItem>
-                                <SelectItem value="decrease">
-                                  Decrease
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <div className="print-hide">
+                                <Select
+                                value={loan.changeType}
+                                disabled={!isSessionActive || isSubmitted}
+                                onValueChange={(value: LoanChangeType) =>
+                                    handleLoanChange(
+                                    customer.id,
+                                    'changeType',
+                                    value
+                                    )
+                                }
+                                >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="new" disabled={(loan.carryFwd || 0) > 0}>New Loan</SelectItem>
+                                    <SelectItem value="increase">
+                                    Increase
+                                    </SelectItem>
+                                    <SelectItem value="decrease">
+                                    Decrease
+                                    </SelectItem>
+                                </SelectContent>
+                                </Select>
+                            </div>
+                            <span className="hidden print-only">{loan.changeType}</span>
                           </TableCell>
                           <TableCell className="text-right">
-                            <Input
-                              type="number"
-                              placeholder="₹0.00"
-                              value={loan.changeCash || ''}
-                              disabled={!isSessionActive || isSubmitted}
-                              onChange={(e) =>
-                                handleLoanChange(
-                                  customer.id,
-                                  'changeCash',
-                                  e.target.value
-                                )
-                              }
-                              className="w-full text-right"
-                            />
+                            <span className="print-hide">
+                                <Input
+                                type="number"
+                                placeholder="₹0.00"
+                                value={loan.changeCash || ''}
+                                disabled={!isSessionActive || isSubmitted}
+                                onChange={(e) =>
+                                    handleLoanChange(
+                                    customer.id,
+                                    'changeCash',
+                                    e.target.value
+                                    )
+                                }
+                                className="w-full text-right"
+                                />
+                            </span>
+                             <span className="hidden print-only float-right">{loan.changeCash.toFixed(2)}</span>
                           </TableCell>
                           <TableCell className="text-right">
-                            <Input
-                              type="number"
-                              placeholder="₹0.00"
-                              value={loan.changeBank || ''}
-                              disabled={!isSessionActive || isSubmitted}
-                              onChange={(e) =>
-                                handleLoanChange(
-                                  customer.id,
-                                  'changeBank',
-                                  e.target.value
-                                )
-                              }
-                              className="w-full text-right"
-                            />
+                            <span className="print-hide">
+                                <Input
+                                type="number"
+                                placeholder="₹0.00"
+                                value={loan.changeBank || ''}
+                                disabled={!isSessionActive || isSubmitted}
+                                onChange={(e) =>
+                                    handleLoanChange(
+                                    customer.id,
+                                    'changeBank',
+                                    e.target.value
+                                    )
+                                }
+                                className="w-full text-right"
+                                />
+                            </span>
+                             <span className="hidden print-only float-right">{loan.changeBank.toFixed(2)}</span>
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             ₹{changeTotal.toFixed(2)}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Input
-                              type="number"
-                              placeholder="₹0.00"
-                              value={loan.interestCash || ''}
-                              disabled={!isSessionActive || isSubmitted}
-                              onChange={(e) =>
-                                handleLoanChange(
-                                  customer.id,
-                                  'interestCash',
-                                  e.target.value
-                                )
-                              }
-                              className="w-full text-right"
-                            />
+                            <span className="print-hide">
+                                <Input
+                                type="number"
+                                placeholder="₹0.00"
+                                value={loan.interestCash || ''}
+                                disabled={!isSessionActive || isSubmitted}
+                                onChange={(e) =>
+                                    handleLoanChange(
+                                    customer.id,
+                                    'interestCash',
+                                    e.target.value
+                                    )
+                                }
+                                className="w-full text-right"
+                                />
+                            </span>
+                            <span className="hidden print-only float-right">{loan.interestCash.toFixed(2)}</span>
                           </TableCell>
                           <TableCell className="text-right">
-                            <Input
-                              type="number"
-                              placeholder="₹0.00"
-                              value={loan.interestBank || ''}
-                              disabled={!isSessionActive || isSubmitted}
-                              onChange={(e) =>
-                                handleLoanChange(
-                                  customer.id,
-                                  'interestBank',
-                                  e.target.value
-                                )
-                              }
-                              className="w-full text-right"
-                            />
+                            <span className="print-hide">
+                                <Input
+                                type="number"
+                                placeholder="₹0.00"
+                                value={loan.interestBank || ''}
+                                disabled={!isSessionActive || isSubmitted}
+                                onChange={(e) =>
+                                    handleLoanChange(
+                                    customer.id,
+                                    'interestBank',
+                                    e.target.value
+                                    )
+                                }
+                                className="w-full text-right"
+                                />
+                            </span>
+                            <span className="hidden print-only float-right">{loan.interestBank.toFixed(2)}</span>
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             ₹{loan.interestTotal.toFixed(2)}
@@ -836,7 +859,7 @@ function Loans() {
                 </Table>
               </div>
             ) : selectedDate && !isDepositSubmitted ? (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="no-print">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>Deposit Entry Not Submitted</AlertTitle>
                     <AlertDescription>
@@ -847,7 +870,7 @@ function Loans() {
                     </AlertDescription>
                 </Alert>
             ) : (
-              <Alert>
+              <Alert className="no-print">
                 <Info className="h-4 w-4" />
                 <AlertTitle>Select a Date</AlertTitle>
                 <AlertDescription>
@@ -859,7 +882,7 @@ function Loans() {
             )}
           </CardContent>
           {selectedDate && isDepositSubmitted && (
-            <CardFooter className="flex justify-end gap-2">
+            <CardFooter className="flex justify-end gap-2 no-print">
               <Button
                 variant="outline"
                 onClick={() => window.print()}
@@ -895,7 +918,7 @@ function Loans() {
           )}
         </Card>
         
-        <Card>
+        <Card className="no-print">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <History className="h-5 w-5" />
