@@ -5,9 +5,11 @@ import { collection, query } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
+import { format } from 'date-fns';
 
 type Deposit = { customerId: string; cash: number; bank: number };
 type MonthlyDepositDoc = {
+  id: string; // yyyy-MM
   deposits?: Deposit[];
   draft?: Deposit[];
 };
@@ -22,8 +24,8 @@ type Loan = {
   interestBank: number;
   interestTotal: number;
 };
-
 type MonthlyLoanDoc = {
+  id: string; // yyyy-MM
   loans?: Loan[];
   draft?: Loan[];
 };
@@ -37,7 +39,13 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export function BalanceSummary() {
+interface BalanceSummaryProps {
+  selectedMonthId: string | null;
+  liveDeposits?: Deposit[];
+  liveLoans?: Loan[];
+}
+
+export function BalanceSummary({ selectedMonthId, liveDeposits, liveLoans }: BalanceSummaryProps) {
   const firestore = useFirestore();
 
   const depositsQuery = useMemoFirebase(
@@ -54,7 +62,11 @@ export function BalanceSummary() {
   const { data: allLoans, isLoading: loansLoading } =
     useCollection<MonthlyLoanDoc>(loansQuery);
 
-  const { totalCredited, totalDebit, availableBalance } = useMemo(() => {
+  const { totalCredited, totalDebit, availableBalance, monthLabel } = useMemo(() => {
+    // Get all historical data, excluding the currently selected month
+    const historicalDeposits = (allDeposits || []).filter(d => d.id !== selectedMonthId);
+    const historicalLoans = (allLoans || []).filter(l => l.id !== selectedMonthId);
+
     const allTimeTotals = {
       deposits: { cash: 0, bank: 0 },
       repayments: { cash: 0, bank: 0 },
@@ -62,7 +74,8 @@ export function BalanceSummary() {
       loansGiven: { cash: 0, bank: 0 },
     };
 
-    allDeposits?.forEach((month) => {
+    // Calculate historical totals
+    historicalDeposits.forEach((month) => {
       const data = month.deposits || month.draft || [];
       data.forEach((deposit) => {
         allTimeTotals.deposits.cash += deposit.cash || 0;
@@ -70,25 +83,40 @@ export function BalanceSummary() {
       });
     });
 
-    allLoans?.forEach((month) => {
+    historicalLoans.forEach((month) => {
       const data = month.loans || month.draft || [];
       data.forEach((loan) => {
         allTimeTotals.interest.cash += loan.interestCash || 0;
         allTimeTotals.interest.bank += loan.interestBank || 0;
-
         if (loan.changeType === 'decrease') {
           allTimeTotals.repayments.cash += loan.changeCash || 0;
           allTimeTotals.repayments.bank += loan.changeBank || 0;
-        } else if (
-          loan.changeType === 'new' ||
-          loan.changeType === 'increase'
-        ) {
+        } else if (loan.changeType === 'new' || loan.changeType === 'increase') {
           allTimeTotals.loansGiven.cash += loan.changeCash || 0;
           allTimeTotals.loansGiven.bank += loan.changeBank || 0;
         }
       });
     });
+    
+    // Add live data from the current page
+    (liveDeposits || []).forEach(d => {
+        allTimeTotals.deposits.cash += d.cash || 0;
+        allTimeTotals.deposits.bank += d.bank || 0;
+    });
 
+    (liveLoans || []).forEach(l => {
+        allTimeTotals.interest.cash += l.interestCash || 0;
+        allTimeTotals.interest.bank += l.interestBank || 0;
+        if (l.changeType === 'decrease') {
+          allTimeTotals.repayments.cash += l.changeCash || 0;
+          allTimeTotals.repayments.bank += l.changeBank || 0;
+        } else if (l.changeType === 'new' || l.changeType === 'increase') {
+          allTimeTotals.loansGiven.cash += l.changeCash || 0;
+          allTimeTotals.loansGiven.bank += l.changeBank || 0;
+        }
+    });
+
+    // Final calculation
     const totalCredited = {
       cash:
         allTimeTotals.deposits.cash +
@@ -113,9 +141,18 @@ export function BalanceSummary() {
         bank: totalCredited.bank - totalDebit.bank,
         total: totalCredited.total - totalDebit.total
     };
+    
+    let monthLabel = 'All-time financial overview';
+    if(selectedMonthId) {
+        try {
+            const date = new Date(`${selectedMonthId}-01T00:00:00`);
+            monthLabel = `Live balance for ${format(date, 'MMMM yyyy')}`;
+        } catch(e) { /* ignore invalid date */ }
+    }
 
-    return { totalCredited, totalDebit, availableBalance };
-  }, [allDeposits, allLoans]);
+
+    return { totalCredited, totalDebit, availableBalance, monthLabel };
+  }, [allDeposits, allLoans, selectedMonthId, liveDeposits, liveLoans]);
   
   const isLoading = depositsLoading || loansLoading;
 
@@ -125,7 +162,7 @@ export function BalanceSummary() {
         <CardHeader>
           <CardTitle>Financial Summary</CardTitle>
           <CardDescription>
-            All-time financial overview
+            Loading summary...
           </CardDescription>
         </CardHeader>
         <CardContent className="flex items-center justify-center p-8">
@@ -140,7 +177,7 @@ export function BalanceSummary() {
       <CardHeader>
         <CardTitle>Financial Summary</CardTitle>
         <CardDescription>
-          All-time financial overview
+          {monthLabel}
         </CardDescription>
       </CardHeader>
       <CardContent>

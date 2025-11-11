@@ -263,7 +263,7 @@ function Loans() {
         setIsDepositSubmitted(true);
       } else {
         setIsLoading(false);
-        return; // Stop execution if deposit is not submitted
+        // Do not return, allow loan sheet to load even without deposit submission
       }
 
       // Step 2: Load the loan data if deposit is submitted
@@ -342,17 +342,15 @@ function Loans() {
 
   useEffect(() => {
     const monthParam = searchParams.get('month');
-    if (monthParam) {
-      try {
-        const date = parse(monthParam, 'yyyy-MM', new Date());
-        if (!isNaN(date.getTime())) {
-          setSelectedDate(date);
-          // Check if data for this month already exists (draft or submitted)
-          loadSubmittedDataForMonth(date);
-        }
-      } catch (e) {
-        console.error('Invalid date format in URL', e);
-      }
+    const initialDate = monthParam ? parse(monthParam, 'yyyy-MM', new Date()) : startOfMonth(new Date());
+
+    if (!isNaN(initialDate.getTime())) {
+      setSelectedDate(initialDate);
+      loadSubmittedDataForMonth(initialDate);
+    } else {
+       const today = startOfMonth(new Date());
+       setSelectedDate(today);
+       loadSubmittedDataForMonth(today);
     }
   }, [searchParams, loadSubmittedDataForMonth]);
 
@@ -607,7 +605,10 @@ function Loans() {
     <>
       <div className="space-y-6">
         <div className="no-print">
-          <BalanceSummary />
+          <BalanceSummary
+            selectedMonthId={selectedDate ? getMonthId(selectedDate) : null}
+            liveLoans={loans}
+          />
         </div>
 
         <Card className="printable">
@@ -664,8 +665,20 @@ function Loans() {
               <div className="flex items-center justify-center p-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : selectedDate && customers && isDepositSubmitted ? (
+            ) : selectedDate && customers ? (
               <div className="overflow-x-auto">
+                {!isDepositSubmitted && (
+                     <Alert variant="destructive" className="no-print mb-4">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Deposit Entry Not Submitted</AlertTitle>
+                        <AlertDescription>
+                            You have not submitted the deposit entry for {format(selectedDate, 'MMMM yyyy')}. Please submit deposits first for accurate calculations.
+                            <Button asChild variant="link" className="p-1 h-auto">
+                                <Link href={`/deposits?month=${getMonthId(selectedDate)}`}>Go to Deposits</Link>
+                            </Button>
+                        </AlertDescription>
+                    </Alert>
+                )}
                 <Table id="loans-table">
                   <TableHeader>
                     <TableRow>
@@ -861,17 +874,6 @@ function Loans() {
                   </UiTableFooter>
                 </Table>
               </div>
-            ) : selectedDate && !isDepositSubmitted ? (
-                <Alert variant="destructive" className="no-print">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Deposit Entry Not Submitted</AlertTitle>
-                    <AlertDescription>
-                        You must submit the deposit entry for {format(selectedDate, 'MMMM yyyy')} before you can manage loans.
-                        <Button asChild variant="link" className="p-1 h-auto">
-                            <Link href={`/deposits?month=${getMonthId(selectedDate)}`}>Go to Deposits</Link>
-                        </Button>
-                    </AlertDescription>
-                </Alert>
             ) : (
               <Alert className="no-print">
                 <Info className="h-4 w-4" />
@@ -884,7 +886,7 @@ function Loans() {
               </Alert>
             )}
           </CardContent>
-          {selectedDate && isDepositSubmitted && (
+          {selectedDate && (
             <CardFooter className="flex justify-end gap-2 no-print">
               {isSubmitted && isSessionActive && (
                   <Button variant="secondary" onClick={() => setIsReverting(true)} disabled={isLoading}>

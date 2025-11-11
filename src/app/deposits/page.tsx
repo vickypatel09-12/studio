@@ -216,16 +216,15 @@ function Deposits() {
 
   useEffect(() => {
     const monthParam = searchParams.get('month');
-    if (monthParam) {
-      try {
-        const date = parse(monthParam, 'yyyy-MM', new Date());
-        if (!isNaN(date.getTime())) {
-          setSelectedDate(date);
-          loadSubmittedDataForMonth(date);
-        }
-      } catch (e) {
-        console.error('Invalid date format in URL', e);
-      }
+    const initialDate = monthParam ? parse(monthParam, 'yyyy-MM', new Date()) : startOfMonth(new Date());
+    
+    if (!isNaN(initialDate.getTime())) {
+      setSelectedDate(initialDate);
+      loadSubmittedDataForMonth(initialDate);
+    } else {
+       const today = startOfMonth(new Date());
+       setSelectedDate(today);
+       loadSubmittedDataForMonth(today);
     }
   }, [searchParams, loadSubmittedDataForMonth]);
 
@@ -465,7 +464,10 @@ function Deposits() {
     <>
       <div className="space-y-6">
         <div className="no-print">
-          <BalanceSummary />
+          <BalanceSummary
+            selectedMonthId={selectedDate ? getMonthId(selectedDate) : null}
+            liveDeposits={deposits}
+          />
         </div>
         
         <Card className="printable">
