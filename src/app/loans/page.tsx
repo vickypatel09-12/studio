@@ -824,7 +824,7 @@ function Loans() {
                                 type="number"
                                 placeholder="₹0.00"
                                 value={loan.interestCash || ''}
-                                disabled={!isSessionActive || isSubmitted}
+                                disabled={!isSessionActive || isSubmitted || loan.interestTotal === 0}
                                 onChange={(e) =>
                                     handleLoanChange(
                                     customer.id,
@@ -843,7 +843,7 @@ function Loans() {
                                 type="number"
                                 placeholder="₹0.00"
                                 value={loan.interestBank || ''}
-                                disabled={!isSessionActive || isSubmitted}
+                                disabled={!isSessionActive || isSubmitted || loan.interestTotal === 0}
                                 onChange={(e) =>
                                     handleLoanChange(
                                     customer.id,
