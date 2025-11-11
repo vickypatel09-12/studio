@@ -86,6 +86,7 @@ import { AppShell } from '@/components/AppShell';
 import { BalanceSummary } from '@/components/BalanceSummary';
 import { Label } from '@/components/ui/label';
 import { useLiveData, type Loan, type LoanChangeType } from '@/context/LiveDataContext';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type MonthlyLoanDoc = {
   id: string;
@@ -670,7 +671,7 @@ function Loans() {
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : selectedDate && customers ? (
-              <div className="overflow-x-auto">
+              <ScrollArea className="h-[calc(100vh-28rem)]">
                 {!isDepositSubmitted && (
                      <Alert variant="destructive" className="no-print mb-4">
                         <AlertTriangle className="h-4 w-4" />
@@ -690,7 +691,7 @@ function Loans() {
                         Sr.
                       </TableHead>
                       <TableHead rowSpan={2}>Customer</TableHead>
-                      <TableHead rowSpan={2} className="w-[150px]">
+                      <TableHead rowSpan={2} className="w-[150px] text-right">
                         Carry Fwd
                       </TableHead>
                       <TableHead colSpan={4} className="text-center">
@@ -747,7 +748,7 @@ function Loans() {
                                 className="w-full text-right"
                                 />
                             </span>
-                            <span className="hidden print-only float-right">{loan.carryFwd.toFixed(2)}</span>
+                            <span className="hidden print-only float-right">{loan.carryFwd === 0 ? '-' : loan.carryFwd.toFixed(2)}</span>
                           </TableCell>
                           <TableCell>
                             <div className="print-hide">
@@ -776,7 +777,7 @@ function Loans() {
                                 </SelectContent>
                                 </Select>
                             </div>
-                            <span className="hidden print-only">{loan.changeType}</span>
+                            <span className="hidden print-only">{changeTotal === 0 ? '-' : loan.changeType}</span>
                           </TableCell>
                           <TableCell className="text-right">
                             <span className="print-hide">
@@ -795,7 +796,7 @@ function Loans() {
                                 className="w-full text-right"
                                 />
                             </span>
-                             <span className="hidden print-only float-right">{loan.changeCash.toFixed(2)}</span>
+                             <span className="hidden print-only float-right">{loan.changeCash === 0 ? '-' : loan.changeCash.toFixed(2)}</span>
                           </TableCell>
                           <TableCell className="text-right">
                             <span className="print-hide">
@@ -814,7 +815,7 @@ function Loans() {
                                 className="w-full text-right"
                                 />
                             </span>
-                             <span className="hidden print-only float-right">{loan.changeBank.toFixed(2)}</span>
+                             <span className="hidden print-only float-right">{loan.changeBank === 0 ? '-' : loan.changeBank.toFixed(2)}</span>
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             ₹{changeTotal.toFixed(2)}
@@ -836,7 +837,7 @@ function Loans() {
                                 className="w-full text-right"
                                 />
                             </span>
-                            <span className="hidden print-only float-right">{loan.interestCash.toFixed(2)}</span>
+                            <span className="hidden print-only float-right">{loan.interestCash === 0 ? '-' : loan.interestCash.toFixed(2)}</span>
                           </TableCell>
                           <TableCell className="text-right">
                             <span className="print-hide">
@@ -855,7 +856,7 @@ function Loans() {
                                 className="w-full text-right"
                                 />
                             </span>
-                            <span className="hidden print-only float-right">{loan.interestBank.toFixed(2)}</span>
+                            <span className="hidden print-only float-right">{loan.interestBank === 0 ? '-' : loan.interestBank.toFixed(2)}</span>
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             ₹{loan.interestTotal.toFixed(2)}
@@ -878,7 +879,7 @@ function Loans() {
                     </TableRow>
                   </UiTableFooter>
                 </Table>
-              </div>
+              </ScrollArea>
             ) : (
               <Alert className="no-print">
                 <Info className="h-4 w-4" />

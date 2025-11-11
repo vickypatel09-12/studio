@@ -77,6 +77,7 @@ import { AppShell } from '@/components/AppShell';
 import { BalanceSummary } from '@/components/BalanceSummary';
 import { Label } from '@/components/ui/label';
 import { useLiveData, type Deposit } from '@/context/LiveDataContext';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type Session = {
   id: 'status';
@@ -530,7 +531,7 @@ function Deposits() {
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : selectedDate && customers ? (
-              <div className="overflow-x-auto">
+              <ScrollArea className="h-[calc(100vh-28rem)]">
                 <Table id="deposits-table">
                   <TableHeader>
                     <TableRow>
@@ -578,7 +579,7 @@ function Deposits() {
                               }
                               className="w-full text-right print-hide"
                             />
-                             <span className="hidden print-only float-right">{deposit.cash.toFixed(2)}</span>
+                             <span className="hidden print-only float-right">{deposit.cash === 0 ? '-' : deposit.cash.toFixed(2)}</span>
                           </TableCell>
                           <TableCell>
                             <Input
@@ -595,7 +596,7 @@ function Deposits() {
                               }
                               className="w-full text-right print-hide"
                             />
-                            <span className="hidden print-only float-right">{deposit.bank.toFixed(2)}</span>
+                            <span className="hidden print-only float-right">{deposit.bank === 0 ? '-' : deposit.bank.toFixed(2)}</span>
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             ₹{depositTotal.toFixed(2)}
@@ -613,7 +614,7 @@ function Deposits() {
                     </TableRow>
                   </UiTableFooter>
                 </Table>
-              </div>
+              </ScrollArea>
             ) : (
               <Alert className="no-print">
                 <Info className="h-4 w-4" />
