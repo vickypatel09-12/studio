@@ -97,14 +97,12 @@
   }
 
   .printable {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    position: static;
+    display: block;
+    width: auto;
+    height: auto;
     padding: 0;
     margin: 0;
-    display: block;
     background: white !important;
     box-shadow: none !important;
     border: none !important;
