@@ -21,6 +21,8 @@ import { Loader2, Landmark } from 'lucide-react';
 import {
   signInWithEmailAndPassword,
   AuthError,
+  setPersistence,
+  browserSessionPersistence,
 } from 'firebase/auth';
 
 const loginSchema = z.object({
@@ -65,7 +67,10 @@ export default function LoginPage() {
 
   const onLoginSubmit = (data: LoginValues) => {
     setIsLoading(true);
-    signInWithEmailAndPassword(auth, data.email, data.password)
+    setPersistence(auth, browserSessionPersistence)
+        .then(() => {
+            return signInWithEmailAndPassword(auth, data.email, data.password);
+        })
       .catch((error: AuthError) => {
         handleAuthError(error);
       })
@@ -97,12 +102,12 @@ export default function LoginPage() {
         <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="grid gap-4 animate-fade-in-up" style={{animationDelay: '100ms'}}>
           <div className="grid gap-2">
             <Label htmlFor="login-email">Email</Label>
-            <Input id="login-email" type="email" placeholder="m@example.com" {...loginForm.register('email')} className="border border-input"/>
+            <Input id="login-email" type="email" placeholder="m@example.com" {...loginForm.register('email')} />
             {loginForm.formState.errors.email && <p className="text-sm text-destructive">{loginForm.formState.errors.email.message}</p>}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="login-password">Password</Label>
-            <Input id="login-password" type="password" {...loginForm.register('password')} className="border border-input" />
+            <Input id="login-password" type="password" {...loginForm.register('password')} />
             {loginForm.formState.errors.password && <p className="text-sm text-destructive">{loginForm.formState.errors.password.message}</p>}
           </div>
           <Button type="submit" className="w-full" disabled={isLoading}>
