@@ -86,6 +86,8 @@ import { AppShell } from '@/components/AppShell';
 import { BalanceSummary } from '@/components/BalanceSummary';
 import { Label } from '@/components/ui/label';
 import { useLiveData, type Loan, type LoanChangeType } from '@/context/LiveDataContext';
+import { Checkbox } from '@/components/ui/checkbox';
+
 
 type MonthlyLoanDoc = {
   id: string;
@@ -197,6 +199,7 @@ function Loans() {
                 interestCash: interestTotal,
                 interestBank: 0,
                 interestTotal: interestTotal,
+                isDone: false,
                 };
             });
             toast({
@@ -217,6 +220,7 @@ function Loans() {
             interestCash: 0,
             interestBank: 0,
             interestTotal: 0,
+            isDone: false,
           }));
           toast({
             title: 'New Month',
@@ -294,6 +298,7 @@ function Loans() {
                   interestCash: 0,
                   interestBank: 0,
                   interestTotal: 0,
+                  isDone: false,
                 };
             });
             setLoans(allCustomerLoans);
@@ -376,7 +381,7 @@ function Loans() {
 
   const handleLoanChange = (
     customerId: string,
-    field: keyof Omit<Loan, 'customerId' | 'interestTotal'>,
+    field: keyof Omit<Loan, 'customerId' | 'interestTotal' | 'isDone'>,
     value: string | number
   ) => {
     setIsDraftSaved(false);
@@ -405,6 +410,16 @@ function Loans() {
       })
     );
   };
+  
+  const handleDoneChange = (customerId: string, isChecked: boolean) => {
+    setIsDraftSaved(false);
+    setLoans((prev) =>
+      prev.map((loan) =>
+        loan.customerId === customerId ? { ...loan, isDone: isChecked } : loan
+      )
+    );
+  };
+
 
   const getChangeTotal = (loan: Loan) => {
     return (Number(loan.changeCash) || 0) + (Number(loan.changeBank) || 0);
@@ -729,6 +744,7 @@ function Loans() {
                       <TableHead colSpan={3} className="text-center">
                         Interest
                       </TableHead>
+                      <TableHead rowSpan={2} className="w-[80px] text-center print-hide">Done</TableHead>
                     </TableRow>
                     <TableRow>
                       <TableHead className="w-[150px]">Type</TableHead>
@@ -760,6 +776,7 @@ function Loans() {
                       if (!loan) return null;
                       const changeTotal = getChangeTotal(loan);
                       const isRowEmpty = (loan.carryFwd || 0) === 0 && changeTotal === 0 && (loan.interestTotal || 0) === 0;
+                      const isRowDisabled = !isSessionActive || isSubmitted || loan.isDone;
 
                       return (
                         <TableRow key={customer.id} className={isRowEmpty ? 'print-hide-row' : ''}>
@@ -783,7 +800,7 @@ function Loans() {
                             <div className="print-hide">
                                 <Select
                                 value={loan.changeType}
-                                disabled={!isSessionActive || isSubmitted}
+                                disabled={isRowDisabled || (loan.carryFwd || 0) > 0}
                                 onValueChange={(value: LoanChangeType) =>
                                     handleLoanChange(
                                     customer.id,
@@ -814,7 +831,7 @@ function Loans() {
                                 type="number"
                                 placeholder="₹0.00"
                                 value={loan.changeCash || ''}
-                                disabled={!isSessionActive || isSubmitted}
+                                disabled={isRowDisabled}
                                 onChange={(e) =>
                                     handleLoanChange(
                                     customer.id,
@@ -833,7 +850,7 @@ function Loans() {
                                 type="number"
                                 placeholder="₹0.00"
                                 value={loan.changeBank || ''}
-                                disabled={!isSessionActive || isSubmitted}
+                                disabled={isRowDisabled}
                                 onChange={(e) =>
                                     handleLoanChange(
                                     customer.id,
@@ -855,7 +872,7 @@ function Loans() {
                                 type="number"
                                 placeholder="₹0.00"
                                 value={loan.interestCash || ''}
-                                disabled={!isSessionActive || isSubmitted || (loan.interestTotal || 0) === 0}
+                                disabled={isRowDisabled || (loan.interestTotal || 0) === 0}
                                 onChange={(e) =>
                                     handleLoanChange(
                                     customer.id,
@@ -874,7 +891,7 @@ function Loans() {
                                 type="number"
                                 placeholder="₹0.00"
                                 value={loan.interestBank || ''}
-                                disabled={!isSessionActive || isSubmitted || (loan.interestTotal || 0) === 0}
+                                disabled={isRowDisabled || (loan.interestTotal || 0) === 0}
                                 onChange={(e) =>
                                     handleLoanChange(
                                     customer.id,
@@ -890,6 +907,14 @@ function Loans() {
                           <TableCell className="text-right font-medium">
                             ₹{loan.interestTotal.toFixed(2)}
                           </TableCell>
+                           <TableCell className="text-center print-hide">
+                            <Checkbox
+                              checked={loan.isDone}
+                              onCheckedChange={(checked) => handleDoneChange(customer.id, !!checked)}
+                              disabled={!isSessionActive || isSubmitted}
+                              aria-label="Mark as done"
+                            />
+                          </TableCell>
                         </TableRow>
                       );
                     })}
@@ -904,7 +929,7 @@ function Loans() {
                       <TableCell>₹{totalChange.toFixed(2)}</TableCell>
                       <TableCell>₹{totals.interestCash.toFixed(2)}</TableCell>
                       <TableCell>₹{totals.interestBank.toFixed(2)}</TableCell>
-                      <TableCell>₹{totals.interestTotal.toFixed(2)}</TableCell>
+                      <TableCell colSpan={2}>₹{totals.interestTotal.toFixed(2)}</TableCell>
                     </TableRow>
                   </UiTableFooter>
                 </Table>
@@ -1066,5 +1091,3 @@ export default function LoansPage() {
     </>
   );
 }
-
-    

@@ -5,6 +5,7 @@ export type Deposit = {
   customerId: string;
   cash: number;
   bank: number;
+  isDone: boolean;
 };
 
 export type LoanChangeType = 'new' | 'increase' | 'decrease';
@@ -18,6 +19,7 @@ export type Loan = {
   interestCash: number;
   interestBank: number;
   interestTotal: number;
+  isDone: boolean;
 };
 
 

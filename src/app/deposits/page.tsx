@@ -84,6 +84,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type Session = {
   id: 'status';
@@ -162,6 +163,7 @@ function Deposits() {
           customerId: c.id,
           cash: defaultDeposit,
           bank: 0,
+          isDone: false,
         }));
       setDeposits(newDeposits);
       setLiveMonthId(getMonthId(date));
@@ -192,7 +194,7 @@ function Deposits() {
                 (d) => d.customerId === customer.id
               );
               return (
-                savedDeposit || { customerId: customer.id, cash: 0, bank: 0 }
+                savedDeposit || { customerId: customer.id, cash: 0, bank: 0, isDone: false }
               );
             });
             setDeposits(allCustomerDeposits);
@@ -270,7 +272,7 @@ function Deposits() {
 
   const handleDepositChange = (
     customerId: string,
-    field: keyof Omit<Deposit, 'customerId'>,
+    field: keyof Omit<Deposit, 'customerId' | 'isDone'>,
     value: string
   ) => {
     setIsDraftSaved(false);
@@ -301,6 +303,16 @@ function Deposits() {
       })
     );
   };
+
+  const handleDoneChange = (customerId: string, isChecked: boolean) => {
+    setIsDraftSaved(false);
+    setDeposits((prev) =>
+      prev.map((deposit) =>
+        deposit.customerId === customerId ? { ...deposit, isDone: isChecked } : deposit
+      )
+    );
+  };
+
 
   const getDepositTotal = (deposit: Deposit) => {
     return (Number(deposit.cash) || 0) + (Number(deposit.bank) || 0);
@@ -607,6 +619,7 @@ function Deposits() {
                       <TableHead className="w-[150px] text-right">
                         Total
                       </TableHead>
+                      <TableHead className="w-[80px] text-center print-hide">Done</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -616,8 +629,10 @@ function Deposits() {
                           customerId: customer.id,
                           cash: 0,
                           bank: 0,
+                          isDone: false,
                         };
                       const depositTotal = getDepositTotal(deposit);
+                      const isRowDisabled = !isSessionActive || isSubmitted || deposit.isDone;
 
                       return (
                         <TableRow key={customer.id}>
@@ -630,7 +645,7 @@ function Deposits() {
                               type="number"
                               placeholder="₹0.00"
                               value={deposit.cash || ''}
-                              disabled={!isSessionActive || isSubmitted}
+                              disabled={isRowDisabled}
                               onChange={(e) =>
                                 handleDepositChange(
                                   customer.id,
@@ -647,7 +662,7 @@ function Deposits() {
                               type="number"
                               placeholder="₹0.00"
                               value={deposit.bank || ''}
-                              disabled={!isSessionActive || isSubmitted}
+                              disabled={isRowDisabled}
                               onChange={(e) =>
                                 handleDepositChange(
                                   customer.id,
@@ -662,6 +677,14 @@ function Deposits() {
                           <TableCell className="text-right font-medium">
                             ₹{depositTotal.toFixed(2)}
                           </TableCell>
+                           <TableCell className="text-center print-hide">
+                            <Checkbox
+                              checked={deposit.isDone}
+                              onCheckedChange={(checked) => handleDoneChange(customer.id, !!checked)}
+                              disabled={!isSessionActive || isSubmitted}
+                              aria-label="Mark as done"
+                            />
+                          </TableCell>
                         </TableRow>
                       );
                     })}
@@ -671,7 +694,7 @@ function Deposits() {
                       <TableCell colSpan={2}>Total</TableCell>
                       <TableCell>₹{totals.cash.toFixed(2)}</TableCell>
                       <TableCell>₹{totals.bank.toFixed(2)}</TableCell>
-                      <TableCell>₹{totals.total.toFixed(2)}</TableCell>
+                      <TableCell colSpan={2}>₹{totals.total.toFixed(2)}</TableCell>
                     </TableRow>
                   </UiTableFooter>
                 </Table>
@@ -831,7 +854,3 @@ export default function DepositsPage() {
     </>
   );
 }
-
-    
-    
-    
