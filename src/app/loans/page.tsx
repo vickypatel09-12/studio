@@ -47,6 +47,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from '@/components/ui/dialog';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -73,6 +81,7 @@ import {
   Pencil,
   Trash2,
   AlertTriangle,
+  PlusCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -142,7 +151,8 @@ function Loans() {
   const [deletePassword, setDeletePassword] = useState('');
   const [isDepositSubmitted, setIsDepositSubmitted] = useState(false);
   const { toast } = useToast();
-  const [entriesToShow, setEntriesToShow] = useState<number | 'all'>(20);
+  const [isNewLoanDialogOpen, setIsNewLoanDialogOpen] = useState(false);
+  const [newLoanData, setNewLoanData] = useState<{customerId: string, amount: number}>({ customerId: '', amount: 0 });
 
   const sessionDocRef = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -254,7 +264,6 @@ function Loans() {
       const monthId = getMonthId(date);
       setLiveMonthId(monthId);
       
-      // Step 1: Check if the deposit for this month has been submitted
       const depositDocRef = doc(firestore, 'monthlyDeposits', monthId);
       const depositDocSnap = await getDoc(depositDocRef);
 
@@ -262,10 +271,8 @@ function Loans() {
         setIsDepositSubmitted(true);
       } else {
         setIsLoading(false);
-        // Do not return, allow loan sheet to load even without deposit submission
       }
 
-      // Step 2: Load the loan data if deposit is submitted
       const docRef = doc(firestore, 'monthlyLoans', monthId);
       try {
         const docSnap = await getDoc(docRef);
@@ -282,7 +289,6 @@ function Loans() {
               );
               
               if (savedLoan) {
-                // Enforce the business rule on load
                 if (savedLoan.carryFwd > 0 && savedLoan.changeType === 'new') {
                     savedLoan.changeType = 'increase';
                 }
@@ -357,7 +363,6 @@ function Loans() {
     }
   }, [selectedDate, customers, loadSubmittedDataForMonth]);
   
-  // Clear live data on unmount
   useEffect(() => {
     return () => {
         setLoans([]);
@@ -418,6 +423,51 @@ function Loans() {
         loan.customerId === customerId ? { ...loan, isDone: isChecked } : loan
       )
     );
+  };
+
+  const handleSaveNewLoan = () => {
+    if (!newLoanData.customerId || newLoanData.amount <= 0) {
+        toast({ variant: 'destructive', title: 'Invalid Data', description: 'Please select a customer and enter a valid loan amount.' });
+        return;
+    }
+
+    setLoans(prevLoans => {
+        const existingLoanIndex = prevLoans.findIndex(l => l.customerId === newLoanData.customerId);
+        if (existingLoanIndex > -1) {
+            // Update existing loan
+            return prevLoans.map((loan, index) => {
+                if (index === existingLoanIndex) {
+                    const newChangeTotal = (loan.changeCash || 0) + (loan.changeBank || 0) + newLoanData.amount;
+                    return {
+                        ...loan,
+                        changeType: loan.carryFwd > 0 ? 'increase' : 'new',
+                        changeCash: newChangeTotal, // Assuming new loan is given as cash
+                        changeBank: loan.changeBank,
+                    };
+                }
+                return loan;
+            });
+        } else {
+            // This case should ideally not happen if all customers are initialized
+            // But as a fallback, create a new entry
+            const newLoanEntry: Loan = {
+                customerId: newLoanData.customerId,
+                carryFwd: 0,
+                changeType: 'new',
+                changeCash: newLoanData.amount,
+                changeBank: 0,
+                interestCash: 0,
+                interestBank: 0,
+                interestTotal: 0,
+                isDone: false,
+            };
+            return [...prevLoans, newLoanEntry];
+        }
+    });
+
+    toast({ title: 'Loan Added', description: `New loan for ${customers?.find(c => c.id === newLoanData.customerId)?.name} has been added to the current draft.` });
+    setIsNewLoanDialogOpen(false);
+    setNewLoanData({ customerId: '', amount: 0 });
   };
 
 
@@ -586,11 +636,12 @@ function Loans() {
 
 
   const totals = useMemo(() => {
-    const itemsToTotal = entriesToShow === 'all' ? customers : customers?.slice(0, entriesToShow);
-    const customerIdsToTotal = itemsToTotal?.map(c => c.id) || [];
+    const activeLoanCustomerIds = loans
+        .filter(l => l.carryFwd > 0 || getChangeTotal(l) > 0 || l.interestTotal > 0)
+        .map(l => l.customerId);
 
     return loans
-      .filter(l => customerIdsToTotal.includes(l.customerId))
+      .filter(l => activeLoanCustomerIds.includes(l.customerId))
       .reduce(
       (acc, loan) => {
         acc.carryFwd += Number(loan.carryFwd) || 0;
@@ -610,7 +661,7 @@ function Loans() {
         interestTotal: 0,
       }
     );
-  }, [loans, customers, entriesToShow]);
+  }, [loans]);
 
   const handlePastEntryClick = (date: Date) => {
     const newMonthId = getMonthId(date);
@@ -621,11 +672,21 @@ function Loans() {
 
   const pageLoading = customersLoading;
   
-  const displayedCustomers = useMemo(() => {
-    if (!customers) return [];
-    if (entriesToShow === 'all') return customers;
-    return customers.slice(0, entriesToShow);
-  }, [customers, entriesToShow]);
+  const displayedLoanData = useMemo(() => {
+    if (!customers || !loans) return [];
+    
+    const customerMap = new Map(customers.map(c => [c.id, c.name]));
+
+    return loans
+        .filter(loan => loan.carryFwd > 0 || getChangeTotal(loan) > 0 || loan.interestTotal > 0)
+        .map(loan => ({...loan, customerName: customerMap.get(loan.customerId) || 'Unknown Customer' }))
+        .sort((a, b) => {
+            const customerA = customers.find(c => c.id === a.customerId);
+            const customerB = customers.find(c => c.id === b.customerId);
+            return (customerA?.sortOrder ?? Infinity) - (customerB?.sortOrder ?? Infinity);
+        });
+
+  }, [customers, loans]);
 
 
   if (pageLoading) {
@@ -656,6 +717,10 @@ function Loans() {
               </CardDescription>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Button onClick={() => setIsNewLoanDialogOpen(true)} disabled={!isSessionActive || isSubmitted}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                New Loan
+              </Button>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -685,23 +750,6 @@ function Loans() {
                   />
                 </PopoverContent>
               </Popover>
-              <div className="flex items-center gap-2">
-                <Label htmlFor="entries-to-show" className="text-sm font-medium">Show</Label>
-                <Select
-                  value={String(entriesToShow)}
-                  onValueChange={(value) => setEntriesToShow(value === 'all' ? 'all' : Number(value))}
-                >
-                  <SelectTrigger className="w-[80px]" id="entries-to-show">
-                    <SelectValue placeholder="Show" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="20">20</SelectItem>
-                    <SelectItem value="40">40</SelectItem>
-                    <SelectItem value="60">60</SelectItem>
-                    <SelectItem value="all">All</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           </CardHeader>
            <div className="hidden print-only p-6">
@@ -769,11 +817,7 @@ function Loans() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {displayedCustomers.map((customer, index) => {
-                      const loan = loans.find(
-                        (l) => l.customerId === customer.id
-                      );
-                      if (!loan) return null;
+                    {displayedLoanData.map((loan, index) => {
                       const changeTotal = getChangeTotal(loan);
                       const isRowEmpty = (loan.carryFwd || 0) === 0 && changeTotal === 0 && (loan.interestTotal || 0) === 0;
                       const isRowDisabled = !isSessionActive || isSubmitted;
@@ -781,11 +825,11 @@ function Loans() {
                       const isLoanChangeDisabled = isRowDisabled || !loan.isDone;
 
                       return (
-                        <TableRow key={customer.id} className={isRowEmpty ? 'print-hide-row' : ''}>
+                        <TableRow key={loan.customerId} className={isRowEmpty ? 'print-hide-row' : ''}>
                           <TableCell className="font-medium">
                             {index + 1}
                           </TableCell>
-                          <TableCell className="customer-name-cell">{customer.name}</TableCell>
+                          <TableCell className="customer-name-cell">{loan.customerName}</TableCell>
                           <TableCell className="text-right">
                             <span className="print-hide">
                                 <Input
@@ -807,7 +851,7 @@ function Loans() {
                                 disabled={isInterestDisabled || (loan.interestTotal || 0) === 0}
                                 onChange={(e) =>
                                     handleLoanChange(
-                                    customer.id,
+                                    loan.customerId,
                                     'interestCash',
                                     e.target.value
                                     )
@@ -826,7 +870,7 @@ function Loans() {
                                 disabled={isInterestDisabled || (loan.interestTotal || 0) === 0}
                                 onChange={(e) =>
                                     handleLoanChange(
-                                    customer.id,
+                                    loan.customerId,
                                     'interestBank',
                                     e.target.value
                                     )
@@ -846,7 +890,7 @@ function Loans() {
                                 disabled={isLoanChangeDisabled || (loan.carryFwd || 0) > 0}
                                 onValueChange={(value: LoanChangeType) =>
                                     handleLoanChange(
-                                    customer.id,
+                                    loan.customerId,
                                     'changeType',
                                     value
                                     )
@@ -877,7 +921,7 @@ function Loans() {
                                 disabled={isLoanChangeDisabled}
                                 onChange={(e) =>
                                     handleLoanChange(
-                                    customer.id,
+                                    loan.customerId,
                                     'changeCash',
                                     e.target.value
                                     )
@@ -896,7 +940,7 @@ function Loans() {
                                 disabled={isLoanChangeDisabled}
                                 onChange={(e) =>
                                     handleLoanChange(
-                                    customer.id,
+                                    loan.customerId,
                                     'changeBank',
                                     e.target.value
                                     )
@@ -912,7 +956,7 @@ function Loans() {
                            <TableCell className="text-center print-hide">
                             <Checkbox
                               checked={loan.isDone}
-                              onCheckedChange={(checked) => handleDoneChange(customer.id, !!checked)}
+                              onCheckedChange={(checked) => handleDoneChange(loan.customerId, !!checked)}
                               disabled={isRowDisabled}
                               aria-label="Mark as done"
                             />
@@ -920,6 +964,13 @@ function Loans() {
                         </TableRow>
                       );
                     })}
+                     {displayedLoanData.length === 0 && (
+                        <TableRow>
+                            <TableCell colSpan={11} className="text-center h-24 text-muted-foreground">
+                                No active loans for this month. Use 'New Loan' to add one.
+                            </TableCell>
+                        </TableRow>
+                    )}
                   </TableBody>
                   <UiTableFooter>
                     <TableRow className="bg-muted/50 text-right font-bold">
@@ -1031,6 +1082,46 @@ function Loans() {
             )}
           </CardContent>
         </Card>
+
+      {/* New Loan Dialog */}
+      <Dialog open={isNewLoanDialogOpen} onOpenChange={setIsNewLoanDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Add New Loan</DialogTitle>
+                <DialogDescription>
+                    Select a customer and enter the loan amount to issue a new loan.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="customer-select" className="text-right">Customer</Label>
+                    <Select onValueChange={(value) => setNewLoanData(d => ({ ...d, customerId: value }))} defaultValue={newLoanData.customerId}>
+                        <SelectTrigger className="col-span-3" id="customer-select">
+                            <SelectValue placeholder="Select a customer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {customers?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="loan-amount" className="text-right">Loan Amount</Label>
+                    <Input 
+                        id="loan-amount"
+                        type="number"
+                        placeholder="e.g., 5000"
+                        className="col-span-3"
+                        value={newLoanData.amount || ''}
+                        onChange={(e) => setNewLoanData(d => ({ ...d, amount: Number(e.target.value) }))}
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsNewLoanDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleSaveNewLoan}>Add Loan</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Revert Confirmation Dialog */}
       <AlertDialog open={isReverting} onOpenChange={setIsReverting}>
