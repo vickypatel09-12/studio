@@ -738,16 +738,15 @@ function Loans() {
                       <TableHead rowSpan={2} className="w-[150px] text-right">
                         Carry Fwd
                       </TableHead>
-                      <TableHead colSpan={4} className="text-center">
-                        New Loan / Change
-                      </TableHead>
                       <TableHead colSpan={3} className="text-center">
                         Interest
+                      </TableHead>
+                       <TableHead colSpan={4} className="text-center">
+                        New Loan / Change
                       </TableHead>
                       <TableHead rowSpan={2} className="w-[80px] text-center print-hide">Done</TableHead>
                     </TableRow>
                     <TableRow>
-                      <TableHead className="w-[150px]">Type</TableHead>
                       <TableHead className="w-[150px] text-right">
                         Cash
                       </TableHead>
@@ -757,6 +756,7 @@ function Loans() {
                       <TableHead className="w-[150px] text-right">
                         Total
                       </TableHead>
+                      <TableHead className="w-[150px]">Type</TableHead>
                       <TableHead className="w-[150px] text-right">
                         Cash
                       </TableHead>
@@ -776,7 +776,9 @@ function Loans() {
                       if (!loan) return null;
                       const changeTotal = getChangeTotal(loan);
                       const isRowEmpty = (loan.carryFwd || 0) === 0 && changeTotal === 0 && (loan.interestTotal || 0) === 0;
-                      const isRowDisabled = !isSessionActive || isSubmitted || loan.isDone;
+                      const isRowDisabled = !isSessionActive || isSubmitted;
+                      const isInterestDisabled = isRowDisabled || loan.isDone;
+                      const isLoanChangeDisabled = isRowDisabled || !loan.isDone;
 
                       return (
                         <TableRow key={customer.id} className={isRowEmpty ? 'print-hide-row' : ''}>
@@ -796,11 +798,52 @@ function Loans() {
                             </span>
                             <span className="hidden print-only float-right">{loan.carryFwd === 0 ? '-' : loan.carryFwd.toFixed(2)}</span>
                           </TableCell>
+                           <TableCell className="text-right">
+                            <span className="print-hide">
+                                <Input
+                                type="number"
+                                placeholder="₹0.00"
+                                value={loan.interestCash || ''}
+                                disabled={isInterestDisabled || (loan.interestTotal || 0) === 0}
+                                onChange={(e) =>
+                                    handleLoanChange(
+                                    customer.id,
+                                    'interestCash',
+                                    e.target.value
+                                    )
+                                }
+                                className="w-full text-right"
+                                />
+                            </span>
+                            <span className="hidden print-only float-right">{loan.interestCash === 0 ? '-' : loan.interestCash.toFixed(2)}</span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className="print-hide">
+                                <Input
+                                type="number"
+                                placeholder="₹0.00"
+                                value={loan.interestBank || ''}
+                                disabled={isInterestDisabled || (loan.interestTotal || 0) === 0}
+                                onChange={(e) =>
+                                    handleLoanChange(
+                                    customer.id,
+                                    'interestBank',
+                                    e.target.value
+                                    )
+                                }
+                                className="w-full text-right"
+                                />
+                            </span>
+                            <span className="hidden print-only float-right">{loan.interestBank === 0 ? '-' : loan.interestBank.toFixed(2)}</span>
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            ₹{loan.interestTotal.toFixed(2)}
+                          </TableCell>
                           <TableCell>
                             <div className="print-hide">
                                 <Select
                                 value={loan.changeType}
-                                disabled={isRowDisabled || (loan.carryFwd || 0) > 0}
+                                disabled={isLoanChangeDisabled || (loan.carryFwd || 0) > 0}
                                 onValueChange={(value: LoanChangeType) =>
                                     handleLoanChange(
                                     customer.id,
@@ -831,7 +874,7 @@ function Loans() {
                                 type="number"
                                 placeholder="₹0.00"
                                 value={loan.changeCash || ''}
-                                disabled={isRowDisabled}
+                                disabled={isLoanChangeDisabled}
                                 onChange={(e) =>
                                     handleLoanChange(
                                     customer.id,
@@ -850,7 +893,7 @@ function Loans() {
                                 type="number"
                                 placeholder="₹0.00"
                                 value={loan.changeBank || ''}
-                                disabled={isRowDisabled}
+                                disabled={isLoanChangeDisabled}
                                 onChange={(e) =>
                                     handleLoanChange(
                                     customer.id,
@@ -866,52 +909,11 @@ function Loans() {
                           <TableCell className="text-right font-medium">
                             ₹{changeTotal.toFixed(2)}
                           </TableCell>
-                          <TableCell className="text-right">
-                            <span className="print-hide">
-                                <Input
-                                type="number"
-                                placeholder="₹0.00"
-                                value={loan.interestCash || ''}
-                                disabled={isRowDisabled || (loan.interestTotal || 0) === 0}
-                                onChange={(e) =>
-                                    handleLoanChange(
-                                    customer.id,
-                                    'interestCash',
-                                    e.target.value
-                                    )
-                                }
-                                className="w-full text-right"
-                                />
-                            </span>
-                            <span className="hidden print-only float-right">{loan.interestCash === 0 ? '-' : loan.interestCash.toFixed(2)}</span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="print-hide">
-                                <Input
-                                type="number"
-                                placeholder="₹0.00"
-                                value={loan.interestBank || ''}
-                                disabled={isRowDisabled || (loan.interestTotal || 0) === 0}
-                                onChange={(e) =>
-                                    handleLoanChange(
-                                    customer.id,
-                                    'interestBank',
-                                    e.target.value
-                                    )
-                                }
-                                className="w-full text-right"
-                                />
-                            </span>
-                            <span className="hidden print-only float-right">{loan.interestBank === 0 ? '-' : loan.interestBank.toFixed(2)}</span>
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            ₹{loan.interestTotal.toFixed(2)}
-                          </TableCell>
                            <TableCell className="text-center print-hide">
                             <Checkbox
                               checked={loan.isDone}
                               onCheckedChange={(checked) => handleDoneChange(customer.id, !!checked)}
-                              disabled={!isSessionActive || isSubmitted}
+                              disabled={isRowDisabled}
                               aria-label="Mark as done"
                             />
                           </TableCell>
@@ -923,13 +925,13 @@ function Loans() {
                     <TableRow className="bg-muted/50 text-right font-bold">
                       <TableCell colSpan={2}>Total</TableCell>
                       <TableCell>₹{totals.carryFwd.toFixed(2)}</TableCell>
+                      <TableCell>₹{totals.interestCash.toFixed(2)}</TableCell>
+                      <TableCell>₹{totals.interestBank.toFixed(2)}</TableCell>
+                      <TableCell>₹{totals.interestTotal.toFixed(2)}</TableCell>
                       <TableCell></TableCell>
                       <TableCell>₹{totals.changeCash.toFixed(2)}</TableCell>
                       <TableCell>₹{totals.changeBank.toFixed(2)}</TableCell>
-                      <TableCell>₹{totalChange.toFixed(2)}</TableCell>
-                      <TableCell>₹{totals.interestCash.toFixed(2)}</TableCell>
-                      <TableCell>₹{totals.interestBank.toFixed(2)}</TableCell>
-                      <TableCell colSpan={2}>₹{totals.interestTotal.toFixed(2)}</TableCell>
+                      <TableCell colSpan={2}>₹{totalChange.toFixed(2)}</TableCell>
                     </TableRow>
                   </UiTableFooter>
                 </Table>
