@@ -887,7 +887,7 @@ function Loans() {
                             <div className="print-hide">
                                 <Select
                                 value={loan.changeType}
-                                disabled={isLoanChangeDisabled || (loan.carryFwd || 0) > 0}
+                                disabled={isLoanChangeDisabled}
                                 onValueChange={(value: LoanChangeType) =>
                                     handleLoanChange(
                                     loan.customerId,
