@@ -8,7 +8,7 @@ import { Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLiveData } from '@/context/LiveDataContext';
 
-type Deposit = { customerId: string; cash: number; bank: number };
+type Deposit = { customerId: string; cash: number; bank: number; isDone: boolean };
 type MonthlyDepositDoc = {
   id: string; // yyyy-MM
   deposits?: Deposit[];
@@ -24,6 +24,7 @@ type Loan = {
   interestCash: number;
   interestBank: number;
   interestTotal: number;
+  isDone: boolean;
 };
 type MonthlyLoanDoc = {
   id: string; // yyyy-MM
@@ -96,7 +97,8 @@ export function BalanceSummary() {
     // Calculate historical totals for deposits
     combinedDeposits.forEach((month) => {
       const data = month.deposits || month.draft || [];
-      data.forEach((deposit) => {
+      const doneData = data.filter(d => d.isDone);
+      doneData.forEach((deposit) => {
         allTimeTotals.deposits.cash += deposit.cash || 0;
         allTimeTotals.deposits.bank += deposit.bank || 0;
       });
@@ -106,7 +108,8 @@ export function BalanceSummary() {
     // Calculate historical totals for interest, repayments, and loans given
     combinedLoans.forEach((month) => {
       const data = month.loans || month.draft || [];
-      data.forEach((loan) => {
+      const doneData = data.filter(l => l.isDone);
+      doneData.forEach((loan) => {
         allTimeTotals.interest.cash += loan.interestCash || 0;
         allTimeTotals.interest.bank += loan.interestBank || 0;
         
@@ -127,7 +130,9 @@ export function BalanceSummary() {
     // Calculate total outstanding loans from the latest month available
     const latestMonth = combinedLoans?.sort((a, b) => b.id.localeCompare(a.id))[0];
     const latestLoans = latestMonth?.loans || latestMonth?.draft || [];
-    const outstandingLoansValue = latestLoans.reduce((total, loan) => {
+    const latestDoneLoans = latestLoans.filter(l => l.isDone);
+
+    const outstandingLoansValue = latestDoneLoans.reduce((total, loan) => {
       const changeTotal = (loan.changeCash || 0) + (loan.changeBank || 0);
       let adjustment = 0;
       if (loan.changeType === 'new' || loan.changeType === 'increase') {
@@ -152,15 +157,15 @@ export function BalanceSummary() {
     const availableCashValue = totalCredited.cash - allTimeTotals.loansGiven.cash;
     const availableBankValue = totalCredited.bank - allTimeTotals.loansGiven.bank;
     
-    let monthLabel = 'All-time financial overview';
+    let monthLabel = 'All-time financial overview (based on "Done" entries)';
     if(liveMonthId) {
         try {
             // Ensure the date is parsed correctly, assuming UTC to avoid timezone issues
              const [year, month] = liveMonthId.split('-').map(Number);
              const date = new Date(year, month - 1);
-             monthLabel = `Live balance including ${format(date, 'MMMM yyyy')}`;
+             monthLabel = `Live balance including ${format(date, 'MMMM yyyy')} ("Done" entries only)`;
         } catch(e) { 
-           monthLabel = 'Live balance including current month';
+           monthLabel = 'Live balance including current month ("Done" entries only)';
         }
     }
 

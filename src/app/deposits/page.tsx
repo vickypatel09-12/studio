@@ -635,7 +635,7 @@ function Deposits() {
                       const isRowDisabled = !isSessionActive || isSubmitted || deposit.isDone;
 
                       return (
-                        <TableRow key={customer.id}>
+                        <TableRow key={customer.id} className={cn(deposit.isDone && 'bg-green-100/50 dark:bg-green-900/20')}>
                           <TableCell className="font-medium">
                             {index + 1}
                           </TableCell>

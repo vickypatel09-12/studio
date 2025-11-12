@@ -825,7 +825,7 @@ function Loans() {
                       const isLoanChangeDisabled = isRowDisabled || !loan.isDone;
 
                       return (
-                        <TableRow key={loan.customerId} className={isRowEmpty ? 'print-hide-row' : ''}>
+                        <TableRow key={loan.customerId} className={cn(isRowEmpty ? 'print-hide-row' : '', loan.isDone && 'bg-green-100/50 dark:bg-green-900/20')}>
                           <TableCell className="font-medium">
                             {index + 1}
                           </TableCell>
