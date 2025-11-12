@@ -274,10 +274,28 @@ function Deposits() {
     value: string
   ) => {
     setIsDraftSaved(false);
+
+    if (!selectedDate) return;
+
+    const isFirstMonthOfSession = session?.startDate && isSameMonth(selectedDate, session.startDate.toDate());
+    const defaultDeposit = isFirstMonthOfSession 
+        ? session?.firstMonthDeposit || 0
+        : session?.furtherMonthDeposit || 0;
+
     setDeposits((prev) =>
       prev.map((deposit) => {
         if (deposit.customerId === customerId) {
-          return { ...deposit, [field]: Number(value) || 0 };
+          const newDeposit = { ...deposit };
+          const numericValue = Number(value) || 0;
+          
+          if (field === 'cash') {
+            newDeposit.cash = numericValue;
+            newDeposit.bank = defaultDeposit - numericValue;
+          } else if (field === 'bank') {
+            newDeposit.bank = numericValue;
+            newDeposit.cash = defaultDeposit - numericValue;
+          }
+          return newDeposit;
         }
         return deposit;
       })
@@ -814,5 +832,6 @@ export default function DepositsPage() {
   );
 }
 
+    
     
     
