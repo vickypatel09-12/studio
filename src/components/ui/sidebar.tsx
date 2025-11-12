@@ -307,9 +307,18 @@ const SidebarInset = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"main">
 >(({ className, ...props }, ref) => {
+  const { open, setOpen } = useSidebar();
+  
+  const handleFocus = () => {
+    if (open) {
+      setOpen(false);
+    }
+  };
+
   return (
     <main
       ref={ref}
+      onClick={handleFocus}
       className={cn(
         "relative flex min-h-svh flex-1 flex-col bg-background",
         "md:peer-data-[collapsible=icon]:ml-[--sidebar-width-icon]",
