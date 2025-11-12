@@ -171,6 +171,14 @@
           "type": "string",
           "description": "The type of interest rate.",
           "enum": ["monthly", "annual"]
+        },
+        "firstMonthDeposit": {
+          "type": "number",
+          "description": "Default deposit amount for the first month of the session."
+        },
+        "furtherMonthDeposit": {
+          "type": "number",
+          "description": "Default deposit amount for subsequent months in the session."
         }
       },
       "required": [
@@ -259,3 +267,4 @@
     "reasoning": "The Firestore data structure is designed to support the Bachat Bank ERP system, focusing on Customers, Monthly Deposits, and Loans. It prioritizes Authorization Independence, Clarity, and predictable data structures. Path-Based ownership is used for most resources. Each path follows the naming convention `/entityName/{entityId}`. For entities owned by a `Customer` such as `MonthlyDeposit` and `Loan`, the paths are structured as `/customers/{customerId}/monthlyDeposits/{monthlyDepositId}` and `/customers/{customerId}/loans/{loanId}` respectively. This structure ensures proper scoping and security. A new path /session/status has been added to manage the application's financial session state.\n\nAuthorization Independence:\nAuthorization will be managed through Firebase Authentication, with rules enforcing that users can only access data related to their customer accounts or that they have global admin roles. Since this application does not contain user role separation, we rely on path-based ownership.\n\nQAPs (Rules are not Filters):\nSegregation is achieved by using distinct collections for each entity, ensuring that rules can be applied consistently without complex filtering. The path-based ownership for customer-related data (`/customers/{customerId}/...`) ensures that users can only access their own data, supporting secure `list` operations."
   }
 }
+    

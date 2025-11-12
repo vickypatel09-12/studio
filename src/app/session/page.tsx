@@ -74,6 +74,8 @@ type Session = {
   endDate?: Timestamp;
   interestRate?: number;
   interestRateType?: 'monthly' | 'annual';
+  firstMonthDeposit?: number;
+  furtherMonthDeposit?: number;
 };
 
 function SessionManagement() {
@@ -92,6 +94,8 @@ function SessionManagement() {
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [interestRate, setInterestRate] = useState<number | ''>('');
   const [interestRateType, setInterestRateType] = useState<'monthly' | 'annual'>('annual');
+  const [firstMonthDeposit, setFirstMonthDeposit] = useState<number | ''>('');
+  const [furtherMonthDeposit, setFurtherMonthDeposit] = useState<number | ''>('');
 
 
   const sessionDocRef = useMemoFirebase(() => {
@@ -105,6 +109,8 @@ function SessionManagement() {
     if (session && isEditSessionDialogOpen) {
         setInterestRate(session.interestRate || '');
         setInterestRateType(session.interestRateType || 'annual');
+        setFirstMonthDeposit(session.firstMonthDeposit || '');
+        setFurtherMonthDeposit(session.furtherMonthDeposit || '');
     }
   }, [session, isEditSessionDialogOpen]);
 
@@ -130,7 +136,7 @@ function SessionManagement() {
       toast({
         variant: 'destructive',
         title: 'Invalid Interest Rate',
-        description: 'Please enter a valid annual interest rate.',
+        description: 'Please enter a valid interest rate.',
       });
       return;
     }
@@ -142,17 +148,21 @@ function SessionManagement() {
       startDate: Timestamp.fromDate(startDate),
       interestRate: interestRate,
       interestRateType: interestRateType,
+      firstMonthDeposit: Number(firstMonthDeposit) || 0,
+      furtherMonthDeposit: Number(furtherMonthDeposit) || 0,
     };
     delete newSession.endDate;
 
     setDocumentNonBlocking(sessionDocRef, newSession, { merge: false });
     toast({
       title: 'Session Started',
-      description: `A new financial session has been started with an interest rate of ${interestRate}%.`,
+      description: `A new financial session has been started.`,
     });
     setIsStartSessionDialogOpen(false);
     setStartDate(undefined);
     setInterestRate('');
+    setFirstMonthDeposit('');
+    setFurtherMonthDeposit('');
     setIsProcessing(false);
   };
   
@@ -169,13 +179,15 @@ function SessionManagement() {
 
     setIsProcessing(true);
     const updatedSession: Partial<Session> = {
-      interestRate: interestRate,
+      interestRate: Number(interestRate) || 0,
       interestRateType: interestRateType,
+      firstMonthDeposit: Number(firstMonthDeposit) || 0,
+      furtherMonthDeposit: Number(furtherMonthDeposit) || 0,
     };
     updateDocumentNonBlocking(sessionDocRef, updatedSession);
     toast({
       title: 'Session Updated',
-      description: `The session interest rate has been updated.`,
+      description: `The session details have been updated.`,
     });
     setIsEditSessionDialogOpen(false);
     setIsProcessing(false);
@@ -296,29 +308,39 @@ function SessionManagement() {
                 </div>
 
                 {session && (
-                  <div className="grid grid-cols-2 gap-2 border-t pt-2 text-sm text-muted-foreground">
-                    {session.startDate && (
-                      <div className="flex items-center gap-2">
-                        <CalendarIcon className="h-4 w-4" />
-                        <span>
-                          Started: {format(session.startDate.toDate(), 'PPP')}
-                        </span>
-                      </div>
-                    )}
-                    {session.interestRate && (
-                      <div className="flex items-center gap-2">
-                        <Percent className="h-4 w-4" />
-                        <span>Interest Rate: {session.interestRate}% {session.interestRateType}</span>
-                      </div>
-                    )}
-                    {session.status === 'closed' && session.endDate && (
-                      <div className="flex items-center gap-2 col-span-2">
-                        <CalendarIcon className="h-4 w-4" />
-                        <span>
-                          Ended: {format(session.endDate.toDate(), 'PPP')}
-                        </span>
-                      </div>
-                    )}
+                  <div className="space-y-2 border-t pt-2 text-sm text-muted-foreground">
+                    <div className="grid grid-cols-2 gap-2">
+                        {session.startDate && (
+                        <div className="flex items-center gap-2">
+                            <CalendarIcon className="h-4 w-4" />
+                            <span>
+                            Started: {format(session.startDate.toDate(), 'PPP')}
+                            </span>
+                        </div>
+                        )}
+                        {session.status === 'closed' && session.endDate && (
+                        <div className="flex items-center gap-2">
+                            <CalendarIcon className="h-4 w-4" />
+                            <span>
+                            Ended: {format(session.endDate.toDate(), 'PPP')}
+                            </span>
+                        </div>
+                        )}
+                    </div>
+                     <div className="grid grid-cols-2 gap-2">
+                        {session.interestRate && (
+                        <div className="flex items-center gap-2">
+                            <Percent className="h-4 w-4" />
+                            <span>Interest: {session.interestRate}% {session.interestRateType}</span>
+                        </div>
+                        )}
+                         {(session.firstMonthDeposit || session.furtherMonthDeposit) && (
+                            <div className="flex items-center gap-2">
+                                <Percent className="h-4 w-4" />
+                                <span>Deposits: ₹{session.firstMonthDeposit} (1st) / ₹{session.furtherMonthDeposit}</span>
+                            </div>
+                         )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -441,6 +463,32 @@ function SessionManagement() {
                 className="col-span-3"
               />
             </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="first-month-deposit" className="text-right">
+                First Month Deposit
+              </Label>
+              <Input
+                id="first-month-deposit"
+                type="number"
+                value={firstMonthDeposit}
+                onChange={(e) => setFirstMonthDeposit(Number(e.target.value))}
+                placeholder="e.g., 1000"
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="further-month-deposit" className="text-right">
+                Further Month Deposit
+              </Label>
+              <Input
+                id="further-month-deposit"
+                type="number"
+                value={furtherMonthDeposit}
+                onChange={(e) => setFurtherMonthDeposit(Number(e.target.value))}
+                placeholder="e.g., 500"
+                className="col-span-3"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -468,7 +516,7 @@ function SessionManagement() {
           <DialogHeader>
             <DialogTitle>Edit Active Session</DialogTitle>
             <DialogDescription>
-              Update the interest rate details for the current active session.
+              Update the details for the current active session.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -499,6 +547,32 @@ function SessionManagement() {
                 value={interestRate}
                 onChange={(e) => setInterestRate(Number(e.target.value))}
                 placeholder="e.g., 12"
+                className="col-span-3"
+              />
+            </div>
+             <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-first-month-deposit" className="text-right">
+                First Month Deposit
+              </Label>
+              <Input
+                id="edit-first-month-deposit"
+                type="number"
+                value={firstMonthDeposit}
+                onChange={(e) => setFirstMonthDeposit(Number(e.target.value))}
+                placeholder="e.g., 1000"
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-further-month-deposit" className="text-right">
+                Further Month Deposit
+              </Label>
+              <Input
+                id="edit-further-month-deposit"
+                type="number"
+                value={furtherMonthDeposit}
+                onChange={(e) => setFurtherMonthDeposit(Number(e.target.value))}
+                placeholder="e.g., 500"
                 className="col-span-3"
               />
             </div>
@@ -645,3 +719,5 @@ export default function SessionManagementPage() {
     </AppShell>
   );
 }
+
+    

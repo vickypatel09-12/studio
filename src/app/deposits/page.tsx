@@ -67,7 +67,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, startOfMonth, parse } from 'date-fns';
+import { format, startOfMonth, parse, isSameMonth } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -88,6 +88,9 @@ import {
 type Session = {
   id: 'status';
   status: 'active' | 'closed';
+  startDate?: Timestamp;
+  firstMonthDeposit?: number;
+  furtherMonthDeposit?: number;
 };
 
 type MonthlyDepositDoc = {
@@ -149,15 +152,21 @@ function Deposits() {
   const initializeNewMonth = useCallback(
     (date: Date) => {
       if (!customers) return;
+
+      const isFirstMonthOfSession = session?.startDate && isSameMonth(date, session.startDate.toDate());
+      const defaultDeposit = isFirstMonthOfSession 
+        ? session.firstMonthDeposit || 0
+        : session?.furtherMonthDeposit || 0;
+
       const newDeposits = customers.map((c) => ({
           customerId: c.id,
-          cash: 0,
+          cash: defaultDeposit,
           bank: 0,
         }));
       setDeposits(newDeposits);
       setLiveMonthId(getMonthId(date));
     },
-    [customers, setDeposits, setLiveMonthId]
+    [customers, session, setDeposits, setLiveMonthId]
   );
   
   const loadSubmittedDataForMonth = useCallback(
@@ -805,4 +814,5 @@ export default function DepositsPage() {
   );
 }
 
+    
     
