@@ -27,6 +27,7 @@ import { useAuth, useUser, useDoc, useFirestore, useMemoFirebase } from '@/fireb
 import { signOut } from 'firebase/auth';
 import { Badge } from '@/components/ui/badge';
 import { doc, Timestamp } from 'firebase/firestore';
+import { format, formatDistanceToNowStrict } from 'date-fns';
 
 function getPageTitle(pathname: string) {
   switch (pathname) {
@@ -73,6 +74,35 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [firestore]);
 
   const { data: session } = useDoc<Session>(sessionDocRef);
+  
+  const getSessionInfo = () => {
+    if (!session) {
+      return { status: 'Not Started', details: '' };
+    }
+    
+    if (session.status === 'active' && session.startDate) {
+        const startDate = session.startDate.toDate();
+        const duration = formatDistanceToNowStrict(startDate);
+        return {
+            status: 'Active',
+            details: `(Started ${format(startDate, 'MMM yyyy')}, running for ${duration})`
+        };
+    }
+    
+    if (session.status === 'closed' && session.startDate && session.endDate) {
+        const startDate = session.startDate.toDate();
+        const endDate = session.endDate.toDate();
+        const duration = formatDistanceToNowStrict(startDate, { addSuffix: false, unit: 'month' });
+        return {
+            status: 'Closed',
+            details: `(Ran from ${format(startDate, 'MMM yyyy')} to ${format(endDate, 'MMM yyyy')})`
+        };
+    }
+    
+    return { status: session.status === 'active' ? 'Active' : 'Closed', details: ''};
+  }
+
+  const sessionInfo = getSessionInfo();
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -178,12 +208,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                     : 'bg-muted'
                 }
                 >
-                {session?.status === 'active'
-                    ? 'Active'
-                    : session?.status === 'closed'
-                    ? 'Closed'
-                    : 'Not Started'}
+                {sessionInfo.status}
                 </Badge>
+                {sessionInfo.details && <span className="text-xs text-muted-foreground">{sessionInfo.details}</span>}
           </div>
         </header>
         <main className="p-4 sm:p-6">{children}</main>
