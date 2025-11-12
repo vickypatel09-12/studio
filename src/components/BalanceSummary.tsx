@@ -58,7 +58,7 @@ export function BalanceSummary() {
   const { data: allDbLoans, isLoading: loansLoading } =
     useCollection<MonthlyLoanDoc>(loansQuery);
 
-  const { totalCredited, outstandingLoans, availableBalance, monthLabel } = useMemo(() => {
+  const { totalCredited, outstandingLoans, availableBalance, monthLabel, availableCash, availableBank } = useMemo(() => {
     
     // Start with DB data
     const combinedDeposits: MonthlyDepositDoc[] = allDbDeposits ? JSON.parse(JSON.stringify(allDbDeposits)) : [];
@@ -90,6 +90,7 @@ export function BalanceSummary() {
       deposits: { cash: 0, bank: 0, total: 0 },
       interest: { cash: 0, bank: 0, total: 0 },
       repayments: { cash: 0, bank: 0, total: 0 },
+      loansGiven: { cash: 0, bank: 0, total: 0 },
     };
 
     // Calculate historical totals for deposits
@@ -102,7 +103,7 @@ export function BalanceSummary() {
     });
     allTimeTotals.deposits.total = allTimeTotals.deposits.cash + allTimeTotals.deposits.bank;
 
-    // Calculate historical totals for interest and repayments
+    // Calculate historical totals for interest, repayments, and loans given
     combinedLoans.forEach((month) => {
       const data = month.loans || month.draft || [];
       data.forEach((loan) => {
@@ -112,11 +113,15 @@ export function BalanceSummary() {
         if (loan.changeType === 'decrease') {
             allTimeTotals.repayments.cash += loan.changeCash || 0;
             allTimeTotals.repayments.bank += loan.changeBank || 0;
+        } else if (loan.changeType === 'new' || loan.changeType === 'increase') {
+            allTimeTotals.loansGiven.cash += loan.changeCash || 0;
+            allTimeTotals.loansGiven.bank += loan.changeBank || 0;
         }
       });
     });
     allTimeTotals.interest.total = allTimeTotals.interest.cash + allTimeTotals.interest.bank;
     allTimeTotals.repayments.total = allTimeTotals.repayments.cash + allTimeTotals.repayments.bank;
+    allTimeTotals.loansGiven.total = allTimeTotals.loansGiven.cash + allTimeTotals.loansGiven.bank;
 
     
     // Calculate total outstanding loans from the latest month available
@@ -144,6 +149,8 @@ export function BalanceSummary() {
 
     
     const availableBalanceValue = totalCredited.total - outstandingLoansValue;
+    const availableCashValue = totalCredited.cash - allTimeTotals.loansGiven.cash;
+    const availableBankValue = totalCredited.bank - allTimeTotals.loansGiven.bank;
     
     let monthLabel = 'All-time financial overview';
     if(liveMonthId) {
@@ -162,6 +169,8 @@ export function BalanceSummary() {
         totalCredited, 
         outstandingLoans: outstandingLoansValue, 
         availableBalance: availableBalanceValue, 
+        availableCash: availableCashValue,
+        availableBank: availableBankValue,
         monthLabel 
     };
   }, [allDbDeposits, allDbLoans, liveMonthId, deposits, loans]);
@@ -227,7 +236,10 @@ export function BalanceSummary() {
               {formatCurrency(availableBalance)}
             </p>
             <p className="text-sm text-primary/80">
-             Total Credited - Outstanding Loans
+             Cash: {formatCurrency(availableCash)}
+            </p>
+            <p className="text-sm text-primary/80">
+             Bank: {formatCurrency(availableBank)}
             </p>
           </div>
         </div>
