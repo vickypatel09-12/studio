@@ -145,10 +145,10 @@ function Reports() {
             
             const loanChangeTotal = item.loanChangeCash + item.loanChangeBank;
             if (item.loanChangeType === 'new' || item.loanChangeType === 'increase') {
-                acc.totalNewIncDec += loanChangeTotal;
+                acc.totalNewIncDec -= loanChangeTotal;
                 acc.loanIncrease += loanChangeTotal;
             } else if (item.loanChangeType === 'decrease') {
-                acc.totalNewIncDec -= loanChangeTotal;
+                acc.totalNewIncDec += loanChangeTotal;
                 acc.loanDecrease += loanChangeTotal;
             }
 
@@ -319,11 +319,11 @@ function Reports() {
 
         const loanChange = item.loanChangeCash + item.loanChangeBank;
         if (item.loanChangeType === 'new' || item.loanChangeType === 'increase') {
-             acc.loanChangeCash += item.loanChangeCash;
-             acc.loanChangeBank += item.loanChangeBank;
-        } else if (item.loanChangeType === 'decrease') {
              acc.loanChangeCash -= item.loanChangeCash;
              acc.loanChangeBank -= item.loanChangeBank;
+        } else if (item.loanChangeType === 'decrease') {
+             acc.loanChangeCash += item.loanChangeCash;
+             acc.loanChangeBank += item.loanChangeBank;
         }
         
         acc.closingLoan += item.closingLoan;
@@ -501,7 +501,7 @@ function Reports() {
                          const renderLoanChange = () => {
                              if (loanChangeTotal === 0) return <span>-</span>;
                              
-                             const sign = item.loanChangeType === 'new' || item.loanChangeType === 'increase' ? '+' : '-';
+                             const sign = item.loanChangeType === 'new' || item.loanChangeType === 'increase' ? '-' : '+';
 
                              return (
                                  <div className="flex flex-col items-end">
@@ -618,7 +618,7 @@ function Reports() {
                                     <td colSpan={2} className="py-1 px-2 font-bold text-center bg-muted/50">Loan Section</td>
                                 </TableRow>
                                 <TableRow><TableCell className="py-1 px-2 font-medium">Total Carry Fwd Loan</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(previousMonthSummary?.totalCarryFwdLoan || 0)}</TableCell></TableRow>
-                                <TableRow><TableCell className="py-1 px-2 font-medium">New/Inc./Dec.</TableCell><TableCell className="py-1 px-2 text-right">{`${(previousMonthSummary?.totalNewIncDec || 0) >= 0 ? '+' : ''}${formatAmount(previousMonthSummary?.totalNewIncDec || 0)}`}</TableCell></TableRow>
+                                <TableRow><TableCell className="py-1 px-2 font-medium">New/Inc./Dec.</TableCell><TableCell className="py-1 px-2 text-right">{`${(previousMonthSummary?.totalNewIncDec || 0) >= 0 ? '+' : '-'}${formatAmount(previousMonthSummary?.totalNewIncDec || 0)}`}</TableCell></TableRow>
                                 <TableRow><TableCell className="py-1 px-2 font-medium">Total Outstanding Loan</TableCell><TableCell className="py-1 px-2 text-right">-{formatAmount(previousMonthSummary?.totalOutstandingLoan || 0)}</TableCell></TableRow>
                                 <TableRow className="font-bold bg-muted/20"><TableCell className="py-1 px-2 font-medium">Closing Balance</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(previousMonthSummary?.closingBalance || 0)}</TableCell></TableRow>
                                 </TableBody>
@@ -639,7 +639,7 @@ function Reports() {
                                         <td colSpan={2} className="py-1 px-2 font-bold text-center bg-muted/50">Loan Section</td>
                                     </TableRow>
                                     <TableRow><TableCell className="py-1 px-2 font-medium">Total Carry Fwd Loan</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(currentMonthSummary?.totalCarryFwdLoan || 0)}</TableCell></TableRow>
-                                    <TableRow><TableCell className="py-1 px-2 font-medium">New/Inc./Dec.</TableCell><TableCell className="py-1 px-2 text-right">{`${(currentMonthSummary?.totalNewIncDec || 0) >= 0 ? '+' : ''}${formatAmount(currentMonthSummary?.totalNewIncDec || 0)}`}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">New/Inc./Dec.</TableCell><TableCell className="py-1 px-2 text-right">{`${(currentMonthSummary?.totalNewIncDec || 0) >= 0 ? '+' : '-'}${formatAmount(currentMonthSummary?.totalNewIncDec || 0)}`}</TableCell></TableRow>
                                     <TableRow><TableCell className="py-1 px-2 font-medium">Total Outstanding Loan</TableCell><TableCell className="py-1 px-2 text-right">-{formatAmount(currentMonthSummary?.totalOutstandingLoan || 0)}</TableCell></TableRow>
                                     <TableRow className="font-bold bg-muted/20"><TableCell className="py-1 px-2 font-medium">Closing Balance</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(currentMonthSummary?.closingBalance || 0)}</TableCell></TableRow>
                                 </TableBody>
@@ -650,7 +650,7 @@ function Reports() {
                             <h3 className="font-bold text-center mb-2">Grand Total</h3>
                             <Table>
                                 <TableBody>
-                                    <TableRow>
+                                     <TableRow>
                                         <td colSpan={2} className="py-1 px-2 font-bold text-center bg-muted/50">Deposit Section</td>
                                     </TableRow>
                                     <TableRow><TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(grandTotalSummary(currentMonthSummary, previousMonthSummary).totalDeposit)}</TableCell></TableRow>
