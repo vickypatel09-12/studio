@@ -619,6 +619,7 @@ function Reports() {
                             <h3 className="font-bold text-center mb-2">Current Month</h3>
                              <Table>
                                 <TableBody>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Carry Fwd Closing Balance</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(previousMonthSummary?.closingBalance || 0)}</TableCell></TableRow>
                                     <TableRow><TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(currentMonthSummary?.totalDeposit || 0)}</TableCell></TableRow>
                                     <TableRow><TableCell className="py-1 px-2 font-medium">Total Carry Fwd Loan</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(currentMonthSummary?.totalCarryFwdLoan || 0)}</TableCell></TableRow>
                                     <TableRow><TableCell className="py-1 px-2 font-medium">New/Inc./Dec.</TableCell><TableCell className="py-1 px-2 text-right">{`${(currentMonthSummary?.totalNewIncDec || 0) >= 0 ? '+' : ''}${formatAmount(currentMonthSummary?.totalNewIncDec || 0)}`}</TableCell></TableRow>
