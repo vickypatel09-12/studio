@@ -100,6 +100,8 @@ type ReportSummary = {
     totalOutstandingLoan: number;
     totalInterest: number;
     closingBalance: number;
+    loanDecrease: number;
+    loanIncrease: number;
 }
 
 const getMonthId = (date: Date) => format(date, 'yyyy-MM');
@@ -123,15 +125,19 @@ function Reports() {
 
   const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersQuery);
 
-    const calculateSummary = (reportRows: MonthlyReportRow[] | null): ReportSummary => {
-        if (!reportRows) return {
+    const calculateSummary = (reportRows: MonthlyReportRow[] | null, prevMonthClosingBalance = 0): ReportSummary => {
+        const initialSummary = {
             totalDeposit: 0,
             totalCarryFwdLoan: 0,
             totalNewIncDec: 0,
             totalOutstandingLoan: 0,
             totalInterest: 0,
             closingBalance: 0,
+            loanDecrease: 0,
+            loanIncrease: 0,
         };
+
+        if (!reportRows) return initialSummary;
 
         const summary = reportRows.reduce((acc, item) => {
             acc.totalDeposit += (item.depositCash + item.depositBank);
@@ -140,25 +146,20 @@ function Reports() {
             const loanChangeTotal = item.loanChangeCash + item.loanChangeBank;
             if (item.loanChangeType === 'new' || item.loanChangeType === 'increase') {
                 acc.totalNewIncDec += loanChangeTotal;
+                acc.loanIncrease += loanChangeTotal;
             } else if (item.loanChangeType === 'decrease') {
                 acc.totalNewIncDec -= loanChangeTotal;
+                acc.loanDecrease += loanChangeTotal;
             }
 
             acc.totalOutstandingLoan += item.closingLoan;
             acc.totalInterest += (item.interestCash + item.interestBank);
             return acc;
-        }, {
-            totalDeposit: 0,
-            totalCarryFwdLoan: 0,
-            totalNewIncDec: 0,
-            totalOutstandingLoan: 0,
-            totalInterest: 0,
-            closingBalance: 0,
-        });
+        }, { ...initialSummary });
 
         return {
             ...summary,
-            closingBalance: summary.totalDeposit - summary.totalOutstandingLoan + summary.totalInterest,
+            closingBalance: prevMonthClosingBalance + summary.totalDeposit + summary.totalInterest + summary.loanDecrease - summary.loanIncrease,
         };
     };
 
@@ -219,9 +220,13 @@ function Reports() {
         };
       
       try {
-        const currentMonthData = await fetchMonthData(selectedDate);
         const prevMonthDate = subMonths(selectedDate, 1);
         const previousMonthData = await fetchMonthData(prevMonthDate);
+        const prevSummary = calculateSummary(previousMonthData);
+        setPreviousMonthSummary(prevSummary);
+
+        const currentMonthData = await fetchMonthData(selectedDate);
+        setCurrentMonthSummary(calculateSummary(currentMonthData, prevSummary.closingBalance));
 
         if (!currentMonthData) {
             toast({
@@ -233,9 +238,6 @@ function Reports() {
         } else {
             setGeneratedReport(currentMonthData);
         }
-
-        setCurrentMonthSummary(calculateSummary(currentMonthData));
-        setPreviousMonthSummary(calculateSummary(previousMonthData));
 
 
       } catch (error) {
@@ -371,7 +373,9 @@ function Reports() {
             totalNewIncDec: current?.totalNewIncDec || 0,
             totalOutstandingLoan: current?.totalOutstandingLoan || 0,
             totalInterest: (current?.totalInterest || 0) + (prev?.totalInterest || 0),
-            closingBalance: 0
+            closingBalance: 0,
+            loanDecrease: (current?.loanDecrease || 0) + (prev?.loanDecrease || 0),
+            loanIncrease: (current?.loanIncrease || 0) + (prev?.loanIncrease || 0),
         };
         return {
             ...summary,
