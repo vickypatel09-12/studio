@@ -135,3 +135,76 @@
     background-color: transparent !important;
   }
 }
+
+@keyframes float {
+	0% {
+		transform: translateY(0px);
+	}
+	50% {
+		transform: translateY(-20px);
+	}
+	100% {
+		transform: translateY(0px);
+	}
+}
+
+.animation-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    z-index: -1;
+}
+
+.circle {
+    position: absolute;
+    bottom: -150px;
+    border-radius: 50%;
+    opacity: 0.3;
+    animation: float 25s linear infinite;
+}
+
+.circle.x1 {
+    width: 80px;
+    height: 80px;
+    left: 15%;
+    animation-duration: 20s;
+    background: hsl(var(--primary) / 0.2);
+}
+
+.circle.x2 {
+    width: 120px;
+    height: 120px;
+    left: 35%;
+    animation-duration: 25s;
+    background: hsl(var(--secondary) / 0.3);
+}
+
+.circle.x3 {
+    width: 40px;
+    height: 40px;
+    left: 55%;
+    animation-duration: 30s;
+    animation-delay: 2s;
+     background: hsl(var(--accent) / 0.2);
+}
+
+.circle.x4 {
+    width: 150px;
+    height: 150px;
+    left: 75%;
+    animation-duration: 22s;
+    animation-delay: 4s;
+    background: hsl(var(--primary) / 0.25);
+}
+
+.circle.x5 {
+    width: 60px;
+    height: 60px;
+    left: 90%;
+    animation-duration: 28s;
+    animation-delay: 1s;
+    background: hsl(var(--secondary) / 0.4);
+}

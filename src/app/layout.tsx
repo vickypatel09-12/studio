@@ -36,6 +36,13 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
+        <div className="animation-container">
+            <div className="circle x1"></div>
+            <div className="circle x2"></div>
+            <div className="circle x3"></div>
+            <div className="circle x4"></div>
+            <div className="circle x5"></div>
+        </div>
         <FirebaseClientProvider>
           <LiveDataProvider>
             <FirebaseErrorListener />
