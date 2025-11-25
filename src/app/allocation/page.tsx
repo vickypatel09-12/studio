@@ -25,6 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Printer, Share } from 'lucide-react';
 import { AppShell } from '@/components/AppShell';
+import { useLiveData } from '@/context/LiveDataContext';
 
 type Loan = {
   customerId: string;
@@ -40,6 +41,13 @@ type MonthlyLoanDoc = {
   draft?: Loan[];
 };
 
+type MonthlyDepositDoc = {
+  id: string;
+  deposits?: { customerId: string; cash: number; bank: number }[];
+  draft?: { customerId: string; cash: number; bank: number }[];
+};
+
+
 type Allocation = {
   customerId: string;
   allocatedFund: number;
@@ -47,6 +55,7 @@ type Allocation = {
 
 function LoanAllocation() {
   const firestore = useFirestore();
+  const { liveMonthId, deposits: liveDeposits, loans: liveLoans } = useLiveData();
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [outstandingLoans, setOutstandingLoans] = useState<Map<string, number>>(new Map());
   const [totalFund, setTotalFund] = useState(0);
@@ -56,7 +65,84 @@ function LoanAllocation() {
     return query(collection(firestore, 'customers'), orderBy('sortOrder'));
   }, [firestore]);
 
+  const allDepositsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'monthlyDeposits'));
+  }, [firestore]);
+
+  const allLoansQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'monthlyLoans'));
+  }, [firestore]);
+
   const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersQuery);
+  const { data: allDbDeposits, isLoading: depositsLoading } = useCollection<MonthlyDepositDoc>(allDepositsQuery);
+  const { data: allDbLoans, isLoading: loansLoading } = useCollection<MonthlyLoanDoc>(allLoansQuery);
+
+  const availableBalance = useMemo(() => {
+     if (depositsLoading || loansLoading) return 0;
+    
+    const combinedDeposits: MonthlyDepositDoc[] = [...(allDbDeposits || [])];
+    if (liveMonthId && liveDeposits && liveDeposits.length > 0) {
+        const existingIndex = combinedDeposits.findIndex(d => d.id === liveMonthId);
+        const liveData = { id: liveMonthId, deposits: liveDeposits, draft: liveDeposits };
+        if (existingIndex > -1) {
+            combinedDeposits[existingIndex] = liveData;
+        } else {
+            combinedDeposits.push(liveData);
+        }
+    }
+    
+    const combinedLoans: MonthlyLoanDoc[] = [...(allDbLoans || [])];
+    if (liveMonthId && liveLoans && liveLoans.length > 0) {
+        const existingIndex = combinedLoans.findIndex(l => l.id === liveMonthId);
+        const liveData = { id: liveMonthId, loans: liveLoans, draft: liveLoans };
+         if (existingIndex > -1) {
+            combinedLoans[existingIndex] = liveData;
+        } else {
+            combinedLoans.push(liveData);
+        }
+    }
+
+    let totalDeposits = 0;
+    let totalInterest = 0;
+
+    combinedDeposits?.forEach(month => {
+      const monthData = month.deposits || month.draft || [];
+      monthData.forEach(deposit => {
+        totalDeposits += (deposit.cash || 0) + (deposit.bank || 0);
+      });
+    });
+
+    let currentOutstandingLoans = 0;
+    combinedLoans?.forEach(month => {
+      const monthData = month.loans || month.draft || [];
+      monthData.forEach(loan => {
+        totalInterest += (loan as any).interestTotal || 0;
+      });
+    });
+    
+    const latestMonth = combinedLoans?.sort((a,b) => b.id.localeCompare(a.id))[0];
+    const latestLoansData = latestMonth?.loans || latestMonth?.draft || [];
+    currentOutstandingLoans = latestLoansData.reduce((total, loan) => {
+      const changeTotal = (loan.changeCash || 0) + (loan.changeBank || 0);
+      let adjustment = 0;
+      if (loan.changeType === 'new' || loan.changeType === 'increase') {
+        adjustment = changeTotal;
+      } else if (loan.changeType === 'decrease') {
+        adjustment = -changeTotal;
+      }
+      return total + (loan.carryFwd || 0) + adjustment;
+    }, 0);
+
+
+    return totalDeposits + totalInterest - currentOutstandingLoans;
+
+  }, [allDbDeposits, allDbLoans, liveMonthId, liveDeposits, liveLoans, depositsLoading, loansLoading]);
+  
+  useEffect(() => {
+    setTotalFund(availableBalance);
+  }, [availableBalance]);
 
   useEffect(() => {
     if (customers) {
@@ -92,7 +178,7 @@ function LoanAllocation() {
       setOutstandingLoans(loansMap);
     }
     fetchOutstandingLoans();
-  }, [firestore]);
+  }, [firestore, allDbLoans]);
 
   const handleAllocationChange = (customerId: string, value: string) => {
     const numericValue = Number(value) || 0;
@@ -131,7 +217,9 @@ function LoanAllocation() {
     );
   }, [allocations, outstandingLoans]);
 
-  if (customersLoading) {
+  const pageLoading = customersLoading || depositsLoading || loansLoading;
+
+  if (pageLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin" />
