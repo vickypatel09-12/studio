@@ -22,7 +22,8 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Printer } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Loader2, Printer, Share } from 'lucide-react';
 import { AppShell } from '@/components/AppShell';
 
 type Loan = {
@@ -48,6 +49,7 @@ function LoanAllocation() {
   const firestore = useFirestore();
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [outstandingLoans, setOutstandingLoans] = useState<Map<string, number>>(new Map());
+  const [totalFund, setTotalFund] = useState(0);
 
   const customersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -100,6 +102,16 @@ function LoanAllocation() {
       )
     );
   };
+  
+  const handleDistributeEqually = () => {
+    if (!customers || customers.length === 0 || totalFund <= 0) {
+      return;
+    }
+    const amountPerCustomer = totalFund / customers.length;
+    setAllocations(
+      customers.map(c => ({ customerId: c.id, allocatedFund: amountPerCustomer }))
+    );
+  };
 
   const totals = useMemo(() => {
     return allocations.reduce(
@@ -137,12 +149,28 @@ function LoanAllocation() {
         <h1 className="text-2xl font-bold text-center">Loan Allocation Plan</h1>
       </div>
       <CardContent>
+        <div className="flex items-end gap-4 mb-6 no-print">
+            <div className="grid w-full max-w-sm items-center gap-1.5">
+              <Label htmlFor="total-fund">Total Fund to Distribute</Label>
+              <Input
+                type="number"
+                id="total-fund"
+                placeholder="Enter total amount"
+                value={totalFund || ''}
+                onChange={(e) => setTotalFund(Number(e.target.value))}
+              />
+            </div>
+            <Button onClick={handleDistributeEqually} disabled={totalFund <= 0 || !customers || customers.length === 0}>
+                <Share className="mr-2 h-4 w-4" />
+                Distribute Equally
+            </Button>
+        </div>
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-[80px]">Sr. No.</TableHead>
               <TableHead>Customer Name</TableHead>
-              <TableHead className="text-right">Divided Fund</TableHead>
+              <TableHead className="text-right">Allocated Fund</TableHead>
               <TableHead className="text-right">Outstanding Loan</TableHead>
               <TableHead className="text-right">Total Payable</TableHead>
             </TableRow>
