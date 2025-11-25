@@ -601,7 +601,7 @@ function Reports() {
                 </div>
               </CardContent>
               
-              {reportType === 'monthly' && (
+              {reportType === 'monthly' && generatedReport?.length > 0 && (
               <div className="px-6 pt-4">
                   <div className="grid grid-cols-3 gap-4">
                       
@@ -666,6 +666,41 @@ function Reports() {
                   </div>
               </div>
               )}
+
+              {reportType === 'all-time' && allTimeTotals && (
+                <div className="px-6 pt-4">
+                  <div className="border p-2 rounded-lg max-w-sm mx-auto">
+                    <h3 className="font-bold text-center mb-2">All-Time Grand Total</h3>
+                    <Table>
+                      <TableBody>
+                        <TableRow>
+                          <td colSpan={2} className="py-1 px-2 font-bold text-center bg-muted/50">Deposit Section</td>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell>
+                          <TableCell className="py-1 px-2 text-right">{formatAmount(allTimeTotals.totalDeposit)}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="py-1 px-2 font-medium">Total Interest</TableCell>
+                          <TableCell className="py-1 px-2 text-right">{formatAmount(allTimeTotals.totalInterest)}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <td colSpan={2} className="py-1 px-2 font-bold text-center bg-muted/50">Loan Section</td>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="py-1 px-2 font-medium">Total Outstanding Loan</TableCell>
+                          <TableCell className="py-1 px-2 text-right">-{formatAmount(allTimeTotals.latestClosingLoan)}</TableCell>
+                        </TableRow>
+                        <TableRow className="font-bold bg-muted/20">
+                          <TableCell className="py-1 px-2 font-medium">Net Balance</TableCell>
+                          <TableCell className="py-1 px-2 text-right">{formatAmount(allTimeTotals.totalDeposit + allTimeTotals.totalInterest - allTimeTotals.latestClosingLoan)}</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+
                <CardFooter className="flex justify-end gap-2 no-print">
                 <Button variant="outline" onClick={() => window.print()}>
                   <Printer className="mr-2 h-4 w-4" /> Print
