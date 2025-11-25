@@ -118,6 +118,7 @@ export default function LoginPage() {
       </div>
        <div className="absolute bottom-4 text-center text-sm text-muted-foreground animate-fade-in-up" style={{ animationDelay: '200ms' }}>
           <p>Created by: Vikesh Patel</p>
+          <p>&copy; 2024 Vikesh Patel. All Rights Reserved.</p>
       </div>
     </div>
   );

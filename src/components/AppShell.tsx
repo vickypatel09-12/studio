@@ -43,8 +43,6 @@ function getPageTitle(pathname: string) {
       return 'Reports';
     case '/interest-calculator':
       return 'Interest Calculation Tool';
-    case '/session':
-      return 'Session Management';
     case '/allocation':
       return 'Loan Allocation';
     default:
@@ -218,7 +216,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             </header>
             <main className="flex-1 p-4 sm:p-6">{children}</main>
             <footer className="p-4 text-center text-sm text-muted-foreground no-print">
-                Created by: Vikesh Patel
+                <p>Created by: Vikesh Patel</p>
+                <p>&copy; 2024 Vikesh Patel. All Rights Reserved.</p>
             </footer>
         </div>
       </SidebarInset>
