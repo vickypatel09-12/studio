@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   SidebarMenu,
@@ -13,6 +13,7 @@ import {
   Banknote,
   FileText,
   Clock,
+  ClipboardList,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -28,6 +29,7 @@ const navItems = [
     label: 'Interest Calculation',
     icon: Calculator,
   },
+  { href: '/allocation', label: 'Loan Allocation', icon: ClipboardList },
   { href: '/session', label: 'Session Management', icon: Clock },
 ];
 
