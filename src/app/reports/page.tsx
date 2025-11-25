@@ -84,12 +84,15 @@ type MonthlyReportRow = {
 type AllTimeReportRow = {
   customerId: string;
   customerName: string;
-  totalDeposit: number;
-  totalLoanGiven: number;
-  totalLoanRepaid: number;
-  netLoanChange: number;
+  totalDepositCash: number;
+  totalDepositBank: number;
+  totalLoanGivenCash: number;
+  totalLoanGivenBank: number;
+  totalLoanRepaidCash: number;
+  totalLoanRepaidBank: number;
   latestClosingLoan: number;
-  totalInterest: number;
+  totalInterestCash: number;
+  totalInterestBank: number;
 };
 
 
@@ -265,17 +268,25 @@ function Reports() {
                 const customerDeposits = allDeposits.filter(d => d.customerId === customer.id);
                 const customerLoans = allLoans.filter(l => l.customerId === customer.id);
 
-                const totalDeposit = customerDeposits.reduce((sum, d) => sum + (d.cash || 0) + (d.bank || 0), 0);
+                const totalDepositCash = customerDeposits.reduce((sum, d) => sum + (d.cash || 0), 0);
+                const totalDepositBank = customerDeposits.reduce((sum, d) => sum + (d.bank || 0), 0);
                 
-                const totalInterest = customerLoans.reduce((sum, l) => sum + (l.interestTotal || 0), 0);
+                const totalInterestCash = customerLoans.reduce((sum, l) => sum + (l.interestCash || 0), 0);
+                const totalInterestBank = customerLoans.reduce((sum, l) => sum + (l.interestBank || 0), 0);
 
-                const loanGiven = customerLoans
+                const loanGivenCash = customerLoans
                     .filter(l => l.changeType === 'new' || l.changeType === 'increase')
-                    .reduce((sum, l) => sum + (l.changeCash || 0) + (l.changeBank || 0), 0);
+                    .reduce((sum, l) => sum + (l.changeCash || 0), 0);
+                const loanGivenBank = customerLoans
+                    .filter(l => l.changeType === 'new' || l.changeType === 'increase')
+                    .reduce((sum, l) => sum + (l.changeBank || 0), 0);
                 
-                const loanRepaid = customerLoans
+                const loanRepaidCash = customerLoans
                     .filter(l => l.changeType === 'decrease')
-                    .reduce((sum, l) => sum + (l.changeCash || 0) + (l.changeBank || 0), 0);
+                    .reduce((sum, l) => sum + (l.changeCash || 0), 0);
+                const loanRepaidBank = customerLoans
+                    .filter(l => l.changeType === 'decrease')
+                    .reduce((sum, l) => sum + (l.changeBank || 0), 0);
 
                 const latestLoanForCustomer = latestLoans.find(l => l.customerId === customer.id);
                 let latestClosingLoan = 0;
@@ -293,12 +304,15 @@ function Reports() {
                 return {
                     customerId: customer.id,
                     customerName: customer.name,
-                    totalDeposit,
-                    totalLoanGiven: loanGiven,
-                    totalLoanRepaid: loanRepaid,
-                    netLoanChange: loanGiven - loanRepaid,
+                    totalDepositCash,
+                    totalDepositBank,
+                    totalLoanGivenCash: loanGivenCash,
+                    totalLoanGivenBank: loanGivenBank,
+                    totalLoanRepaidCash: loanRepaidCash,
+                    totalLoanRepaidBank: loanRepaidBank,
                     latestClosingLoan: latestClosingLoan,
-                    totalInterest,
+                    totalInterestCash,
+                    totalInterestBank,
                 };
             });
             setGeneratedReport(report);
@@ -318,7 +332,6 @@ function Reports() {
         acc.depositBank += item.depositBank;
         acc.carryFwdLoan += item.carryFwdLoan;
 
-        const loanChange = item.loanChangeCash + item.loanChangeBank;
         if (item.loanChangeType === 'new' || item.loanChangeType === 'increase') {
              acc.loanChangeCash -= item.loanChangeCash;
              acc.loanChangeBank -= item.loanChangeBank;
@@ -340,15 +353,24 @@ function Reports() {
     
     const allTimeTotals = generatedReport && reportType === 'all-time' ? (generatedReport as AllTimeReportRow[]).reduce(
       (acc, item) => {
-          acc.totalDeposit += item.totalDeposit;
-          acc.totalLoanGiven += item.totalLoanGiven;
-          acc.totalLoanRepaid += item.totalLoanRepaid;
-          acc.netLoanChange += item.netLoanChange;
+          acc.totalDepositCash += item.totalDepositCash;
+          acc.totalDepositBank += item.totalDepositBank;
+          acc.totalLoanGivenCash += item.totalLoanGivenCash;
+          acc.totalLoanGivenBank += item.totalLoanGivenBank;
+          acc.totalLoanRepaidCash += item.totalLoanRepaidCash;
+          acc.totalLoanRepaidBank += item.totalLoanRepaidBank;
           acc.latestClosingLoan += item.latestClosingLoan;
-          acc.totalInterest += item.totalInterest;
+          acc.totalInterestCash += item.totalInterestCash;
+          acc.totalInterestBank += item.totalInterestBank;
           return acc;
       },
-      { totalDeposit: 0, totalLoanGiven: 0, totalLoanRepaid: 0, netLoanChange: 0, latestClosingLoan: 0, totalInterest: 0 }
+      { 
+        totalDepositCash: 0, totalDepositBank: 0, 
+        totalLoanGivenCash: 0, totalLoanGivenBank: 0, 
+        totalLoanRepaidCash: 0, totalLoanRepaidBank: 0, 
+        latestClosingLoan: 0, 
+        totalInterestCash: 0, totalInterestBank: 0 
+      }
     ) : null;
 
 
@@ -365,6 +387,16 @@ function Reports() {
         if (parts.length === 0) return null;
         
         return <div className="text-xs text-muted-foreground whitespace-nowrap">({parts.join(' ')})</div>;
+    };
+
+    const renderTwoLevel = (total: number, breakdown: {label: string, value: number, isCurrency?: boolean}[]) => {
+        if (total === 0) return <span>-</span>;
+        return (
+         <div className="flex flex-col items-end">
+             <div>{formatAmount(total)}</div>
+             {renderBreakdown(breakdown)}
+         </div>
+        );
     };
     
     const grandTotalSummary = (current: ReportSummary | null, prev: ReportSummary | null): ReportSummary => {
@@ -489,16 +521,6 @@ function Reports() {
                          const loanChangeTotal = item.loanChangeCash + item.loanChangeBank;
                          const interestTotal = item.interestCash + item.interestBank;
 
-                         const renderTwoLevel = (total: number, breakdown: {label: string, value: number, isCurrency?: boolean}[]) => {
-                             if (total === 0) return <span>-</span>;
-                             return (
-                              <div className="flex flex-col items-end">
-                                  <div>{formatAmount(total)}</div>
-                                  {renderBreakdown(breakdown)}
-                              </div>
-                             );
-                         };
-
                          const renderLoanChange = () => {
                              if (loanChangeTotal === 0) return <span>-</span>;
                              
@@ -538,10 +560,7 @@ function Reports() {
                        <TableRow className="font-bold bg-muted/50 text-right">
                           <TableCell colSpan={2} className="text-left">Total</TableCell>
                           <TableCell>
-                              <div className="flex flex-col items-end">
-                                  <div>{formatAmount(totals.depositCash + totals.depositBank)}</div>
-                                  {renderBreakdown([{label: 'c', value: totals.depositCash}, {label: 'b', value: totals.depositBank}])}
-                              </div>
+                              {renderTwoLevel(totals.depositCash + totals.depositBank, [{label: 'c', value: totals.depositCash}, {label: 'b', value: totals.depositBank}])}
                           </TableCell>
                           <TableCell>{totals.carryFwdLoan === 0 ? '-' : formatAmount(totals.carryFwdLoan)}</TableCell>
                           <TableCell className="text-right">
@@ -552,10 +571,7 @@ function Reports() {
                           </TableCell>
                           <TableCell>{totals.closingLoan === 0 ? '-' : formatAmount(totals.closingLoan)}</TableCell>
                           <TableCell>
-                             <div className="flex flex-col items-end">
-                                <div>{formatAmount(totals.interestCash + totals.interestBank)}</div>
-                                {renderBreakdown([{label: 'c', value: totals.interestCash}, {label: 'b', value: totals.interestBank}])}
-                            </div>
+                             {renderTwoLevel(totals.interestCash + totals.interestBank, [{label: 'c', value: totals.interestCash}, {label: 'b', value: totals.interestBank}])}
                           </TableCell>
                         </TableRow>
                       )}
@@ -575,25 +591,31 @@ function Reports() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {(generatedReport as AllTimeReportRow[]).map((item, index) => (
+                            {(generatedReport as AllTimeReportRow[]).map((item, index) => {
+                                const totalDeposit = item.totalDepositCash + item.totalDepositBank;
+                                const totalLoanGiven = item.totalLoanGivenCash + item.totalLoanGivenBank;
+                                const totalLoanRepaid = item.totalLoanRepaidCash + item.totalLoanRepaidBank;
+                                const totalInterest = item.totalInterestCash + item.totalInterestBank;
+
+                                return (
                                 <TableRow key={item.customerId}>
                                     <TableCell>{index + 1}</TableCell>
                                     <TableCell className="font-medium whitespace-nowrap customer-name-cell">{item.customerName}</TableCell>
-                                    <TableCell className="text-right">{formatAmount(item.totalDeposit)}</TableCell>
-                                    <TableCell className="text-right">{formatAmount(item.totalLoanGiven)}</TableCell>
-                                    <TableCell className="text-right">{formatAmount(item.totalLoanRepaid)}</TableCell>
-                                    <TableCell className="text-right font-medium">{formatAmount(item.latestClosingLoan)}</TableCell>
-                                    <TableCell className="text-right">{formatAmount(item.totalInterest)}</TableCell>
+                                    <TableCell className="text-right">{renderTwoLevel(totalDeposit, [{label: 'c', value: item.totalDepositCash}, {label: 'b', value: item.totalDepositBank}])}</TableCell>
+                                    <TableCell className="text-right">{renderTwoLevel(totalLoanGiven, [{label: 'c', value: item.totalLoanGivenCash}, {label: 'b', value: item.totalLoanGivenBank}])}</TableCell>
+                                    <TableCell className="text-right">{renderTwoLevel(totalLoanRepaid, [{label: 'c', value: item.totalLoanRepaidCash}, {label: 'b', value: item.totalLoanRepaidBank}])}</TableCell>
+                                    <TableCell className="text-right font-medium">{item.latestClosingLoan === 0 ? '-' : formatAmount(item.latestClosingLoan)}</TableCell>
+                                    <TableCell className="text-right">{renderTwoLevel(totalInterest, [{label: 'c', value: item.totalInterestCash}, {label: 'b', value: item.totalInterestBank}])}</TableCell>
                                 </TableRow>
-                            ))}
+                            )})}
                             {allTimeTotals && (
                                 <TableRow className="font-bold bg-muted/50 text-right">
                                     <TableCell colSpan={2} className="text-left">Grand Total</TableCell>
-                                    <TableCell>{formatAmount(allTimeTotals.totalDeposit)}</TableCell>
-                                    <TableCell>{formatAmount(allTimeTotals.totalLoanGiven)}</TableCell>
-                                    <TableCell>{formatAmount(allTimeTotals.totalLoanRepaid)}</TableCell>
-                                    <TableCell>{formatAmount(allTimeTotals.latestClosingLoan)}</TableCell>
-                                    <TableCell>{formatAmount(allTimeTotals.totalInterest)}</TableCell>
+                                    <TableCell>{renderTwoLevel(allTimeTotals.totalDepositCash + allTimeTotals.totalDepositBank, [{label: 'c', value: allTimeTotals.totalDepositCash}, {label: 'b', value: allTimeTotals.totalDepositBank}])}</TableCell>
+                                    <TableCell>{renderTwoLevel(allTimeTotals.totalLoanGivenCash + allTimeTotals.totalLoanGivenBank, [{label: 'c', value: allTimeTotals.totalLoanGivenCash}, {label: 'b', value: allTimeTotals.totalLoanGivenBank}])}</TableCell>
+                                    <TableCell>{renderTwoLevel(allTimeTotals.totalLoanRepaidCash + allTimeTotals.totalLoanRepaidBank, [{label: 'c', value: allTimeTotals.totalLoanRepaidCash}, {label: 'b', value: allTimeTotals.totalLoanRepaidBank}])}</TableCell>
+                                    <TableCell>{allTimeTotals.latestClosingLoan === 0 ? '-' : formatAmount(allTimeTotals.latestClosingLoan)}</TableCell>
+                                    <TableCell>{renderTwoLevel(allTimeTotals.totalInterestCash + allTimeTotals.totalInterestBank, [{label: 'c', value: allTimeTotals.totalInterestCash}, {label: 'b', value: allTimeTotals.totalInterestBank}])}</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
@@ -679,11 +701,11 @@ function Reports() {
                         </TableRow>
                         <TableRow>
                           <TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell>
-                          <TableCell className="py-1 px-2 text-right">{formatAmount(allTimeTotals.totalDeposit)}</TableCell>
+                          <TableCell className="py-1 px-2 text-right">{renderTwoLevel(allTimeTotals.totalDepositCash + allTimeTotals.totalDepositBank, [{label: 'c', value: allTimeTotals.totalDepositCash}, {label: 'b', value: allTimeTotals.totalDepositBank}])}</TableCell>
                         </TableRow>
                         <TableRow>
                           <TableCell className="py-1 px-2 font-medium">Total Interest</TableCell>
-                          <TableCell className="py-1 px-2 text-right">{formatAmount(allTimeTotals.totalInterest)}</TableCell>
+                          <TableCell className="py-1 px-2 text-right">{renderTwoLevel(allTimeTotals.totalInterestCash + allTimeTotals.totalInterestBank, [{label: 'c', value: allTimeTotals.totalInterestCash}, {label: 'b', value: allTimeTotals.totalInterestBank}])}</TableCell>
                         </TableRow>
                         <TableRow>
                           <td colSpan={2} className="py-1 px-2 font-bold text-center bg-muted/50">Loan Section</td>
@@ -694,7 +716,7 @@ function Reports() {
                         </TableRow>
                         <TableRow className="font-bold bg-muted/20">
                           <TableCell className="py-1 px-2 font-medium">Net Balance</TableCell>
-                          <TableCell className="py-1 px-2 text-right">{formatAmount(allTimeTotals.totalDeposit + allTimeTotals.totalInterest - allTimeTotals.latestClosingLoan)}</TableCell>
+                          <TableCell className="py-1 px-2 text-right">{formatAmount((allTimeTotals.totalDepositCash + allTimeTotals.totalDepositBank) + (allTimeTotals.totalInterestCash + allTimeTotals.totalInterestBank) - allTimeTotals.latestClosingLoan)}</TableCell>
                         </TableRow>
                       </TableBody>
                     </Table>
