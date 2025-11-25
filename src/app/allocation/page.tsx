@@ -79,7 +79,7 @@ function LoanAllocation() {
   const { data: allDbDeposits, isLoading: depositsLoading } = useCollection<MonthlyDepositDoc>(allDepositsQuery);
   const { data: allDbLoans, isLoading: loansLoading } = useCollection<MonthlyLoanDoc>(allLoansQuery);
 
-  const availableBalance = useMemo(() => {
+  const totalCredited = useMemo(() => {
      if (depositsLoading || loansLoading) return 0;
     
     const combinedDeposits: MonthlyDepositDoc[] = [...(allDbDeposits || [])];
@@ -113,36 +113,25 @@ function LoanAllocation() {
         totalDeposits += (deposit.cash || 0) + (deposit.bank || 0);
       });
     });
-
-    let currentOutstandingLoans = 0;
+    
+    let totalRepayments = 0;
     combinedLoans?.forEach(month => {
       const monthData = month.loans || month.draft || [];
       monthData.forEach(loan => {
         totalInterest += (loan as any).interestTotal || 0;
+        if (loan.changeType === 'decrease') {
+            totalRepayments += (loan.changeCash || 0) + (loan.changeBank || 0);
+        }
       });
     });
-    
-    const latestMonth = combinedLoans?.sort((a,b) => b.id.localeCompare(a.id))[0];
-    const latestLoansData = latestMonth?.loans || latestMonth?.draft || [];
-    currentOutstandingLoans = latestLoansData.reduce((total, loan) => {
-      const changeTotal = (loan.changeCash || 0) + (loan.changeBank || 0);
-      let adjustment = 0;
-      if (loan.changeType === 'new' || loan.changeType === 'increase') {
-        adjustment = changeTotal;
-      } else if (loan.changeType === 'decrease') {
-        adjustment = -changeTotal;
-      }
-      return total + (loan.carryFwd || 0) + adjustment;
-    }, 0);
 
-
-    return totalDeposits + totalInterest - currentOutstandingLoans;
+    return totalDeposits + totalInterest + totalRepayments;
 
   }, [allDbDeposits, allDbLoans, liveMonthId, liveDeposits, liveLoans, depositsLoading, loansLoading]);
   
   useEffect(() => {
-    setTotalFund(availableBalance);
-  }, [availableBalance]);
+    setTotalFund(totalCredited);
+  }, [totalCredited]);
 
   useEffect(() => {
     if (customers) {
