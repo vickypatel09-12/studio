@@ -30,7 +30,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Printer, CalendarIcon, Loader2, AlertTriangle } from 'lucide-react';
+import { Printer, CalendarIcon, Loader2, AlertTriangle, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, startOfMonth, subMonths } from 'date-fns';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
@@ -415,6 +415,50 @@ function Reports() {
             closingBalance: summary.totalDeposit - summary.totalOutstandingLoan + summary.totalInterest,
         }
     }
+
+    const handleSendToWhatsApp = () => {
+    if (!generatedReport) {
+      toast({
+        variant: 'destructive',
+        title: 'No Report Generated',
+        description: 'Please generate a report before sending.',
+      });
+      return;
+    }
+
+    let summaryText = '';
+    const formatValue = (val: number) => `₹${val.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+
+    if (reportType === 'monthly' && currentMonthSummary && previousMonthSummary) {
+        summaryText = `*Monthly Report Summary for ${format(selectedDate, 'MMMM yyyy')}*\n\n`;
+        summaryText += `*Opening Balance:* ${formatValue(previousMonthSummary.closingBalance)}\n`;
+        summaryText += `*Total Deposits:* ${formatValue(currentMonthSummary.totalDeposit)}\n`;
+        summaryText += `*Total Interest:* ${formatValue(currentMonthSummary.totalInterest)}\n`;
+        summaryText += `*Loan Repayments:* ${formatValue(currentMonthSummary.loanDecrease)}\n`;
+        summaryText += `*New Loans Given:* ${formatValue(currentMonthSummary.loanIncrease)}\n`;
+        summaryText += `*Closing Balance:* ${formatValue(currentMonthSummary.closingBalance)}\n\n`;
+        summaryText += `*Outstanding Loan (End of Month):* ${formatValue(currentMonthSummary.totalOutstandingLoan)}`;
+    } else if (reportType === 'all-time' && allTimeTotals) {
+        const netBalance = (allTimeTotals.totalDepositCash + allTimeTotals.totalDepositBank) + (allTimeTotals.totalInterestCash + allTimeTotals.totalInterestBank) - allTimeTotals.latestClosingLoan;
+        summaryText = `*All-Time Financial Summary*\n\n`;
+        summaryText += `*Total Deposits:* ${formatValue(allTimeTotals.totalDepositCash + allTimeTotals.totalDepositBank)}\n`;
+        summaryText += `*Total Interest Received:* ${formatValue(allTimeTotals.totalInterestCash + allTimeTotals.totalInterestBank)}\n`;
+        summaryText += `*Total Loans Given:* ${formatValue(allTimeTotals.totalLoanGivenCash + allTimeTotals.totalLoanGivenBank)}\n`;
+        summaryText += `*Total Loans Repaid:* ${formatValue(allTimeTotals.totalLoanRepaidCash + allTimeTotals.totalLoanRepaidBank)}\n\n`;
+        summaryText += `*Current Outstanding Loan:* ${formatValue(allTimeTotals.latestClosingLoan)}\n`;
+        summaryText += `*Net Balance:* ${formatValue(netBalance)}`;
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Cannot Send',
+        description: 'Report data is incomplete.',
+      });
+      return;
+    }
+    
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(summaryText)}`;
+    window.open(whatsappUrl, '_blank');
+  };
     
   return (
     <>
@@ -726,9 +770,12 @@ function Reports() {
                 </div>
               )}
 
-               <CardFooter className="flex justify-end gap-2 no-print">
-                <Button variant="outline" onClick={() => window.print()}>
+               <CardFooter className="flex justify-center gap-2 no-print">
+                 <Button onClick={() => window.print()}>
                   <Printer className="mr-2 h-4 w-4" /> Print
+                </Button>
+                 <Button variant="outline" onClick={handleSendToWhatsApp}>
+                  <MessageCircle className="mr-2 h-4 w-4" /> Send to WhatsApp
                 </Button>
               </CardFooter>
 
