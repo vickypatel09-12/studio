@@ -254,8 +254,8 @@ function Reports() {
                 getDocs(loansCollectionRef),
             ]);
 
-            const allDeposits = depositDocs.docs.flatMap(doc => (doc.data() as MonthlyDepositDoc).deposits || []);
-            const allLoans = loanDocs.docs.flatMap(doc => (doc.data() as MonthlyLoanDoc).loans || []);
+            const allDeposits = depositDocs.docs.flatMap(doc => (doc.data() as MonthlyDepositDoc).deposits || (doc.data() as MonthlyDepositDoc).draft || []);
+            const allLoans = loanDocs.docs.flatMap(doc => (doc.data() as MonthlyLoanDoc).loans || (doc.data() as MonthlyLoanDoc).draft || []);
             
             const latestMonthId = loanDocs.docs.map(doc => doc.id).sort().pop();
             const latestLoansData = latestMonthId ? (await getDoc(doc(loansCollectionRef, latestMonthId))).data() as MonthlyLoanDoc : null;
@@ -266,6 +266,7 @@ function Reports() {
                 const customerLoans = allLoans.filter(l => l.customerId === customer.id);
 
                 const totalDeposit = customerDeposits.reduce((sum, d) => sum + (d.cash || 0) + (d.bank || 0), 0);
+                
                 const totalInterest = customerLoans.reduce((sum, l) => sum + (l.interestTotal || 0), 0);
 
                 const loanGiven = customerLoans
