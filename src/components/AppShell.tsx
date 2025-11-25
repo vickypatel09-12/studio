@@ -45,6 +45,8 @@ function getPageTitle(pathname: string) {
       return 'Interest Calculation Tool';
     case '/session':
       return 'Session Management';
+    case '/allocation':
+      return 'Loan Allocation';
     default:
       if (pathname.startsWith('/customers/')) return 'Customer Details';
       return 'Bachat Bank ERP';
@@ -191,29 +193,34 @@ export function AppShell({ children }: { children: ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm lg:px-6 no-print">
-          <SidebarTrigger className="group-data-[collapsible=icon]:hidden" />
-          <div className="flex-1">
-            <h1 className="font-headline text-lg font-semibold">{title}</h1>
-          </div>
-           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground">Session:</span>
-             <Badge
-                variant={session?.status === 'active' ? 'default' : 'secondary'}
-                className={
-                    session?.status === 'active'
-                    ? 'bg-green-500 text-white'
-                    : session?.status === 'closed'
-                    ? 'bg-destructive'
-                    : 'bg-muted'
-                }
-                >
-                {sessionInfo.status}
-                </Badge>
-                {sessionInfo.details && <span className="text-xs text-muted-foreground">{sessionInfo.details}</span>}
-          </div>
-        </header>
-        <main className="p-4 sm:p-6">{children}</main>
+        <div className="flex flex-col min-h-svh">
+            <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm lg:px-6 no-print">
+            <SidebarTrigger className="group-data-[collapsible=icon]:hidden" />
+            <div className="flex-1">
+                <h1 className="font-headline text-lg font-semibold">{title}</h1>
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground">Session:</span>
+                <Badge
+                    variant={session?.status === 'active' ? 'default' : 'secondary'}
+                    className={
+                        session?.status === 'active'
+                        ? 'bg-green-500 text-white'
+                        : session?.status === 'closed'
+                        ? 'bg-destructive'
+                        : 'bg-muted'
+                    }
+                    >
+                    {sessionInfo.status}
+                    </Badge>
+                    {sessionInfo.details && <span className="text-xs text-muted-foreground">{sessionInfo.details}</span>}
+            </div>
+            </header>
+            <main className="flex-1 p-4 sm:p-6">{children}</main>
+            <footer className="p-4 text-center text-sm text-muted-foreground no-print">
+                Created by: Vikesh Patel
+            </footer>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );
