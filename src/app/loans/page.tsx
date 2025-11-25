@@ -209,6 +209,7 @@ function Loans() {
                 interestCash: interestTotal,
                 interestBank: 0,
                 interestTotal: interestTotal,
+                isInterestDone: false,
                 isDone: false,
                 };
             });
@@ -230,6 +231,7 @@ function Loans() {
             interestCash: 0,
             interestBank: 0,
             interestTotal: 0,
+            isInterestDone: false,
             isDone: false,
           }));
           toast({
@@ -292,7 +294,11 @@ function Loans() {
                 if (savedLoan.carryFwd > 0 && savedLoan.changeType === 'new') {
                     savedLoan.changeType = 'increase';
                 }
-                return savedLoan;
+                return {
+                    ...savedLoan,
+                    isInterestDone: savedLoan.isInterestDone ?? false,
+                    isDone: savedLoan.isDone ?? false,
+                };
               }
 
               return {
@@ -304,6 +310,7 @@ function Loans() {
                   interestCash: 0,
                   interestBank: 0,
                   interestTotal: 0,
+                  isInterestDone: false,
                   isDone: false,
                 };
             });
@@ -386,7 +393,7 @@ function Loans() {
 
   const handleLoanChange = (
     customerId: string,
-    field: keyof Omit<Loan, 'customerId' | 'interestTotal' | 'isDone'>,
+    field: keyof Omit<Loan, 'customerId' | 'interestTotal' | 'isDone' | 'isInterestDone'>,
     value: string | number
   ) => {
     setIsDraftSaved(false);
@@ -413,6 +420,15 @@ function Loans() {
         }
         return loan;
       })
+    );
+  };
+  
+  const handleInterestDoneChange = (customerId: string, isChecked: boolean) => {
+    setIsDraftSaved(false);
+    setLoans((prev) =>
+      prev.map((loan) =>
+        loan.customerId === customerId ? { ...loan, isInterestDone: isChecked } : loan
+      )
     );
   };
   
@@ -459,6 +475,7 @@ function Loans() {
                 interestCash: 0,
                 interestBank: 0,
                 interestTotal: 0,
+                isInterestDone: false,
                 isDone: false,
             };
             return [...prevLoans, newLoanEntry];
@@ -786,7 +803,7 @@ function Loans() {
                       <TableHead rowSpan={2} className="w-[150px] text-right">
                         Carry Fwd
                       </TableHead>
-                      <TableHead colSpan={3} className="text-center">
+                      <TableHead colSpan={4} className="text-center">
                         Interest
                       </TableHead>
                        <TableHead colSpan={4} className="text-center">
@@ -804,6 +821,7 @@ function Loans() {
                       <TableHead className="w-[150px] text-right">
                         Total
                       </TableHead>
+                      <TableHead className="w-[80px] text-center print-hide">Done</TableHead>
                       <TableHead className="w-[150px]">Type</TableHead>
                       <TableHead className="w-[150px] text-right">
                         Cash
@@ -821,8 +839,8 @@ function Loans() {
                       const changeTotal = getChangeTotal(loan);
                       const isRowEmpty = (loan.carryFwd || 0) === 0 && changeTotal === 0 && (loan.interestTotal || 0) === 0;
                       const isRowDisabled = !isSessionActive || isSubmitted;
-                      const isInterestDisabled = isRowDisabled || loan.isDone;
-                      const isLoanChangeDisabled = isRowDisabled || !loan.isDone;
+                      const isInterestDisabled = isRowDisabled || loan.isInterestDone;
+                      const isLoanChangeDisabled = isRowDisabled || !loan.isInterestDone || loan.isDone;
 
                       return (
                         <TableRow key={loan.customerId} className={cn(isRowEmpty ? 'print-hide-row' : '', loan.isDone && 'bg-green-100/50 dark:bg-green-900/20')}>
@@ -882,6 +900,14 @@ function Loans() {
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             ₹{loan.interestTotal.toFixed(2)}
+                          </TableCell>
+                           <TableCell className="text-center print-hide">
+                            <Checkbox
+                              checked={loan.isInterestDone}
+                              onCheckedChange={(checked) => handleInterestDoneChange(loan.customerId, !!checked)}
+                              disabled={isRowDisabled}
+                              aria-label="Mark interest as done"
+                            />
                           </TableCell>
                           <TableCell>
                             <div className="print-hide">
@@ -957,8 +983,8 @@ function Loans() {
                             <Checkbox
                               checked={loan.isDone}
                               onCheckedChange={(checked) => handleDoneChange(loan.customerId, !!checked)}
-                              disabled={isRowDisabled}
-                              aria-label="Mark as done"
+                              disabled={isRowDisabled || !loan.isInterestDone}
+                              aria-label="Mark loan change as done"
                             />
                           </TableCell>
                         </TableRow>
@@ -966,7 +992,7 @@ function Loans() {
                     })}
                      {displayedLoanData.length === 0 && (
                         <TableRow>
-                            <TableCell colSpan={11} className="text-center h-24 text-muted-foreground">
+                            <TableCell colSpan={12} className="text-center h-24 text-muted-foreground">
                                 No active loans for this month. Use 'New Loan' to add one.
                             </TableCell>
                         </TableRow>
@@ -979,6 +1005,7 @@ function Loans() {
                       <TableCell>₹{totals.interestCash.toFixed(2)}</TableCell>
                       <TableCell>₹{totals.interestBank.toFixed(2)}</TableCell>
                       <TableCell>₹{totals.interestTotal.toFixed(2)}</TableCell>
+                      <TableCell></TableCell>
                       <TableCell></TableCell>
                       <TableCell>₹{totals.changeCash.toFixed(2)}</TableCell>
                       <TableCell>₹{totals.changeBank.toFixed(2)}</TableCell>

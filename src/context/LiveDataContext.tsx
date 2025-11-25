@@ -19,6 +19,7 @@ export type Loan = {
   interestCash: number;
   interestBank: number;
   interestTotal: number;
+  isInterestDone: boolean;
   isDone: boolean;
 };
 
