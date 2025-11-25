@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useMemo, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -192,7 +193,7 @@ function LoanAllocation() {
     return allocations.reduce(
       (acc, alloc) => {
         const outstanding = outstandingLoans.get(alloc.customerId) || 0;
-        const totalPayable = outstanding + alloc.allocatedFund;
+        const totalPayable = alloc.allocatedFund - outstanding;
         acc.allocatedFund += alloc.allocatedFund;
         acc.outstandingLoan += outstanding;
         acc.totalPayable += totalPayable;
@@ -256,7 +257,7 @@ function LoanAllocation() {
             {customers?.map((customer, index) => {
               const allocation = allocations.find(a => a.customerId === customer.id) || { allocatedFund: 0 };
               const outstanding = outstandingLoans.get(customer.id) || 0;
-              const totalPayable = outstanding + allocation.allocatedFund;
+              const totalPayable = allocation.allocatedFund - outstanding;
 
               return (
                 <TableRow key={customer.id}>
