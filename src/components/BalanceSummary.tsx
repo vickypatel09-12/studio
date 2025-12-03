@@ -25,6 +25,7 @@ type Loan = {
   interestBank: number;
   interestTotal: number;
   isDone: boolean;
+  isInterestDone: boolean;
 };
 type MonthlyLoanDoc = {
   id: string; // yyyy-MM
@@ -108,11 +109,15 @@ export function BalanceSummary() {
     // Calculate historical totals for interest, repayments, and loans given
     combinedLoans.forEach((month) => {
       const data = month.loans || month.draft || [];
-      const doneData = data.filter(l => l.isDone);
-      doneData.forEach((loan) => {
-        allTimeTotals.interest.cash += loan.interestCash || 0;
-        allTimeTotals.interest.bank += loan.interestBank || 0;
-        
+      
+      const doneInterestData = data.filter(l => l.isInterestDone);
+      doneInterestData.forEach((loan) => {
+          allTimeTotals.interest.cash += loan.interestCash || 0;
+          allTimeTotals.interest.bank += loan.interestBank || 0;
+      });
+
+      const doneLoanChangeData = data.filter(l => l.isDone);
+      doneLoanChangeData.forEach((loan) => {
         if (loan.changeType === 'decrease') {
             allTimeTotals.repayments.cash += loan.changeCash || 0;
             allTimeTotals.repayments.bank += loan.changeBank || 0;
@@ -130,9 +135,9 @@ export function BalanceSummary() {
     // Calculate total outstanding loans from the latest month available
     const latestMonth = combinedLoans?.sort((a, b) => b.id.localeCompare(a.id))[0];
     const latestLoans = latestMonth?.loans || latestMonth?.draft || [];
-    const latestDoneLoans = latestLoans.filter(l => l.isDone);
 
-    const outstandingLoansValue = latestDoneLoans.reduce((total, loan) => {
+    const outstandingLoansValue = latestLoans.reduce((total, loan) => {
+      if (!loan.isDone) return total; // Only count "Done" loans towards outstanding
       const changeTotal = (loan.changeCash || 0) + (loan.changeBank || 0);
       let adjustment = 0;
       if (loan.changeType === 'new' || loan.changeType === 'increase') {
@@ -153,7 +158,7 @@ export function BalanceSummary() {
     totalCredited.total = totalCredited.cash + totalCredited.bank;
 
     
-    const availableBalanceValue = totalCredited.total - outstandingLoansValue;
+    const availableBalanceValue = totalCredited.total - allTimeTotals.loansGiven.total;
     const availableCashValue = totalCredited.cash - allTimeTotals.loansGiven.cash;
     const availableBankValue = totalCredited.bank - allTimeTotals.loansGiven.bank;
     
