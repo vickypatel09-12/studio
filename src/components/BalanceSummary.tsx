@@ -137,7 +137,6 @@ export function BalanceSummary() {
     const latestLoans = latestMonth?.loans || latestMonth?.draft || [];
 
     const outstandingLoansValue = latestLoans.reduce((total, loan) => {
-      if (!loan.isDone) return total; // Only count "Done" loans towards outstanding
       const changeTotal = (loan.changeCash || 0) + (loan.changeBank || 0);
       let adjustment = 0;
       if (loan.changeType === 'new' || loan.changeType === 'increase') {
