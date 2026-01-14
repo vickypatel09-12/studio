@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Printer, CalendarIcon, Loader2, AlertTriangle, MessageCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, generateCustomerId } from '@/lib/utils';
 import { format, startOfMonth, subMonths } from 'date-fns';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, doc, getDoc, getDocs, orderBy } from 'firebase/firestore';
@@ -119,6 +119,7 @@ function Reports() {
 
   const [currentMonthSummary, setCurrentMonthSummary] = useState<ReportSummary | null>(null);
   const [previousMonthSummary, setPreviousMonthSummary] = useState<ReportSummary | null>(null);
+  const [prePreviousMonthSummary, setPrePreviousMonthSummary] = useState<ReportSummary | null>(null);
 
 
   const customersQuery = useMemoFirebase(() => {
@@ -175,9 +176,10 @@ function Reports() {
     setGeneratedReport(null);
     setCurrentMonthSummary(null);
     setPreviousMonthSummary(null);
+    setPrePreviousMonthSummary(null);
 
     if (reportType === 'monthly') {
-        const fetchMonthData = async (date: Date) => {
+        const fetchMonthData = async (date: Date): Promise<MonthlyReportRow[] | null> => {
             const monthId = getMonthId(date);
             const depositDocRef = doc(firestore, 'monthlyDeposits', monthId);
             const loanDocRef = doc(firestore, 'monthlyLoans', monthId);
@@ -223,9 +225,14 @@ function Reports() {
         };
       
       try {
+        const prePreviousMonthDate = subMonths(selectedDate, 2);
+        const prePreviousMonthData = await fetchMonthData(prePreviousMonthDate);
+        const prePrevSummary = calculateSummary(prePreviousMonthData);
+        setPrePreviousMonthSummary(prePrevSummary);
+
         const prevMonthDate = subMonths(selectedDate, 1);
         const previousMonthData = await fetchMonthData(prevMonthDate);
-        const prevSummary = calculateSummary(previousMonthData);
+        const prevSummary = calculateSummary(previousMonthData, prePrevSummary.closingBalance);
         setPreviousMonthSummary(prevSummary);
 
         const currentMonthData = await fetchMonthData(selectedDate);
@@ -628,6 +635,7 @@ function Reports() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Sr.</TableHead>
+                                <TableHead>Customer ID</TableHead>
                                 <TableHead>Customer</TableHead>
                                 <TableHead className="text-right">Total Deposit</TableHead>
                                 <TableHead className="text-right">Total Loan Given</TableHead>
@@ -646,6 +654,7 @@ function Reports() {
                                 return (
                                 <TableRow key={item.customerId}>
                                     <TableCell>{index + 1}</TableCell>
+                                    <TableCell>{generateCustomerId(item.customerName, index + 1)}</TableCell>
                                     <TableCell className="font-medium whitespace-nowrap customer-name-cell">{item.customerName}</TableCell>
                                     <TableCell className="text-right">{renderTwoLevel(totalDeposit, [{label: 'c', value: item.totalDepositCash}, {label: 'b', value: item.totalDepositBank}], 'text-green-600')}</TableCell>
                                     <TableCell className="text-right">{renderTwoLevel(totalLoanGiven, [{label: 'c', value: item.totalLoanGivenCash}, {label: 'b', value: item.totalLoanGivenBank}], 'text-red-600')}</TableCell>
@@ -656,7 +665,7 @@ function Reports() {
                             )})}
                             {allTimeTotals && (
                                 <TableRow className="font-bold bg-muted/50 text-right">
-                                    <TableCell colSpan={2} className="text-left">Grand Total</TableCell>
+                                    <TableCell colSpan={3} className="text-left">Grand Total</TableCell>
                                     <TableCell>{renderTwoLevel(allTimeTotals.totalDepositCash + allTimeTotals.totalDepositBank, [{label: 'c', value: allTimeTotals.totalDepositCash}, {label: 'b', value: allTimeTotals.totalDepositBank}], 'text-green-600')}</TableCell>
                                     <TableCell>{renderTwoLevel(allTimeTotals.totalLoanGivenCash + allTimeTotals.totalLoanGivenBank, [{label: 'c', value: allTimeTotals.totalLoanGivenCash}, {label: 'b', value: allTimeTotals.totalLoanGivenBank}], 'text-red-600')}</TableCell>
                                     <TableCell>{renderTwoLevel(allTimeTotals.totalLoanRepaidCash + allTimeTotals.totalLoanRepaidBank, [{label: 'c', value: allTimeTotals.totalLoanRepaidCash}, {label: 'b', value: allTimeTotals.totalLoanRepaidBank}], 'text-green-600')}</TableCell>
@@ -678,6 +687,7 @@ function Reports() {
                             <h3 className="font-bold text-center mb-2">Previous Month</h3>
                             <Table>
                                 <TableBody>
+                                <TableRow><TableCell className="py-1 px-2 font-medium">Carry Fwd Closing Balance</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(prePreviousMonthSummary?.closingBalance || 0)}</TableCell></TableRow>
                                 <TableRow>
                                     <td colSpan={2} className="py-1 px-2 font-bold text-center bg-muted/50">Deposit Section</td>
                                 </TableRow>
