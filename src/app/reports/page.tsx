@@ -419,7 +419,7 @@ function Reports() {
         };
         return {
             ...summary,
-            closingBalance: summary.totalDeposit - summary.totalOutstandingLoan + summary.totalInterest,
+            closingBalance: summary.totalDeposit + summary.totalInterest - summary.totalOutstandingLoan,
         }
     }
 
