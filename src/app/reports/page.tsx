@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect } from 'react';
 import {
@@ -120,6 +121,7 @@ function Reports() {
   const [currentMonthSummary, setCurrentMonthSummary] = useState<ReportSummary | null>(null);
   const [previousMonthSummary, setPreviousMonthSummary] = useState<ReportSummary | null>(null);
   const [prePreviousMonthSummary, setPrePreviousMonthSummary] = useState<ReportSummary | null>(null);
+  const [grandTotalSummary, setGrandTotalSummary] = useState<ReportSummary | null>(null);
 
 
   const customersQuery = useMemoFirebase(() => {
@@ -177,6 +179,7 @@ function Reports() {
     setCurrentMonthSummary(null);
     setPreviousMonthSummary(null);
     setPrePreviousMonthSummary(null);
+    setGrandTotalSummary(null);
 
     if (reportType === 'monthly') {
         const fetchMonthData = async (date: Date): Promise<MonthlyReportRow[] | null> => {
@@ -236,7 +239,34 @@ function Reports() {
         setPreviousMonthSummary(prevSummary);
 
         const currentMonthData = await fetchMonthData(selectedDate);
-        setCurrentMonthSummary(calculateSummary(currentMonthData, prevSummary.closingBalance));
+        const currentSummary = calculateSummary(currentMonthData, prevSummary.closingBalance);
+        setCurrentMonthSummary(currentSummary);
+
+        // Fetch all time data for grand total
+        const depositsCollectionRef = collection(firestore, 'monthlyDeposits');
+        const loansCollectionRef = collection(firestore, 'monthlyLoans');
+        const [depositDocs, loanDocs] = await Promise.all([
+            getDocs(depositsCollectionRef),
+            getDocs(loansCollectionRef),
+        ]);
+        const allDeposits = depositDocs.docs.flatMap(doc => (doc.data() as MonthlyDepositDoc).deposits || (doc.data() as MonthlyDepositDoc).draft || []);
+        const allLoans = loanDocs.docs.flatMap(doc => (doc.data() as MonthlyLoanDoc).loans || (doc.data() as MonthlyLoanDoc).draft || []);
+        
+        const totalDeposit = allDeposits.reduce((sum, d) => sum + (d.cash || 0) + (d.bank || 0), 0);
+        const totalInterest = allLoans.reduce((sum, l) => sum + (l.interestCash || 0) + (l.interestBank || 0), 0);
+        const totalOutstandingLoan = currentSummary.totalOutstandingLoan; // From current month summary
+
+        setGrandTotalSummary({
+            totalDeposit: totalDeposit,
+            totalInterest: totalInterest,
+            totalOutstandingLoan: totalOutstandingLoan,
+            closingBalance: totalDeposit + totalInterest - totalOutstandingLoan,
+            totalCarryFwdLoan: 0,
+            totalNewIncDec: 0,
+            loanDecrease: 0,
+            loanIncrease: 0,
+        });
+
 
         if (!currentMonthData) {
             toast({
@@ -405,23 +435,6 @@ function Reports() {
          </div>
         );
     };
-    
-    const grandTotalSummary = (current: ReportSummary | null, prev: ReportSummary | null): ReportSummary => {
-        const summary = {
-            totalDeposit: (current?.totalDeposit || 0) + (prev?.totalDeposit || 0),
-            totalCarryFwdLoan: (prev?.totalOutstandingLoan || 0),
-            totalNewIncDec: current?.totalNewIncDec || 0,
-            totalOutstandingLoan: current?.totalOutstandingLoan || 0,
-            totalInterest: (current?.totalInterest || 0) + (prev?.totalInterest || 0),
-            closingBalance: 0,
-            loanDecrease: (current?.loanDecrease || 0) + (prev?.loanDecrease || 0),
-            loanIncrease: (current?.loanIncrease || 0) + (prev?.loanIncrease || 0),
-        };
-        return {
-            ...summary,
-            closingBalance: summary.totalDeposit + summary.totalInterest - summary.totalOutstandingLoan,
-        }
-    }
 
     const handleSendToWhatsApp = () => {
     if (!generatedReport) {
@@ -732,13 +745,13 @@ function Reports() {
                                      <TableRow>
                                         <td colSpan={2} className="py-1 px-2 font-bold text-center bg-muted/50">Deposit Section</td>
                                     </TableRow>
-                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell><TableCell className="py-1 px-2 text-right text-green-600">{formatAmount(grandTotalSummary(currentMonthSummary, previousMonthSummary).totalDeposit)}</TableCell></TableRow>
-                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Interest</TableCell><TableCell className="py-1 px-2 text-right text-green-600">{formatAmount(grandTotalSummary(currentMonthSummary, previousMonthSummary).totalInterest)}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Deposit</TableCell><TableCell className="py-1 px-2 text-right text-green-600">{formatAmount(grandTotalSummary?.totalDeposit || 0)}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Interest</TableCell><TableCell className="py-1 px-2 text-right text-green-600">{formatAmount(grandTotalSummary?.totalInterest || 0)}</TableCell></TableRow>
                                     <TableRow>
                                         <td colSpan={2} className="py-1 px-2 font-bold text-center bg-muted/50">Loan Section</td>
                                     </TableRow>
-                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Outstanding Loan</TableCell><TableCell className="py-1 px-2 text-right text-red-600">-{formatAmount(grandTotalSummary(currentMonthSummary, previousMonthSummary).totalOutstandingLoan)}</TableCell></TableRow>
-                                    <TableRow className="font-bold bg-muted/20"><TableCell className="py-1 px-2 font-medium">Net Balance</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(grandTotalSummary(currentMonthSummary, previousMonthSummary).closingBalance)}</TableCell></TableRow>
+                                    <TableRow><TableCell className="py-1 px-2 font-medium">Total Outstanding Loan</TableCell><TableCell className="py-1 px-2 text-right text-red-600">-{formatAmount(grandTotalSummary?.totalOutstandingLoan || 0)}</TableCell></TableRow>
+                                    <TableRow className="font-bold bg-muted/20"><TableCell className="py-1 px-2 font-medium">Net Balance</TableCell><TableCell className="py-1 px-2 text-right">{formatAmount(grandTotalSummary?.closingBalance || 0)}</TableCell></TableRow>
                                 </TableBody>
                             </Table>
                         </div>
@@ -814,3 +827,5 @@ export default function ReportsPage() {
     </AppShell>
   );
 }
+
+    
